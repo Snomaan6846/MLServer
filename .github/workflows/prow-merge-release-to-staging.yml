@@ -1,4 +1,4 @@
-name: "Prow Merge release-* Branch to rhoai-staging Branch"
+name: Prow Merge release-* Branch to rhoai-staging Branch
 
 on:
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
 env:
   UPSTREAM_URL: "https://github.com/opendatahub-io/MLServer.git"
   RELEASE_BRANCH: ${{ github.ref_name }}
-  TARGET_BRANCH: "rhoai-staging"
 
 jobs:
   auto-merge:
@@ -16,56 +15,103 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: rhoai-staging
+          ref: master
           fetch-depth: 0
+      - name: Fetch required branches
+        run: |
+          git fetch origin rhoai-staging
+          git fetch origin $RELEASE_BRANCH
+      - name: Validate Sync Status
+        id: validate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if there is any open sync PR from this release branch
+          EXISTING_PR=$(gh pr list \
+            --base "rhoai-staging" \
+            --json number,headRefName \
+            --jq ".[] | select(.headRefName | startswith(\"sync/${RELEASE_BRANCH}\")) | .number" \
+            | head -n1)
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR already exists for syncing $RELEASE_BRANCH to rhoai-staging."
+            echo "Please close any outstanding syncs from $RELEASE_BRANCH to rhoai-staging before proceeding."
+            exit 1
+          fi
+
+          # Check if there are any changes to sync (excluding release workflow files)
+          if ! git diff --quiet \
+            "origin/rhoai-staging..origin/$RELEASE_BRANCH" \
+            -- . \
+            ':!.tekton/mlserver-push.yaml' \
+            ':!.github/workflows/prow-merge-release-to-staging.yml' \
+            ':!.github/workflows/create-and-bump-tag.yml'; then
+            echo "Changes detected between $RELEASE_BRANCH and rhoai-staging. Proceeding with PR creation."
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to sync from $RELEASE_BRANCH to rhoai-staging (excluding release workflow files)."
+            echo "The branches are already in sync."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
       - name: Sync ${{ github.ref_name }} to rhoai-staging
+        if: steps.validate.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Generate sync branch name with timestamp
-          SYNC_BRANCH="sync-${RELEASE_BRANCH}-$(date +%Y-%m-%d-%H%M%S)"
-
-          # Check if there is any open sync PR from this release branch
-          EXISTING_PR=$(gh pr list --base "$TARGET_BRANCH" --json number,headRefName --jq ".[] | select(.headRefName | startswith(\"sync-${RELEASE_BRANCH}-\")) | .number" | head -n1)
-          if [ -n "$EXISTING_PR" ]; then
-            echo "PR #$EXISTING_PR already exists for syncing $RELEASE_BRANCH to $TARGET_BRANCH."
-            echo "Please close any outstanding syncs from $RELEASE_BRANCH to $TARGET_BRANCH before proceeding."
-            exit 1
-          fi
-
+          SYNC_BRANCH="sync/${RELEASE_BRANCH}-$(date +%Y-%m-%d-%H%M%S)"
+          
           # Configure git
           git config user.name "Sync Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Create new branch from current HEAD (rhoai-staging)
-          git checkout -b "$SYNC_BRANCH"
+          git checkout -b "$SYNC_BRANCH" origin/rhoai-staging
 
           # Perform the merge to maintain commit history
-          git merge "origin/$RELEASE_BRANCH" --no-commit --no-ff
+          git merge --no-edit "origin/$RELEASE_BRANCH"
 
-          # Restore the files we want to keep from TARGET_BRANCH
-          git checkout "$TARGET_BRANCH" -- .tekton/mlserver-push.yaml
-          git checkout "$TARGET_BRANCH" -- .github/workflows/prow-merge-release-to-staging.yml
-          git checkout "$TARGET_BRANCH" -- .github/workflows/create-and-bump-tag.yml
+          # Exclude release workflow files by restoring them from rhoai-staging or removing them
+          FILES_TO_EXCLUDE=(
+            ".tekton/mlserver-push.yaml"
+            ".github/workflows/prow-merge-release-to-staging.yml"
+            ".github/workflows/create-and-bump-tag.yml"
+          )
 
-          # Complete the merge
-          git commit -m "Sync $RELEASE_BRANCH to $TARGET_BRANCH"
+          for file in "${FILES_TO_EXCLUDE[@]}"; do
+            if git ls-tree -r origin/rhoai-staging --name-only | grep -q "^${file}$"; then
+              # File exists on rhoai-staging, restore it
+              echo "Restoring $file from rhoai-staging"
+              git checkout origin/rhoai-staging -- "$file"
+            else
+              # File doesn't exist on rhoai-staging, remove it
+              if [ -f "$file" ]; then
+                echo "Removing $file (not present on rhoai-staging)"
+                git rm "$file"
+              fi
+            fi
+          done
+
+          # Commit the exclusions if there are changes
+          if ! git diff --quiet --cached; then
+            git commit -m "Exclude release workflow files from sync"
+          fi
 
           # Push the sync branch
           git push origin "$SYNC_BRANCH"
 
           # Create new PR
           gh pr create \
-            --base "$TARGET_BRANCH" \
+            --base "rhoai-staging" \
             --head "$SYNC_BRANCH" \
-            --title "Sync $RELEASE_BRANCH to $TARGET_BRANCH" \
+            --title "Sync $RELEASE_BRANCH to rhoai-staging" \
             --body "$(cat <<EOF
           ## Description
-          - Automated sync of changes from $RELEASE_BRANCH to $TARGET_BRANCH
+          - Automated sync of changes from $RELEASE_BRANCH to rhoai-staging
           - Part of RHOAI release preparation
 
           ## Changes
-          - All changes from $RELEASE_BRANCH except:
+          - All changes from $RELEASE_BRANCH
+          - Any changes to the following files are excluded:
             - \`.tekton/mlserver-push.yaml\`
             - \`.github/workflows/prow-merge-release-to-staging.yml\`
             - \`.github/workflows/create-and-bump-tag.yml\`
