@@ -1,0 +1,43 @@
+ARG RUNTIME_BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.2.0-1764758855"
+ARG RUNTIMES="lightgbm sklearn xgboost"
+
+FROM ${RUNTIME_BASE_IMAGE}
+
+ARG RUNTIMES
+
+USER 0
+
+# Set a few default environment variables, including `LD_LIBRARY_PATH`
+# (required to use GKE's injected CUDA libraries).
+# NOTE: When updating between major Python versions make sure you update the
+ENV MLSERVER_MODELS_DIR=/mnt/models \
+    MLSERVER_ENV_TARBALL=/mnt/models/environment.tar.gz \
+    MLSERVER_PATH=/opt/mlserver \
+    PATH=/opt/mlserver/.local/bin:$PATH \
+    LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/opt/app-root/lib/python3.12/site-packages/nvidia/nccl/lib/:$LD_LIBRARY_PATH \
+    HF_HOME=/opt/mlserver/.cache \
+    NUMBA_CACHE_DIR=/opt/mlserver/.cache
+
+WORKDIR /opt/mlserver
+
+# Create user and fix permissions
+# NOTE: We need to make /opt/mlserver world-writable so that the image is
+# compatible with random UIDs.
+RUN mkdir -p $MLSERVER_PATH && \
+    useradd -u 1000 -s /bin/bash mlserver -d $MLSERVER_PATH && \
+    chown -R 1000:0 $MLSERVER_PATH && \
+    chmod -R 776 $MLSERVER_PATH
+
+RUN pip install mlserver && \
+    for _runtime in $RUNTIMES; do \
+        pip install "mlserver-${_runtime}"; \
+    done
+   
+
+COPY ./licenses/license.txt .
+COPY ./licenses/license.txt /licenses/
+
+USER 1000
+
+# MLServer starts
+CMD ["/bin/sh", "-c", "mlserver start $MLSERVER_MODELS_DIR"]
