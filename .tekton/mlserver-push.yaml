@@ -30,7 +30,7 @@ spec:
     value: .
   - name: build-args
     value:
-    - RUNTIMES=lightgbm sklearn xgboost
+    - RUNTIMES=lightgbm onnx sklearn xgboost
     - BUILDER_BASE_IMAGE=python:3.12-slim
     - RUNTIME_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal
   pipelineSpec:
