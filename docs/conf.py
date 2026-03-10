@@ -24,7 +24,7 @@ html_title = "MLServer Documentation"
 author = "Seldon Technologies"
 
 # The full version, including alpha/beta/rc tags
-release = "1.7.1+rhai6"
+release = "1.7.1+rhai7"
 
 
 # -- General configuration ---------------------------------------------------

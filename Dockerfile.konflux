@@ -1,5 +1,5 @@
-ARG RUNTIME_BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.2.0-1764758855"
-ARG RUNTIMES="lightgbm sklearn xgboost"
+ARG RUNTIME_BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.4.0-ea.2"
+ARG RUNTIMES="lightgbm onnx sklearn xgboost"
 
 FROM ${RUNTIME_BASE_IMAGE}
 
