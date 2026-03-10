@@ -16,7 +16,7 @@
 | `cache_enabled` | `bool` | `False` | Enable caching for the model predictions. |
 | `cache_size` | `int` | `100` | Cache size to be used if caching is enabled. |
 | `cors_settings` | `Optional[CORSSettings]` | `None` | - |
-| `debug` | `bool` | `True` | - |
+| `debug` | `bool` | `False` | - |
 | `environments_dir` | `str` | `'-'` | - |
 | `extensions` | `List[str]` | `[]` | - |
 | `grpc_max_message_length` | `Optional[int]` | `None` | - |

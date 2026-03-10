@@ -58,13 +58,24 @@ RUN ./hack/build-env.sh . && \\
     chown -R 1000:0 ./envs/base && \\
     chmod -R 776 ./envs/base && \\
     rm -rf /root/.cache/pip
+
+# Persist trusted runtime allowlist in-image as read-only artifact.
+RUN set -eu; \\
+    artifact_path="{trusted_runtimes_artifact_path}"; \\
+    artifact_dir="$(dirname "$artifact_path")"; \\
+    mkdir -p "$artifact_dir"; \\
+    printf '%s\\n' '{trusted_runtime_allowlist_json}' > "$artifact_path"; \\
+    chmod 0444 "$artifact_path"; \\
+    chmod 0555 "$artifact_dir"
 USER 1000
 
 # Copy everything else
 COPY . .
+{custom_runtime_copy_instructions}
+# Optional: set PYTHONPATH when custom runtime sources are baked into the image.
+{custom_runtime_pythonpath_env}
 
-# Override MLServer's own `CMD` to activate the embedded environment
-# (optionally activating the hot-loaded one as well).
+# Override MLServer's own `CMD` to activate the embedded environment.
 CMD source ./hack/activate-env.sh ./envs/base.tar.gz && \\
     mlserver start $MLSERVER_MODELS_DIR
 """

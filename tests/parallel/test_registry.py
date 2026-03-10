@@ -306,7 +306,7 @@ def test_autogenerate_inference_pool_gid(
     with patch("uuid.uuid4", return_value=patch_uuid):
         model_settings = ModelSettings(
             name="dummy-model",
-            implementation=MLModel,
+            implementation=SumModel,
             parameters=ModelParameters(
                 inference_pool_gid=inference_pool_grid,
                 autogenerate_inference_pool_gid=autogenerate_inference_pool_grid,

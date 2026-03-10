@@ -12,6 +12,7 @@ from typing import List, Tuple
 
 from aiohttp.client_exceptions import (
     ClientConnectorError,
+    ClientConnectionResetError,
     ClientOSError,
     ServerDisconnectedError,
 )
@@ -20,6 +21,8 @@ from aiohttp_retry import RetryClient, ExponentialRetry
 from mlserver.logging import logger
 from mlserver.utils import generate_uuid
 from mlserver.types import RepositoryIndexResponse, InferenceRequest, InferenceResponse
+
+TEST_TRUSTED_RUNTIMES_ARTIFACT_ENV = "MLSERVER_TEST_TRUSTED_RUNTIMES_ARTIFACT_PATH"
 
 
 def get_available_ports(n: int = 1) -> List[int]:
@@ -188,6 +191,7 @@ class RESTClient:
             statuses=[400],
             exceptions={
                 ClientConnectorError,
+                ClientConnectionResetError,
                 ClientOSError,
                 ServerDisconnectedError,
                 ConnectionRefusedError,
@@ -206,6 +210,24 @@ class RESTClient:
         endpoint = f"http://{self._http_server}/v2/models/{model_name}/ready"
         await self._retry_get(endpoint)
 
+    async def wait_until_model_indexed(
+        self, model_name: str, timeout_s: float = 20.0
+    ) -> None:
+        deadline = asyncio.get_running_loop().time() + timeout_s
+        while asyncio.get_running_loop().time() < deadline:
+            try:
+                loaded_models = await self.list_indexed_models()
+            except aiohttp.ClientError:
+                await asyncio.sleep(0.5)
+                continue
+            if model_name in {model.name for model in loaded_models}:
+                return
+            await asyncio.sleep(0.5)
+
+        raise AssertionError(
+            f"Model '{model_name}' was not indexed within {timeout_s}s."
+        )
+
     async def wait_until_live(self) -> None:
         endpoint = f"http://{self._http_server}/v2/health/live"
         await self._retry_get(endpoint)
@@ -220,12 +242,18 @@ class RESTClient:
         res = await self._session.get(endpoint)
         return res.status == 200
 
-    async def list_models(self) -> RepositoryIndexResponse:
+    async def _list_models(self, payload: dict) -> RepositoryIndexResponse:
         endpoint = f"http://{self._http_server}/v2/repository/index"
-        response = await self._session.post(endpoint, json={"ready": True})
+        response = await self._session.post(endpoint, json=payload)
 
         raw_payload = await response.text()
         return RepositoryIndexResponse.parse_raw(raw_payload)
+
+    async def list_models(self) -> RepositoryIndexResponse:
+        return await self._list_models({"ready": True})
+
+    async def list_indexed_models(self) -> RepositoryIndexResponse:
+        return await self._list_models({})
 
     async def infer(
         self, model_name: str, inference_request: InferenceRequest

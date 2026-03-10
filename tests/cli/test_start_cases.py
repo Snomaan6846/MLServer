@@ -25,7 +25,10 @@ def _init_mlserver_folder(tmp_path: str, settings: Settings):
     os.makedirs(model_folder)
     model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
     with open(model_settings_path, "w") as model_settings_file:
-        model_settings = {"name": "slow-model", "implementation": "fixtures.SlowModel"}
+        model_settings = {
+            "name": "slow-model",
+            "implementation": "tests.fixtures.SlowModel",
+        }
         model_settings_file.write(json.dumps(model_settings))
 
 

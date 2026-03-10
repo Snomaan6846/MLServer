@@ -162,10 +162,23 @@ class CustomHeadersRuntime(MLModel):
 
 ## Loading a custom MLServer runtime
 
-MLServer lets you load custom runtimes dynamically into a running instance of
-MLServer.
-Once you have your custom runtime ready, all you need to is to move it to your
-model folder, next to your `model-settings.json` configuration file.
+MLServer validates model runtimes against the trusted allowlist before import.
+Because of this, placing runtime code next to `model-settings.json` is not
+sufficient on its own.
+
+{% hint style="warning" %}
+For `mlserver start`, custom runtimes must be present in the
+trusted allowlist artifact used by the running image. Runtime import paths not
+in that allowlist are rejected at load time.
+{% endhint %}
+
+The recommended workflow is to package your runtime code in the image and
+declare each custom runtime with both `--allow-runtime` and a matching
+`--runtime-path` during image build.
+
+When running `mlserver build`, use an isolated and trusted build workspace.
+Runtime-path validation is performed before Docker consumes the build context,
+so files should not be modified concurrently by other users or processes.
 
 For example, if we assume a flat model repository where each folder represents
 a model, you would end up with a folder structure like the one below:
@@ -180,7 +193,8 @@ a model, you would end up with a folder structure like the one below:
 
 Note that, from the example above, we are assuming that:
 
-- Your custom runtime code lives in the `models.py` file.
+- Your custom runtime code lives in the `models.py` file and is packaged into
+  the serving image.
 - The `implementation` field of your `model-settings.json` configuration file
   contains the import path of your custom runtime (e.g.
   `models.MyCustomRuntime`).
@@ -280,6 +294,37 @@ runtime, we should be able to just run:
 mlserver build . -t my-custom-server
 ```
 
+{% hint style="info" %}
+When using custom runtimes, pass the exact dotted Python import path for each
+runtime through `--allow-runtime` (for example
+`--allow-runtime models.MyCustomRuntime`).
+{% endhint %}
+
+{% hint style="info" %}
+Python modules placed only in the model folder are not auto-imported at serve
+time. Package custom runtime code into the built image and allowlist it through
+`--allow-runtime`.
+
+For each custom runtime module, also pass a matching `--runtime-path` value so
+the source is copied into the image import path (for example,
+`--runtime-path models.py` or `--runtime-path models/`).
+When using a directory path, it must be an importable Python package containing
+`__init__.py`.
+{% endhint %}
+
+```bash
+mlserver build . -t my-custom-server \
+  --allow-runtime models.MyCustomRuntime \
+  --runtime-path models.py
+```
+
+{% hint style="info" %}
+Migration tip: if you already have custom runtime images, make sure every
+runtime in use is declared through `--allow-runtime module.ClassName` during
+build. Runtime import paths not present in the trusted allowlist will be
+rejected at load time.
+{% endhint %}
+
 The output will be a Docker image named `my-custom-server`, ready to be used.
 
 ### Custom Environment
@@ -335,6 +380,14 @@ To account for these cases, MLServer also includes a [`mlserver dockerfile`](../
 subcommand which will just generate a `Dockerfile` (and optionally a `.dockerignore` file) 
 exactly like the one used by the `mlserver build` command.
 This `Dockerfile` can then be customised according to your needs.
+
+{% hint style="info" %}
+If your image uses custom runtimes, pass `--allow-runtime module.ClassName`
+to `mlserver dockerfile` so the generated `trusted-runtimes` allowlist matches
+what you intend to serve.
+Also pass `--runtime-path` so generated Dockerfile includes the corresponding
+`COPY` and `PYTHONPATH` entries for those runtime sources.
+{% endhint %}
 
 {% hint style="info" %}
 The base `Dockerfile` requires [Docker's Buildkit](https://docs.docker.com/build/buildkit/) to be enabled.

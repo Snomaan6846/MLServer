@@ -1,9 +1,10 @@
-import sys
-import os
-import uuid
-import json
-import importlib
 import inspect
+import json
+import logging
+import os
+import re
+import uuid
+from functools import lru_cache
 
 from typing import (
     Any,
@@ -25,7 +26,6 @@ from pydantic import model_validator
 from pydantic._internal._validators import import_string
 import pydantic_settings
 from pydantic_settings import SettingsConfigDict
-from contextlib import contextmanager
 
 from .version import __version__
 from .types import MetadataTensor
@@ -38,32 +38,148 @@ DEFAULT_PARALLEL_WORKERS = 1
 
 DEFAULT_ENVIRONMENTS_DIR = os.path.join(os.getcwd(), ".envs")
 DEFAULT_METRICS_DIR = os.path.join(os.getcwd(), ".metrics")
+TRUSTED_RUNTIMES_ARTIFACT_PATH = "/etc/mlserver/trusted-runtimes.json"
+# Canonical runtime import-path regex used by runtime and CLI validation.
+# Require explicit dotted paths (`module.ClassName`) and disallow leading
+# underscores on each segment to keep runtime declarations explicit.
+RUNTIME_IMPORT_PATH_PATTERN = re.compile(
+    r"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$"
+)
+
+logger = logging.getLogger(__name__)
+
+
+def is_valid_runtime_import_path(value: object) -> bool:
+    if not isinstance(value, str) or not RUNTIME_IMPORT_PATH_PATTERN.fullmatch(value):
+        return False
+    _, _, attr = value.rpartition(".")
+    return attr[:1].isupper()
+
+
+ALLOWED_MODEL_IMPLEMENTATIONS = {
+    "mlserver_alibi_detect.AlibiDetectRuntime",
+    "mlserver_alibi_explain.AlibiExplainRuntime",
+    "mlserver_catboost.CatboostModel",
+    "mlserver_huggingface.HuggingFaceRuntime",
+    "mlserver_sklearn.SKLearnModel",
+    "mlserver_xgboost.XGBoostModel",
+    "mlserver_lightgbm.LightGBMModel",
+    "mlserver_mlflow.MLflowRuntime",
+    "mlserver_mllib.MLlibModel",
+    "mlserver_onnx.OnnxModel",
+}
+
+
+_BUILTIN_RUNTIME_IMPORT_PATH_ALIASES = {
+    "mlserver_alibi_detect.runtime.AlibiDetectRuntime": (
+        "mlserver_alibi_detect.AlibiDetectRuntime"
+    ),
+    "mlserver_alibi_explain.runtime.AlibiExplainRuntime": (
+        "mlserver_alibi_explain.AlibiExplainRuntime"
+    ),
+    "mlserver_catboost.catboost.CatboostModel": "mlserver_catboost.CatboostModel",
+    "mlserver_huggingface.runtime.HuggingFaceRuntime": (
+        "mlserver_huggingface.HuggingFaceRuntime"
+    ),
+    "mlserver_sklearn.sklearn.SKLearnModel": "mlserver_sklearn.SKLearnModel",
+    "mlserver_xgboost.xgboost.XGBoostModel": "mlserver_xgboost.XGBoostModel",
+    "mlserver_lightgbm.lightgbm.LightGBMModel": "mlserver_lightgbm.LightGBMModel",
+    "mlserver_mlflow.runtime.MLflowRuntime": "mlserver_mlflow.MLflowRuntime",
+    "mlserver_mllib.mllib.MLlibModel": "mlserver_mllib.MLlibModel",
+    "mlserver_onnx.onnx.OnnxModel": "mlserver_onnx.OnnxModel",
+}
+
+
+def canonicalize_runtime_import_path(import_path: str) -> str:
+    return _BUILTIN_RUNTIME_IMPORT_PATH_ALIASES.get(import_path, import_path)
+
+
+@lru_cache(maxsize=1)
+def _get_allowed_model_implementations() -> frozenset[str]:
+    image_baked = _load_image_baked_allowed_model_implementations(
+        _get_trusted_runtimes_artifact_path()
+    )
+    allowed = frozenset(ALLOWED_MODEL_IMPLEMENTATIONS.union(image_baked))
+    logger.debug(
+        "Trusted runtime allowlist loaded with %d entries.",
+        len(allowed),
+    )
+    return allowed
+
+
+def clear_trusted_runtime_caches() -> None:
+    """Clear trusted-runtime allowlist caches.
+
+    Useful for tests or runtime reconfiguration where trusted-runtime sources
+    may change during process lifetime.
+    """
+    _get_allowed_model_implementations.cache_clear()
+    _load_image_baked_allowed_model_implementations.cache_clear()
+
+
+def _assert_trusted_runtime_import_path(import_path: str) -> None:
+    if not is_valid_runtime_import_path(import_path):
+        raise ValueError("Model implementation has an invalid import path.")
+
+    if import_path not in _get_allowed_model_implementations():
+        logger.warning(
+            "Rejected untrusted model implementation %r.",
+            import_path,
+        )
+        raise ValueError(
+            f"Model implementation {import_path!r} is not in the "
+            "allowlist of trusted runtimes."
+        )
+
 
 # Conditionally imported due to cyclic dependencies
 if TYPE_CHECKING:
     from ..model import MLModel
 
 
-@contextmanager
-def _extra_sys_path(extra_path: str):
-    sys.path.insert(0, extra_path)
-
-    yield
-
-    sys.path.remove(extra_path)
-
-
 def _get_import_path(klass: Type):
-    return f"{klass.__module__}.{klass.__name__}"
+    import_path = f"{klass.__module__}.{klass.__name__}"
+    return canonicalize_runtime_import_path(import_path)
 
 
-def _reload_module(import_path: str):
-    if not import_path:
-        return
+def _get_trusted_runtimes_artifact_path() -> str:
+    return TRUSTED_RUNTIMES_ARTIFACT_PATH
 
-    module_path, _, _ = import_path.rpartition(".")
-    module = importlib.import_module(module_path)
-    importlib.reload(module)
+
+@lru_cache(maxsize=32)
+def _load_image_baked_allowed_model_implementations(
+    artifact_path: str,
+) -> frozenset[str]:
+    if not os.path.isfile(artifact_path):
+        return frozenset()
+
+    try:
+        with open(artifact_path, "r", encoding="utf-8") as f:
+            runtimes = json.load(f)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"Trusted runtimes artifact {artifact_path!r} could not be loaded."
+        ) from exc
+
+    if not isinstance(runtimes, list):
+        raise ValueError(
+            "Trusted runtimes artifact must be a JSON list of import paths."
+        )
+
+    allowed = set()
+    for runtime in runtimes:
+        if not isinstance(runtime, str) or runtime != runtime.strip():
+            raise ValueError(
+                "Trusted runtimes artifact contains an invalid runtime import path."
+            )
+        runtime = canonicalize_runtime_import_path(runtime)
+        if not is_valid_runtime_import_path(runtime):
+            raise ValueError(
+                "Trusted runtimes artifact contains an invalid runtime import path."
+            )
+        allowed.add(runtime)
+
+    return frozenset(allowed)
 
 
 class BaseSettings(pydantic_settings.BaseSettings):
@@ -165,7 +281,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    debug: bool = True
+    debug: bool = False
 
     parallel_workers: int = DEFAULT_PARALLEL_WORKERS
     """When parallel inference is enabled, number of workers to run inference
@@ -378,6 +494,15 @@ class ModelSettings(BaseSettings):
 
         return model_settings
 
+    @model_validator(mode="after")
+    def validate_trusted_runtime(self) -> Self:
+        # Step 1 (early validation): reject untrusted runtime import paths
+        # while parsing settings so repository discovery can skip bad model
+        # entries without taking down server startup.
+        self.implementation_ = canonicalize_runtime_import_path(self.implementation_)
+        _assert_trusted_runtime_import_path(self.implementation_)
+        return self
+
     # Custom model class implementation
     #
     # NOTE: The `implementation_` attr will only point to the string import.
@@ -390,18 +515,15 @@ class ModelSettings(BaseSettings):
 
     @property
     def implementation(self) -> Type["MLModel"]:
-        # If the source is not set, use the path for the model module
-        if not self._source:
-            return import_string(self.implementation_)  # type: ignore
-
-        # Get a nice path to the model's (disk) location
-        model_folder = os.path.dirname(self._source)
-
-        # Temporarily inject the model's module into the Python
-        # system path.
-        with _extra_sys_path(model_folder):
-            _reload_module(self.implementation_)
-            return import_string(self.implementation_)  # type: ignore
+        # Step 2 (defense in depth): validate again at access time in case
+        # implementation_ was mutated programmatically after model validation.
+        implementation = self.implementation_
+        if not isinstance(implementation, str):
+            raise ValueError("Model implementation has an invalid import path.")
+        implementation = canonicalize_runtime_import_path(implementation)
+        _assert_trusted_runtime_import_path(implementation)
+        self.implementation_ = implementation
+        return import_string(implementation)  # type: ignore
 
     @implementation.setter
     def implementation(self, value: Type["MLModel"]):

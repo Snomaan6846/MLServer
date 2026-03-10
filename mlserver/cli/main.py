@@ -13,7 +13,11 @@ from ..server import MLServer
 from ..logging import logger, configure_logger
 from ..utils import install_uvloop_event_loop
 
-from .build import generate_dockerfile, build_image, write_dockerfile
+from .build import (
+    build_image,
+    DockerBuildContext,
+    write_dockerfile,
+)
 from .serve import load_settings
 from ..batch_processing import process_batch, CHOICES_TRANSPORT
 
@@ -52,13 +56,51 @@ async def start(folder: str):
 @click.argument("folder", nargs=1)
 @click.option("-t", "--tag", type=str)
 @click.option("--no-cache", default=False, is_flag=True)
+@click.option(
+    "--allow-runtime",
+    "allow_runtime_import_paths",
+    multiple=True,
+    type=str,
+    help=(
+        "Additional custom runtime import path to allow in the built image. "
+        "Use exact dotted Python import paths (module.ClassName)."
+    ),
+)
+@click.option(
+    "--runtime-path",
+    "runtime_source_paths",
+    multiple=True,
+    type=click.Path(path_type=str),
+    help=(
+        "Path (relative to build folder) to custom runtime Python module/package "
+        "to bake into image import path."
+    ),
+)
 @click_async
-async def build(folder: str, tag: str, no_cache: bool = False):
+async def build(
+    folder: str,
+    tag: str,
+    no_cache: bool = False,
+    allow_runtime_import_paths=(),
+    runtime_source_paths=(),
+):
     """
     Build a Docker image for a custom MLServer runtime.
     """
-    dockerfile = generate_dockerfile()
-    build_image(folder, dockerfile, tag, no_cache=no_cache)
+    try:
+        docker_build_context = DockerBuildContext.from_cli_args(
+            folder,
+            allow_runtime_import_paths,
+            runtime_source_paths,
+        )
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+    build_image(
+        docker_build_context.folder,
+        docker_build_context.dockerfile,
+        tag,
+        no_cache=no_cache,
+    )
     logger.info(f"Successfully built custom Docker image with tag {tag}")
 
 
@@ -76,14 +118,49 @@ async def init_project(template: str):
 @root.command("dockerfile")
 @click.argument("folder", nargs=1)
 @click.option("-i", "--include-dockerignore", is_flag=True)
+@click.option(
+    "--allow-runtime",
+    "allow_runtime_import_paths",
+    multiple=True,
+    type=str,
+    help=(
+        "Additional custom runtime import path to include in the generated "
+        "Dockerfile allowlist. Use exact dotted Python import paths "
+        "(module.ClassName)."
+    ),
+)
+@click.option(
+    "--runtime-path",
+    "runtime_source_paths",
+    multiple=True,
+    type=click.Path(path_type=str),
+    help=(
+        "Path (relative to folder) to custom runtime Python module/package "
+        "to include in generated Dockerfile import path."
+    ),
+)
 @click_async
-async def dockerfile(folder: str, include_dockerignore: bool):
+async def dockerfile(
+    folder: str,
+    include_dockerignore: bool,
+    allow_runtime_import_paths=(),
+    runtime_source_paths=(),
+):
     """
     Generate a Dockerfile
     """
-    dockerfile = generate_dockerfile()
+    try:
+        docker_build_context = DockerBuildContext.from_cli_args(
+            folder,
+            allow_runtime_import_paths,
+            runtime_source_paths,
+        )
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
     dockerfile_path = write_dockerfile(
-        folder, dockerfile, include_dockerignore=include_dockerignore
+        folder,
+        docker_build_context.dockerfile,
+        include_dockerignore=include_dockerignore,
     )
     logger.info(f"Successfully written Dockerfile in {dockerfile_path}")
 
@@ -238,7 +315,7 @@ async def infer(
     Deprecated: This experimental feature will be removed in future work.
     Execute batch inference requests against V2 inference server.
     """
-    logger.warn(
+    logger.warning(
         "This feature has been deprecated and will be removed in a future version"
     )
 

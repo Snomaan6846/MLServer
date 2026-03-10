@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from typing import Callable, Awaitable, List, Dict, Optional
 from itertools import chain
@@ -49,7 +50,18 @@ def _is_newer(a: MLModel, b: MLModel) -> int:
 
 
 def model_initialiser(model_settings: ModelSettings) -> MLModel:
-    model_class = model_settings.implementation
+    try:
+        model_class = model_settings.implementation
+    except (
+        ValueError,
+        ImportError,
+        AttributeError,
+        OSError,
+        json.JSONDecodeError,
+    ) as exc:
+        raise RuntimeError(
+            f"Refused to load model '{model_settings.name}': {exc}"
+        ) from exc
     return model_class(model_settings)  # type: ignore
 
 
