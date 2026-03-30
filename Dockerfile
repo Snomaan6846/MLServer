@@ -1,8 +1,9 @@
-ARG BUILDER_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
-ARG RUNTIME_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
+# UBI 9 minimal base image:
+# The digest pinned below corresponds to the `9.7` and `9.7-1773939694` tags.
+ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal@sha256:f5346fbb587b72b5376e66272935d22c62af78be2e8ea1dcf3e9e46865a9a2ee"
 ARG RUNTIMES="lightgbm onnx sklearn xgboost"
 
-FROM ${BUILDER_BASE_IMAGE} AS wheel-builder
+FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
 ARG POETRY_VERSION="2.1.1"
@@ -39,7 +40,7 @@ RUN pip install poetry==$POETRY_VERSION && \
         --format constraints.txt \
         -o /opt/mlserver/dist/constraints.txt
 
-FROM ${RUNTIME_BASE_IMAGE}
+FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
 ARG PYTHON_VERSION=3.12
