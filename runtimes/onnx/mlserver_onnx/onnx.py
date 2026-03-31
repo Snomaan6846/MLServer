@@ -86,8 +86,10 @@ class OnnxModel(MLModel):
         )
 
         try:
+            with open(model_uri, "rb") as f:
+                model_bytes = f.read()
             self._model = ort.InferenceSession(
-                model_uri,
+                model_bytes,
                 sess_options=session_options,
                 providers=providers,
                 provider_options=provider_options,
