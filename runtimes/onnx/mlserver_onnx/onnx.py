@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 
+import onnx
 import numpy as np
 import onnxruntime as ort
 
@@ -86,8 +87,8 @@ class OnnxModel(MLModel):
         )
 
         try:
-            with open(model_uri, "rb") as f:
-                model_bytes = f.read()
+            model = onnx.load(model_uri, load_external_data=True)
+            model_bytes = model.SerializeToString()
             self._model = ort.InferenceSession(
                 model_bytes,
                 sess_options=session_options,
