@@ -314,6 +314,13 @@ you and everyone else stays on the left (or the right depending on where you are
 means that you won't have to wonder where the next driver is going to come out of when you are driving
 and are about to take a turn, instead, you can focus on getting to where you're going to without much worrying.
 
+```{note}
+Beyond inference endpoints, MLServer also provides metadata and security
+endpoints like `/v2/health`, `/v2/models`, and `/v2/runtimes` (for querying
+runtime security configuration). See the [OpenAPI documentation](../user-guide/openapi.md)
+for the full list of available endpoints.
+```
+
 Let's describe what each of the components of our `inference_request` does.
 - `name`: this maps one-to-one to the name of the parameter in your `predict()` function.
 - `shape`: represents the shape of the elements in our `data`. In our case, it is a list with `[2]` strings.

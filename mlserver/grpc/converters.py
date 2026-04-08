@@ -62,6 +62,41 @@ class ServerMetadataResponseConverter:
         )
 
 
+class RuntimeSecurityResponseConverter:
+    @classmethod
+    def to_types(
+        cls, pb_object: pb.RuntimeSecurityResponse
+    ) -> types.RuntimeSecurityResponse:
+        # Unwrap the optional wrapper message
+        allowed = None
+        if pb_object.HasField("allowed_model_implementations"):
+            allowed = list(pb_object.allowed_model_implementations.items)
+
+        return types.RuntimeSecurityResponse(
+            mode=pb_object.mode,
+            allowed_model_implementations=allowed,
+        )
+
+    @classmethod
+    def from_types(
+        cls, type_object: types.RuntimeSecurityResponse
+    ) -> pb.RuntimeSecurityResponse:
+        # Wrap the list in the wrapper message if present, otherwise omit the field
+        # Note: use_enum_values=True means mode is already a str at runtime
+        if type_object.allowed_model_implementations is not None:
+            wrapper = pb.AllowedModelImplementations(
+                items=type_object.allowed_model_implementations
+            )
+            return pb.RuntimeSecurityResponse(
+                mode=type_object.mode,  # type: ignore[arg-type]
+                allowed_model_implementations=wrapper,
+            )
+        else:
+            return pb.RuntimeSecurityResponse(
+                mode=type_object.mode,  # type: ignore[arg-type]
+            )
+
+
 class ModelMetadataResponseConverter:
     @classmethod
     def to_types(

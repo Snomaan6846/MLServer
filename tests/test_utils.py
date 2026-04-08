@@ -11,9 +11,9 @@ from mlserver.utils import (
     insert_headers,
     install_uvloop_event_loop,
 )
-from mlserver.model import MLModel
 from mlserver.types import InferenceRequest, InferenceResponse, Parameters
 from mlserver.settings import ModelSettings, ModelParameters
+from .fixtures import SumModel
 
 test_get_model_uri_paramaters = [
     ("s3://bucket/key", None, "s3://bucket/key"),
@@ -47,7 +47,7 @@ for scheme in ["", "file:"]:
 )
 async def test_get_model_uri(uri: str, source: Optional[str], expected: str):
     model_settings = ModelSettings(
-        implementation=MLModel, parameters=ModelParameters(uri=uri)
+        implementation=SumModel, parameters=ModelParameters(uri=uri)
     )
     model_settings._source = source
     with patch("os.path.isfile", return_value=True):

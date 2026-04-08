@@ -7,7 +7,7 @@ from typing import Optional, List
 from mlserver.repository.factory import ModelRepositoryFactory
 
 from .model import MLModel
-from .settings import Settings, ModelSettings
+from .settings import Settings, ModelSettings, log_runtime_security_mode
 from .logging import configure_logger
 from .registry import MultiModelRegistry
 from .handlers import DataPlane, ModelRepositoryHandlers
@@ -112,6 +112,17 @@ class MLServer:
             self._kafka_server = KafkaServer(self._settings, self._data_plane)
 
     async def start(self, models_settings: List[ModelSettings] = []):
+        # Validate runtime security configuration before starting servers to prevent
+        # a window where endpoints are accessible but security hasn't been verified
+        try:
+            log_runtime_security_mode()
+        except Exception as exc:
+            logger.exception("Failed to load trusted runtimes allowlist!")
+            raise RuntimeError(
+                "Server startup aborted: "
+                "invalid trusted runtimes allowlist configuration"
+            ) from exc
+
         servers = [self._rest_server.start(), self._grpc_server.start()]
         if self._metrics_server:
             servers.append(self._metrics_server.start())

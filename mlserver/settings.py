@@ -1,9 +1,13 @@
-import sys
-import os
-import uuid
-import json
 import importlib
 import inspect
+import json
+import logging
+import os
+import re
+import sys
+import uuid
+from contextlib import contextmanager
+from functools import lru_cache
 
 from typing import (
     Any,
@@ -25,7 +29,6 @@ from pydantic import model_validator
 from pydantic._internal._validators import import_string
 import pydantic_settings
 from pydantic_settings import SettingsConfigDict
-from contextlib import contextmanager
 
 from .version import __version__
 from .types import MetadataTensor
@@ -38,6 +41,129 @@ DEFAULT_PARALLEL_WORKERS = 1
 
 DEFAULT_ENVIRONMENTS_DIR = os.path.join(os.getcwd(), ".envs")
 DEFAULT_METRICS_DIR = os.path.join(os.getcwd(), ".metrics")
+TRUSTED_RUNTIMES_ARTIFACT_PATH = "/etc/mlserver/trusted-runtimes.json"
+# Canonical runtime import-path regex used by runtime and CLI validation.
+# Require explicit dotted paths (`module.ClassName`) and disallow leading
+# underscores on each segment to keep runtime declarations explicit.
+RUNTIME_IMPORT_PATH_PATTERN = re.compile(
+    r"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$"
+)
+
+logger = logging.getLogger(__name__)
+
+
+def is_valid_runtime_import_path(value: object) -> bool:
+    if not isinstance(value, str) or not RUNTIME_IMPORT_PATH_PATTERN.fullmatch(value):
+        return False
+    _, _, attr = value.rpartition(".")
+    return attr[:1].isupper()
+
+
+ALLOWED_MODEL_IMPLEMENTATIONS = {
+    "mlserver_alibi_detect.AlibiDetectRuntime",
+    "mlserver_alibi_explain.AlibiExplainRuntime",
+    "mlserver_catboost.CatboostModel",
+    "mlserver_huggingface.HuggingFaceRuntime",
+    "mlserver_sklearn.SKLearnModel",
+    "mlserver_xgboost.XGBoostModel",
+    "mlserver_lightgbm.LightGBMModel",
+    "mlserver_mlflow.MLflowRuntime",
+    "mlserver_mllib.MLlibModel",
+    "mlserver_onnx.OnnxModel",
+}
+
+
+_BUILTIN_RUNTIME_IMPORT_PATH_ALIASES = {
+    "mlserver_alibi_detect.runtime.AlibiDetectRuntime": (
+        "mlserver_alibi_detect.AlibiDetectRuntime"
+    ),
+    "mlserver_alibi_explain.runtime.AlibiExplainRuntime": (
+        "mlserver_alibi_explain.AlibiExplainRuntime"
+    ),
+    "mlserver_catboost.catboost.CatboostModel": "mlserver_catboost.CatboostModel",
+    "mlserver_huggingface.runtime.HuggingFaceRuntime": (
+        "mlserver_huggingface.HuggingFaceRuntime"
+    ),
+    "mlserver_sklearn.sklearn.SKLearnModel": "mlserver_sklearn.SKLearnModel",
+    "mlserver_xgboost.xgboost.XGBoostModel": "mlserver_xgboost.XGBoostModel",
+    "mlserver_lightgbm.lightgbm.LightGBMModel": "mlserver_lightgbm.LightGBMModel",
+    "mlserver_mlflow.runtime.MLflowRuntime": "mlserver_mlflow.MLflowRuntime",
+    "mlserver_mllib.mllib.MLlibModel": "mlserver_mllib.MLlibModel",
+    "mlserver_onnx.onnx.OnnxModel": "mlserver_onnx.OnnxModel",
+}
+
+
+def canonicalize_runtime_import_path(import_path: str) -> str:
+    return _BUILTIN_RUNTIME_IMPORT_PATH_ALIASES.get(import_path, import_path)
+
+
+def log_runtime_security_mode() -> None:
+    """Log the runtime security mode at server startup."""
+    allowed = _load_image_baked_allowed_model_implementations(
+        _get_trusted_runtimes_artifact_path()
+    )
+
+    # Development mode: no trusted runtimes allowlist file exists
+    if allowed is None:
+        logger.info(
+            "Runtime security: DEVELOPMENT - all model implementations "
+            "allowed (no trusted runtimes allowlist file found)"
+        )
+        return
+
+    # Production mode: trusted runtimes allowlist file exists
+    logger.info(
+        "Runtime security: PRODUCTION - %d model implementations allowed "
+        "from trusted runtimes allowlist file: %s",
+        len(allowed),
+        sorted(allowed),
+    )
+
+    if not allowed:
+        logger.warning(
+            "Trusted runtimes allowlist file exists but is empty - "
+            "no models can be loaded! Either add model implementation "
+            "entries or remove the file for development mode."
+        )
+
+
+def clear_trusted_runtime_caches() -> None:
+    """Clear trusted runtimes allowlist cache.
+
+    Useful for tests or runtime reconfiguration where trusted runtime sources
+    may change during process lifetime.
+    """
+    _load_image_baked_allowed_model_implementations.cache_clear()
+
+
+def _assert_trusted_runtime_import_path(import_path: str) -> None:
+    if not is_valid_runtime_import_path(import_path):
+        raise ValueError("Model implementation has an invalid import path.")
+
+    allowed = _load_image_baked_allowed_model_implementations(
+        _get_trusted_runtimes_artifact_path()
+    )
+
+    # If allowlist file does not exist, allow any runtime (development mode)
+    if allowed is None:
+        logger.debug(
+            "No trusted runtimes allowlist configured - "
+            "allowing model implementation %s",
+            import_path,
+        )
+        return
+
+    # If trusted runtimes allowlist file does exist, enforce allowlist (production mode)
+    if import_path not in allowed:
+        logger.warning(
+            "Rejected untrusted model implementation %r.",
+            import_path,
+        )
+        raise ValueError(
+            f"Model implementation {import_path!r} is not included in the "
+            "trusted runtimes allowlist configuration."
+        )
+
 
 # Conditionally imported due to cyclic dependencies
 if TYPE_CHECKING:
@@ -46,24 +172,82 @@ if TYPE_CHECKING:
 
 @contextmanager
 def _extra_sys_path(extra_path: str):
+    """Context manager to temporarily add a path to sys.path for dynamic imports.
+
+    This is used in development mode to allow loading custom runtimes from
+    model folders without requiring them to be installed packages.
+    """
     sys.path.insert(0, extra_path)
-
-    yield
-
-    sys.path.remove(extra_path)
-
-
-def _get_import_path(klass: Type):
-    return f"{klass.__module__}.{klass.__name__}"
+    try:
+        yield
+    finally:
+        try:
+            sys.path.remove(extra_path)
+        except ValueError:
+            pass
 
 
 def _reload_module(import_path: str):
+    """Reload a module to ensure fresh import in dynamic loading scenarios.
+
+    This is used in development mode when loading runtimes from model folders
+    to ensure we get the latest version of the module.
+    """
     if not import_path:
         return
 
     module_path, _, _ = import_path.rpartition(".")
     module = importlib.import_module(module_path)
     importlib.reload(module)
+
+
+def _get_import_path(klass: Type):
+    import_path = f"{klass.__module__}.{klass.__name__}"
+    return canonicalize_runtime_import_path(import_path)
+
+
+def _get_trusted_runtimes_artifact_path() -> str:
+    return TRUSTED_RUNTIMES_ARTIFACT_PATH
+
+
+@lru_cache(maxsize=32)
+def _load_image_baked_allowed_model_implementations(
+    artifact_path: str,
+) -> Optional[frozenset[str]]:
+    if not os.path.lexists(artifact_path):
+        return None
+    if not os.path.isfile(artifact_path):
+        raise ValueError(
+            f"Trusted runtimes artifact {artifact_path!r} must be a regular file."
+        )
+
+    try:
+        with open(artifact_path, "r", encoding="utf-8") as f:
+            runtimes = json.load(f)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"Trusted runtimes artifact {artifact_path!r} could not be loaded."
+        ) from exc
+
+    if not isinstance(runtimes, list):
+        raise ValueError(
+            "Trusted runtimes artifact must be a JSON list of import paths."
+        )
+
+    allowed = set()
+    for runtime in runtimes:
+        if not isinstance(runtime, str) or runtime != runtime.strip():
+            raise ValueError(
+                "Trusted runtimes artifact contains an invalid runtime import path."
+            )
+        runtime = canonicalize_runtime_import_path(runtime)
+        if not is_valid_runtime_import_path(runtime):
+            raise ValueError(
+                "Trusted runtimes artifact contains an invalid runtime import path."
+            )
+        allowed.add(runtime)
+
+    return frozenset(allowed)
 
 
 class BaseSettings(pydantic_settings.BaseSettings):
@@ -165,7 +349,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    debug: bool = True
+    debug: bool = False
 
     parallel_workers: int = DEFAULT_PARALLEL_WORKERS
     """When parallel inference is enabled, number of workers to run inference
@@ -283,6 +467,33 @@ class Settings(BaseSettings):
     gzip_enabled: bool = True
     """Enable GZipMiddleware."""
 
+    @model_validator(mode="after")
+    def validate_no_wildcard_cors_in_production_mode(self) -> Self:
+        """
+        Prevent wildcard CORS configurations in PRODUCTION mode.
+
+        Wildcard CORS origins allow any website to make cross-origin requests,
+        which is inappropriate for production deployments.
+        """
+        allowed = _load_image_baked_allowed_model_implementations(
+            _get_trusted_runtimes_artifact_path()
+        )
+
+        # Only enforce in PRODUCTION mode (when allowlist file exists)
+        if allowed is not None and self.cors_settings is not None:
+            if "*" in (self.cors_settings.allow_origins or []):
+                raise ValueError(
+                    "Wildcard CORS origins ['*'] not allowed in PRODUCTION mode. "
+                    "Specify explicit allowed origins or disable CORS settings."
+                )
+            if self.cors_settings.allow_origin_regex is not None:
+                raise ValueError(
+                    "CORS origin regex patterns not allowed in PRODUCTION mode. "
+                    "Specify explicit allowed origins or disable CORS settings."
+                )
+
+        return self
+
 
 class ModelParameters(BaseSettings):
     """
@@ -338,6 +549,37 @@ class ModelParameters(BaseSettings):
             self.inference_pool_gid = str(uuid.uuid4())
         return self
 
+    @model_validator(mode="after")
+    def validate_no_custom_environments_in_production_mode(self) -> Self:
+        """
+        Prevent use of custom environments in PRODUCTION mode:
+        - environment_tarball: Prevents unsafe tarball extraction
+        - environment_path: Prevents sys.path injection attacks
+
+        In PRODUCTION mode (when trusted runtimes allowlist exists), all dependencies
+        must be pre-installed in the container image.
+        """
+        allowed = _load_image_baked_allowed_model_implementations(
+            _get_trusted_runtimes_artifact_path()
+        )
+
+        # Only enforce in PRODUCTION mode (when allowlist file exists)
+        if allowed is not None:
+            if self.environment_tarball is not None:
+                raise ValueError(
+                    "environment_tarball is not allowed in PRODUCTION mode. "
+                    "All dependencies must be pre-installed in the container image. "
+                    "Remove the trusted runtimes allowlist file to use custom envs."
+                )
+            if self.environment_path is not None:
+                raise ValueError(
+                    "environment_path is not allowed in PRODUCTION mode. "
+                    "All dependencies must be pre-installed in the container image. "
+                    "Remove the trusted runtimes allowlist file to use custom envs."
+                )
+
+        return self
+
 
 class ModelSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -378,6 +620,15 @@ class ModelSettings(BaseSettings):
 
         return model_settings
 
+    @model_validator(mode="after")
+    def validate_trusted_runtime(self) -> Self:
+        # Step 1 (early validation): reject untrusted runtime import paths
+        # while parsing settings so repository discovery can skip bad model
+        # entries without taking down server startup.
+        self.implementation_ = canonicalize_runtime_import_path(self.implementation_)
+        _assert_trusted_runtime_import_path(self.implementation_)
+        return self
+
     # Custom model class implementation
     #
     # NOTE: The `implementation_` attr will only point to the string import.
@@ -390,22 +641,44 @@ class ModelSettings(BaseSettings):
 
     @property
     def implementation(self) -> Type["MLModel"]:
-        # If the source is not set, use the path for the model module
-        if not self._source:
-            return import_string(self.implementation_)  # type: ignore
+        # Step 2 (defense in depth): validate again at access time in case
+        # implementation_ was mutated programmatically after model validation.
+        implementation = self.implementation_
+        if not isinstance(implementation, str):
+            raise ValueError("Model implementation has an invalid import path.")
+        implementation = canonicalize_runtime_import_path(implementation)
+        _assert_trusted_runtime_import_path(implementation)
+        self.implementation_ = implementation
 
-        # Get a nice path to the model's (disk) location
-        model_folder = os.path.dirname(self._source)
+        # Check if we're in development mode (no allowlist file)
+        allowed = _load_image_baked_allowed_model_implementations(
+            _get_trusted_runtimes_artifact_path()
+        )
 
-        # Temporarily inject the model's module into the Python
-        # system path.
-        with _extra_sys_path(model_folder):
-            _reload_module(self.implementation_)
-            return import_string(self.implementation_)  # type: ignore
+        # In development mode, support dynamic loading from model folder
+        if allowed is None and self._source:
+            # Get a nice path to the model's (disk) location
+            model_folder = os.path.dirname(self._source)
+
+            # Temporarily inject the model's module into the Python system path
+            logger.debug(
+                "Development mode: attempting dynamic load of %s from %s",
+                implementation,
+                model_folder,
+            )
+            with _extra_sys_path(model_folder):
+                _reload_module(implementation)
+                return import_string(implementation)  # type: ignore
+
+        # Production mode or no source file: use standard import path only
+        return import_string(implementation)  # type: ignore
 
     @implementation.setter
     def implementation(self, value: Type["MLModel"]):
-        self.implementation_ = _get_import_path(value)
+        import_path = _get_import_path(value)
+        import_path = canonicalize_runtime_import_path(import_path)
+        _assert_trusted_runtime_import_path(import_path)
+        self.implementation_ = import_path
 
     implementation_: str = Field(
         validation_alias=AliasChoices(

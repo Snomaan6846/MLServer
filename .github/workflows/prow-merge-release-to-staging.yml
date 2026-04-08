@@ -21,9 +21,12 @@ concurrency:
   cancel-in-progress: false
         
 env:
-  UPSTREAM_URL: "https://github.com/opendatahub-io/MLServer.git"
   RELEASE_BRANCH: ${{ github.ref_name }}
   TARGET_BRANCH: rhoai-staging
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   auto-merge:

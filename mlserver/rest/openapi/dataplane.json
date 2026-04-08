@@ -140,6 +140,30 @@
         "description": "The server metadata endpoint provides information about the server. A server metadata request is made with an HTTP GET to a server metadata endpoint."
       }
     },
+    "/v2/runtimes": {
+      "get": {
+        "summary": "Runtime Security Information",
+        "tags": [
+          "extension",
+          "metadata",
+          "server"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeSecurityResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "runtime-security",
+        "description": "The runtime security endpoint provides information about the server's runtime security configuration, including which mode it's running in (PRODUCTION or DEVELOPMENT) and the list of allowed model implementations when in PRODUCTION mode."
+      }
+    },
     "/v2/models/{model_name}/versions/{model_version}": {
       "parameters": [
         {
@@ -613,6 +637,7 @@
         },
         "description": "An inference request is made with an HTTP POST to an inference endpoint. The model name and (optionally) version must be available in the URL. If a version is not provided the server may choose a version based on its own policies or return an error.",
         "tags": [
+          "alias",
           "inference",
           "model"
         ]
@@ -685,6 +710,7 @@
         },
         "description": "An inference request is made with an HTTP POST to an inference endpoint. The model name and (optionally) version must be available in the URL. If a version is not provided the server may choose a version based on its own policies or return an error.",
         "tags": [
+          "alias",
           "inference",
           "model"
         ]
@@ -765,6 +791,7 @@
         },
         "description": "An inference request is made with an HTTP POST to an inference endpoint. The model name and (optionally) version must be available in the URL. If a version is not provided the server may choose a version based on its own policies or return an error.",
         "tags": [
+          "alias",
           "inference",
           "model"
         ]
@@ -837,6 +864,7 @@
         },
         "description": "An inference request is made with an HTTP POST to an inference endpoint. The model name and (optionally) version must be available in the URL. If a version is not provided the server may choose a version based on its own policies or return an error.",
         "tags": [
+          "alias",
           "inference",
           "model"
         ]
@@ -937,6 +965,35 @@
         },
         "required": [
           "error"
+        ]
+      },
+      "RuntimeSecurityResponse": {
+        "title": "RuntimeSecurityResponse",
+        "type": "object",
+        "description": "Response for the /v2/runtimes endpoint showing runtime security configuration.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/RuntimeSecurityMode"
+          },
+          "allowed_model_implementations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Allowed model implementations (production mode only)."
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "RuntimeSecurityMode": {
+        "title": "RuntimeSecurityMode",
+        "type": "string",
+        "description": "Runtime security mode values.",
+        "enum": [
+          "PRODUCTION",
+          "DEVELOPMENT"
         ]
       },
       "MetadataTensor": {
@@ -1201,6 +1258,14 @@
     }
   },
   "tags": [
+    {
+      "name": "alias",
+      "description": "Alternative endpoint names for standard V2 operations"
+    },
+    {
+      "name": "extension",
+      "description": "MLServer-specific extensions to the V2 Inference Protocol"
+    },
     {
       "name": "health"
     },
