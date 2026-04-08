@@ -2368,7 +2368,7 @@ dev = ["absl-py", "pyink", "pylint (>=2.6.0)", "pytest", "pytest-xdist"]
 
 [[package]]
 name = "mlserver"
-version = "1.7.0.dev0"
+version = "1.7.1"
 description = "MLServer"
 optional = false
 python-versions = ">=3.9,<3.13"
@@ -2409,7 +2409,7 @@ url = "../.."
 
 [[package]]
 name = "mlserver-lightgbm"
-version = "1.7.0.dev0"
+version = "1.7.1"
 description = "LightGBM runtime for MLServer"
 optional = false
 python-versions = ">=3.9,<3.13"
@@ -2428,7 +2428,7 @@ url = "../lightgbm"
 
 [[package]]
 name = "mlserver-sklearn"
-version = "1.7.0.dev0"
+version = "1.7.1"
 description = "Scikit-Learn runtime for MLServer"
 optional = false
 python-versions = ">=3.9,<3.13"
@@ -2447,7 +2447,7 @@ url = "../sklearn"
 
 [[package]]
 name = "mlserver-xgboost"
-version = "1.7.0.dev0"
+version = "1.7.1"
 description = "XGBoost runtime for MLServer"
 optional = false
 python-versions = ">=3.9,<3.13"

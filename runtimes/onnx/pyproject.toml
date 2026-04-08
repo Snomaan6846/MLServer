@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mlserver-onnx"
-version = "1.7.0.dev0"
+version = "1.7.1"
 description = "ONNX runtime for MLServer"
 authors = [
     "Syed Nomaan Ali (Snomaan6846) <nomaan.syed.ali@gmail.com>",
