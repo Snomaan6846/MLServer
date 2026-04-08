@@ -5,10 +5,10 @@ Protocol").
 You can find the full OpenAPI spec for the Open Inference Protocol in the links
 below:
 
-| Name                       | Description                                                                                          | OpenAPI Spec                                                            |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Open Inference Protocol    | Main dataplane for inference, health and metadata                                                    | {download}`dataplane.json <../../openapi/dataplane.json>`               |
-| Model Repository Extension | Extension to the protocol to provide a control plane which lets you load / unload models dynamically | {download}`model_repository.json <../../openapi/model_repository.json>` |
+| Name                       | Description                                                                                                    | OpenAPI Spec                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Open Inference Protocol    | Main dataplane for inference, health and metadata, with runtime security extension (`/v2/runtimes`)            | {download}`dataplane.json <../../openapi/dataplane.json>`               |
+| Model Repository Extension | Extension to the protocol to provide a control plane which lets you load / unload models dynamically           | {download}`model_repository.json <../../openapi/model_repository.json>` |
 
 ## Swagger UI
 

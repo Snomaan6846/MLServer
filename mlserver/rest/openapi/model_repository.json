@@ -186,7 +186,8 @@
   },
   "tags": [
     {
-      "name": "extension"
+      "name": "extension",
+      "description": "MLServer-specific extensions to the V2 Inference Protocol"
     },
     {
       "name": "model"

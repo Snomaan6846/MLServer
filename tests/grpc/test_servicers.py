@@ -45,7 +45,7 @@ async def test_server_metadata(inference_service_stub):
 
     assert response.name == "mlserver"
     assert response.version == __version__
-    assert response.extensions == []
+    assert response.extensions == ["model_repository", "runtime_security"]
 
 
 async def test_model_metadata(inference_service_stub, sum_model_settings):
@@ -262,3 +262,76 @@ async def test_infer_invalid_datatype_error(
         "input_value='INT322', input_type=str]\n    For further "
         "information visit https://errors.pydantic.dev/2.9/v/enum"
     )
+
+
+async def test_runtime_security_grpc_production_mode(inference_service_stub):
+    """Test gRPC RuntimeSecurity in PRODUCTION mode."""
+    request = pb.RuntimeSecurityRequest()
+    response = await inference_service_stub.RuntimeSecurity(request)
+
+    assert response.mode == "PRODUCTION"
+    assert response.HasField("allowed_model_implementations")
+    assert len(response.allowed_model_implementations.items) > 0
+    # Should include builtin runtimes
+    assert (
+        "mlserver_sklearn.SKLearnModel" in response.allowed_model_implementations.items
+    )
+
+
+async def test_runtime_security_grpc_development_mode(
+    development_mode, inference_service_stub
+):
+    """Test gRPC RuntimeSecurity in DEVELOPMENT mode."""
+    request = pb.RuntimeSecurityRequest()
+    response = await inference_service_stub.RuntimeSecurity(request)
+
+    assert response.mode == "DEVELOPMENT"
+    # In DEVELOPMENT mode, allowed_model_implementations field should not be set
+    assert not response.HasField("allowed_model_implementations")
+
+
+async def test_runtime_security_grpc_protobuf_conversion(inference_service_stub):
+    """Test that gRPC RuntimeSecurity returns correct protobuf structure."""
+    request = pb.RuntimeSecurityRequest()
+    response = await inference_service_stub.RuntimeSecurity(request)
+
+    # Verify response is a RuntimeSecurityResponse protobuf
+    assert isinstance(response, pb.RuntimeSecurityResponse)
+    # Verify mode is a string
+    assert isinstance(response.mode, str)
+    # In PRODUCTION mode, allowed_model_implementations field should be set
+    assert response.HasField("allowed_model_implementations")
+
+
+async def test_runtime_security_grpc_includes_all_implementations(
+    inference_service_stub,
+):
+    """Test that gRPC RuntimeSecurity includes all allowlisted implementations."""
+    import mlserver.settings as mlserver_settings
+    from conftest import TEST_ONLY_EXTRA_IMPLEMENTATIONS
+
+    request = pb.RuntimeSecurityRequest()
+    response = await inference_service_stub.RuntimeSecurity(request)
+
+    assert response.HasField("allowed_model_implementations")
+    implementations_set = set(response.allowed_model_implementations.items)
+
+    # Should include all builtin runtimes
+    for builtin in mlserver_settings.ALLOWED_MODEL_IMPLEMENTATIONS:
+        assert builtin in implementations_set
+
+    # Should include test-only implementations
+    for test_impl in TEST_ONLY_EXTRA_IMPLEMENTATIONS:
+        assert test_impl in implementations_set
+
+
+async def test_runtime_security_grpc_sorted_list(inference_service_stub):
+    """Test that gRPC RuntimeSecurity returns a sorted list in PRODUCTION mode."""
+    request = pb.RuntimeSecurityRequest()
+    response = await inference_service_stub.RuntimeSecurity(request)
+
+    assert response.HasField("allowed_model_implementations")
+    implementations = list(response.allowed_model_implementations.items)
+    # Verify list is sorted
+    sorted_list = sorted(implementations)
+    assert implementations == sorted_list

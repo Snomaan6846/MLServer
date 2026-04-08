@@ -11,6 +11,7 @@ from ..types import (
     InferenceResponse,
     RepositoryIndexRequest,
     RepositoryIndexResponse,
+    RuntimeSecurityResponse,
 )
 from ..handlers import DataPlane, ModelRepositoryHandlers
 from ..utils import insert_headers, extract_headers
@@ -80,6 +81,9 @@ class Endpoints:
 
     async def metadata(self) -> MetadataServerResponse:
         return await self._data_plane.metadata()
+
+    async def runtimes(self) -> RuntimeSecurityResponse:
+        return await self._data_plane.runtimes()
 
     async def model_metadata(
         self, model_name: str, model_version: Optional[str] = None
