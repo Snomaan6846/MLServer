@@ -124,6 +124,7 @@ components:
           type: string
 tags:
   - name: extension
+    description: MLServer-specific extensions to the V2 Inference Protocol
   - name: model
   - name: model-repository
   - name: server

@@ -154,6 +154,11 @@ def create_app(
             "/v2",
             endpoints.metadata,
         ),
+        # Runtime security information
+        APIRoute(
+            "/v2/runtimes",
+            endpoints.runtimes,
+        ),
     ]
 
     routes += [

@@ -125,6 +125,22 @@ def logger(settings: Settings):
     return configure_logger(settings)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def add_tests_path_to_sys_path():
+    # Ownership note: this fixture is `tests/`-suite local and only manages
+    # import-path behavior for root tests; trusted-runtime artifact setup lives
+    # in repository-root `conftest.py`.
+    added = False
+    if TESTS_PATH not in sys.path:
+        # Append (instead of prepend) to avoid shadowing installed packages
+        # such as `grpc` with similarly named modules under `tests/`.
+        sys.path.append(TESTS_PATH)
+        added = True
+    yield
+    if added and TESTS_PATH in sys.path:
+        sys.path.remove(TESTS_PATH)
+
+
 @pytest.fixture
 def metrics_registry() -> MetricsRegistry:
     yield METRICS_REGISTRY

@@ -15,17 +15,15 @@ def _init_mlserver_folder(tmp_path: str, settings: Settings):
     with open(settings_path, "w") as settings_file:
         settings_file.write(settings.model_dump_json())
 
-    # Copy fixtures.py module
-    src_path = os.path.join(TESTS_PATH, "fixtures.py")
-    dst_path = os.path.join(tmp_path, "fixtures.py")
-    shutil.copy(src_path, dst_path)
-
     # Write SlowModel's model-settings.json
     model_folder = os.path.join(tmp_path, "slow-model")
     os.makedirs(model_folder)
     model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
     with open(model_settings_path, "w") as model_settings_file:
-        model_settings = {"name": "slow-model", "implementation": "fixtures.SlowModel"}
+        model_settings = {
+            "name": "slow-model",
+            "implementation": "tests.fixtures.SlowModel",
+        }
         model_settings_file.write(json.dumps(model_settings))
 
 

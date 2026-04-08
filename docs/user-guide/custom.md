@@ -174,10 +174,82 @@ class CustomHeadersRuntime(MLModel):
 
 ## Loading a custom MLServer runtime
 
-MLServer lets you load custom runtimes dynamically into a running instance of
-MLServer.
-Once you have your custom runtime ready, all you need to is to move it to your
-model folder, next to your `model-settings.json` configuration file.
+MLServer supports two modes for loading custom runtimes, depending on the
+runtime security configuration:
+
+### PRODUCTION Mode (Production)
+
+When a trusted runtimes allowlist file exists (typically in production images),
+MLServer operates in PRODUCTION mode. In this mode, custom runtimes must be
+explicitly allowlisted and properly packaged into the image.
+
+```{warning}
+For production deployments (PRODUCTION mode), custom runtimes must be present in the
+trusted allowlist artifact used by the running image. Runtime import paths not
+in that allowlist are rejected at load time.
+```
+
+### DEVELOPMENT Mode (Development)
+
+When no trusted runtimes allowlist file exists, MLServer operates in DEVELOPMENT
+mode. This mode is designed for local development and provides maximum convenience
+by supporting dynamic runtime loading directly from model folders.
+
+```{note}
+In DEVELOPMENT mode, you can simply place your custom runtime code (e.g.,
+`my_runtime.py`) next to your `model-settings.json` file, and MLServer will
+automatically discover and load it. No packaging or installation required!
+```
+
+```{warning}
+DEVELOPMENT mode is intended for development and testing only. It allows
+arbitrary code execution and should NEVER be used in production environments.
+Always use PRODUCTION mode (production-mode images or Dockerfiles) for production deployments.
+```
+
+**Example for DEVELOPMENT mode:**
+
+```bash
+# Simple development workflow - no Docker build needed
+models/
+  └── my-model/
+      ├── model-settings.json  # {"implementation": "my_runtime.MyModel"}
+      ├── my_runtime.py        # Your custom runtime code
+      └── model.pkl
+
+# Start MLServer in development mode (no allowlist file)
+mlserver start models/
+# Automatically loads my_runtime.py from model folder!
+```
+
+For production deployments in PRODUCTION mode, continue reading below for the proper
+packaging workflow.
+
+### Verifying runtime allowlist configuration
+
+You can verify which runtimes are allowed in your running MLServer instance by
+querying the `/v2/runtimes` endpoint (REST) or `RuntimeSecurity` RPC (gRPC).
+This is useful for debugging allowlist issues or confirming your custom runtime
+was properly registered during image build.
+
+```bash
+curl http://localhost:8080/v2/runtimes
+```
+
+The response shows the security mode and, when in `PRODUCTION` mode, lists all
+allowed model implementations. For more details and examples, see the
+[model-settings reference](../reference/model-settings.md#querying-runtime-security-configuration).
+
+### Packaging custom runtimes
+
+The recommended workflow is to package your runtime code in the image and
+declare each custom runtime with both `--allow-runtime` and a matching
+`--runtime-path` during image build.
+
+When running `mlserver build`, use an isolated and trusted build workspace.
+Runtime-path validation catches misconfigurations early, but does not prevent
+concurrent modifications. Ensure files are not modified during the build by
+enforcing isolation via filesystem permissions or process controls.
 
 For example, if we assume a flat model repository where each folder represents
 a model, you would end up with a folder structure like the one below:
@@ -192,7 +264,8 @@ a model, you would end up with a folder structure like the one below:
 
 Note that, from the example above, we are assuming that:
 
-- Your custom runtime code lives in the `models.py` file.
+- Your custom runtime code lives in the `models.py` file and is packaged into
+  the serving image.
 - The `implementation` field of your `model-settings.json` configuration file
   contains the import path of your custom runtime (e.g.
   `models.MyCustomRuntime`).
@@ -218,6 +291,16 @@ It is possible to load this custom set of dependencies by providing them
 through an [environment tarball](../examples/conda/README) or by giving a
 path to an already exisiting python environment. Both paths can be
 specified within your `model-settings.json` file.
+
+```{warning}
+**PRODUCTION Mode Restriction:**
+The `environment_tarball` and `environment_path` parameters are **ONLY available 
+in DEVELOPMENT mode**. In PRODUCTION mode (when a trusted runtimes allowlist exists), 
+these parameters will be rejected with an error. 
+
+For production deployments, all dependencies must be pre-installed in the container 
+image during the build process using a [Conda environment file or requirements.txt](#custom-environment).
+```
 
 ```{warning}
 To load a custom environment, [parallel inference](./parallel-inference)
@@ -306,12 +389,85 @@ as well as any custom environment, provided either through a [Conda environment
 file](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
 or a `requirements.txt` file.
 
-To leverage these, we can use the `mlserver build` command.
-Assuming that we're currently on the folder containing our custom inference
-runtime, we should be able to just run:
+### Build Modes: PRODUCTION vs DEVELOPMENT
+
+You can build images in two different security modes:
+
+**PRODUCTION Mode (Recommended for Production):**
+
+Build an image with a trusted runtimes allowlist. Only explicitly declared
+runtimes can be loaded at runtime.
 
 ```bash
-mlserver build . -t my-custom-server
+# Build with specific custom runtimes allowlisted
+mlserver build . -t my-custom-server \
+  --allow-runtime models.MyCustomRuntime \
+  --runtime-path models.py
+```
+
+- Custom runtimes are baked into the image at build time
+- Runtime import paths are validated and allowlisted
+- Provides strong security guarantees for production
+- Default mode when using `--allow-runtime` / `--runtime-path`
+
+**DEVELOPMENT Mode (Development/Testing Only):**
+
+Build an image that allows any runtime to be loaded dynamically at runtime.
+
+```bash
+# Build a development image (no allowlist)
+mlserver build . -t my-dev-server --dev
+```
+
+- No trusted runtimes allowlist is created
+- Custom runtimes can be loaded from model folders at runtime
+- Convenient for development and testing
+- **WARNING:** Should NEVER be used in production environments
+
+```{warning}
+The `--dev` flag is mutually exclusive with `--allow-runtime` and
+`--runtime-path`. You must choose either PRODUCTION or DEVELOPMENT mode, not both.
+```
+
+**Quick Reference:**
+
+| Build Command | Mode | Custom Runtime Loading | Production Use |
+|--------------|------|----------------------|----------------|
+| `mlserver build . -t image` | PRODUCTION | Built-in runtimes only | ✅ Yes |
+| `mlserver build . -t image --allow-runtime X --runtime-path x.py` | PRODUCTION | Built-in + allowlisted custom | ✅ Yes |
+| `mlserver build . -t image --dev` | DEVELOPMENT | Any runtime (dynamic) | ❌ No |
+
+### Building with Custom Runtimes (PRODUCTION Mode)
+
+```{note}
+When using custom runtimes, pass the exact dotted Python
+import path for each runtime through `--allow-runtime` (for example
+`--allow-runtime models.MyCustomRuntime`).
+```
+
+```{note}
+In PRODUCTION mode, Python modules placed only in the model folder are not
+auto-imported. Package custom runtime code into the built image and allowlist
+it through `--allow-runtime`.
+
+For each custom runtime module, also pass a matching `--runtime-path` value so
+the source is copied into the image import path (for example,
+`--runtime-path models.py` or `--runtime-path models/`).
+When using a directory path, it must be an importable Python package containing
+`__init__.py`.
+```
+
+```bash
+mlserver build . -t my-custom-server \
+  --allow-runtime models.MyCustomRuntime \
+  --runtime-path models.py
+```
+
+```{note}
+Migration tip: if you already have custom runtime images, make sure every
+runtime in use is declared through `--allow-runtime module.ClassName` during
+build. Runtime import paths not present in the trusted allowlist will be
+rejected at load time.
 ```
 
 The output will be a Docker image named `my-custom-server`, ready to be used.
@@ -370,6 +526,19 @@ dockerfile`](../reference/cli) subcommand which will just generate a
 `Dockerfile` (and optionally a `.dockerignore` file) exactly like the one used
 by the `mlserver build` command.
 This `Dockerfile` can then be customised according to your needs.
+
+```{note}
+The `mlserver dockerfile` command supports the same build modes as `mlserver build`:
+
+- **PRODUCTION mode:** Use `--allow-runtime` and `--runtime-path` to generate a
+  Dockerfile with a trusted runtimes allowlist
+- **DEVELOPMENT mode:** Use `--dev` to generate a Dockerfile
+  without an allowlist (development only)
+
+For custom runtimes in PRODUCTION mode, pass `--allow-runtime module.ClassName`
+and matching `--runtime-path` so the generated Dockerfile includes the
+allowlist and corresponding `COPY` / `PYTHONPATH` entries.
+```
 
 ````{note}
 The base `Dockerfile` requires [Docker's

@@ -1,4 +1,5 @@
 import os
+import json
 import pytest
 
 from mlserver.repository import (
@@ -115,3 +116,25 @@ async def test_find(
 
     assert len(found_model_settings) == 1
     assert found_model_settings[0].name == sum_model_settings.name
+
+
+async def test_list_skips_untrusted_runtime_settings(
+    model_folder: str, sum_model_settings: ModelSettings
+):
+    untrusted_folder = os.path.join(model_folder, "malicious-model")
+    os.makedirs(untrusted_folder, exist_ok=True)
+    untrusted_settings_path = os.path.join(
+        untrusted_folder, DEFAULT_MODEL_SETTINGS_FILENAME
+    )
+    with open(untrusted_settings_path, "w") as f:
+        settings_dict = sum_model_settings.model_dump(by_alias=True)
+        settings_dict["name"] = "malicious-model"
+        settings_dict["implementation"] = "malicious.CustomModel"
+        json.dump(settings_dict, f)
+
+    repository = SchemalessModelRepository(model_folder)
+    settings_list = await repository.list()
+    names = {settings.name for settings in settings_list}
+
+    assert "sum-model" in names
+    assert "malicious-model" not in names
