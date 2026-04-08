@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mlserver-mllib"
-version = "1.7.1+rhai7"
+version = "1.7.1+rhaiv.8"
 description = "Spark MLlib runtime for MLServer"
 authors = ["Seldon Technologies Ltd. <hello@seldon.io>"]
 license = "Apache-2.0"

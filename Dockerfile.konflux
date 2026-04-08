@@ -1,15 +1,17 @@
 ARG BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.4.0"
 ARG RUNTIMES="lightgbm onnx sklearn xgboost"
+# Space-separated list of runtime import paths
+ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
 
 FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
+ARG TRUSTED_RUNTIMES
 
 USER 0
 
 # Set a few default environment variables.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
-    MLSERVER_ENV_TARBALL=/mnt/models/environment.tar.gz \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
     NUMBA_CACHE_DIR=/opt/mlserver/.cache
@@ -32,6 +34,26 @@ RUN pip install mlserver && \
 
 COPY ./licenses/license.txt .
 COPY ./licenses/license.txt /licenses/
+
+# Generate trusted-runtimes.json with only installed runtimes
+RUN env TRUSTED_RUNTIMES="$TRUSTED_RUNTIMES" python3 <<'EOF'
+import json, os, sys
+from pathlib import Path
+from mlserver.settings import is_valid_runtime_import_path
+
+runtimes = os.environ.get("TRUSTED_RUNTIMES", "").split()
+invalid = [r for r in runtimes if not is_valid_runtime_import_path(r)]
+if invalid:
+    print(f"Invalid runtime import path(s): {invalid}", file=sys.stderr)
+    sys.exit(1)
+
+target_dir = Path("/etc/mlserver")
+target_dir.mkdir(parents=True, exist_ok=True)
+artifact_file = target_dir / "trusted-runtimes.json"
+artifact_file.write_text(json.dumps(runtimes))
+artifact_file.chmod(0o444)
+target_dir.chmod(0o555)
+EOF
 
 USER 1000
 
