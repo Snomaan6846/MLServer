@@ -1,11 +1,13 @@
-ARG BUILDER_BASE_IMAGE="python:3.12-slim"
-ARG RUNTIME_BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
+ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
 ARG RUNTIMES="lightgbm onnx sklearn xgboost"
+# Space-separated list of runtime import paths
+ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
 
-FROM ${BUILDER_BASE_IMAGE} AS wheel-builder
+FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
 ARG POETRY_VERSION="2.1.1"
+ARG PYTHON_VERSION=3.12
 
 WORKDIR /opt/mlserver
 
@@ -18,6 +20,17 @@ COPY \
     README.md \
     ./
 
+RUN microdnf update -y && \
+    microdnf install -y \
+        python${PYTHON_VERSION} \
+        python${PYTHON_VERSION}-pip && \
+    microdnf clean all && \
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
+    alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
+    ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
+    ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
+    pip install --upgrade pip wheel setuptools
+
 # Install Poetry, build wheels and export constraints.txt file
 RUN pip install poetry==$POETRY_VERSION && \
     pip install poetry-plugin-export && \
@@ -27,35 +40,27 @@ RUN pip install poetry==$POETRY_VERSION && \
         --format constraints.txt \
         -o /opt/mlserver/dist/constraints.txt
 
-FROM ${RUNTIME_BASE_IMAGE}
+FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
+ARG TRUSTED_RUNTIMES
 ARG PYTHON_VERSION=3.12
 
-# Set a few default environment variables, including `LD_LIBRARY_PATH`
-# (required to use GKE's injected CUDA libraries).
+# Set default environment variables
 # NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
-    MLSERVER_ENV_TARBALL=/mnt/models/environment.tar.gz \
     MLSERVER_PATH=/opt/mlserver \
-    PATH=/opt/mlserver/.local/bin:$PATH \
-    LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/lib/python${PYTHON_VERSION}/site-packages/nvidia/nccl/lib/:$LD_LIBRARY_PATH \
     HF_HOME=/opt/mlserver/.cache \
     NUMBA_CACHE_DIR=/opt/mlserver/.cache
 
-# Install some base dependencies required for some libraries
+# Install some base dependencies required for some libraries.
+# libgomp is needed by the LightGBM runtime.
 RUN microdnf update -y && \
     microdnf install -y \
-        tar \
-        gzip \
         libgomp \
-        mesa-libGL \
-        glib2-devel \
         shadow-utils \
         python${PYTHON_VERSION} \
-        python${PYTHON_VERSION}-devel \
-        python${PYTHON_VERSION}-pip \
-        gcc && \
+        python${PYTHON_VERSION}-pip && \
     microdnf clean all
 
 WORKDIR /opt/mlserver
@@ -66,25 +71,45 @@ WORKDIR /opt/mlserver
 RUN mkdir -p $MLSERVER_PATH && \
     useradd -u 1000 -s /bin/bash mlserver -d $MLSERVER_PATH && \
     chown -R 1000:0 $MLSERVER_PATH && \
-    chmod -R 776 $MLSERVER_PATH
+    chmod 1776 $MLSERVER_PATH
 
-COPY --from=wheel-builder /opt/mlserver/dist ./dist
-
-RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
-    ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python && \
+# Configure the new python as default
+RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
+    alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip &&\
     pip install --upgrade pip wheel setuptools && \
+    pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     for _runtime in $RUNTIMES; do \
         _wheel="./dist/mlserver_$_runtime-"*.whl; \
         echo "--> Installing $_wheel..."; \
         pip install $_wheel --constraint ./dist/constraints.txt; \
     done && \
-    pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     rm -rf /root/.cache/pip
 
 COPY ./licenses/license.txt .
 COPY ./licenses/license.txt /licenses/
+
+# Generate trusted-runtimes.json with only installed runtimes
+RUN env TRUSTED_RUNTIMES="$TRUSTED_RUNTIMES" python3 <<'EOF'
+import json, os, sys
+from pathlib import Path
+from mlserver.settings import is_valid_runtime_import_path
+
+runtimes = os.environ.get("TRUSTED_RUNTIMES", "").split()
+invalid = [r for r in runtimes if not is_valid_runtime_import_path(r)]
+if invalid:
+    print(f"Invalid runtime import path(s): {invalid}", file=sys.stderr)
+    sys.exit(1)
+
+target_dir = Path("/etc/mlserver")
+target_dir.mkdir(parents=True, exist_ok=True)
+artifact_file = target_dir / "trusted-runtimes.json"
+artifact_file.write_text(json.dumps(runtimes))
+artifact_file.chmod(0o444)
+target_dir.chmod(0o555)
+EOF
 
 USER 1000
 

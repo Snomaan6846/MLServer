@@ -50,7 +50,11 @@ async def test_metadata(settings, data_plane, server_name, server_version, exten
 
     assert metadata.name == settings.server_name
     assert metadata.version == settings.server_version
-    assert metadata.extensions == settings.extensions
+    # Built-in extensions are always present
+    expected_extensions = ["model_repository", "runtime_security"]
+    if extensions is not None:
+        expected_extensions += extensions
+    assert metadata.extensions == expected_extensions
 
 
 @pytest.mark.parametrize(
@@ -164,3 +168,77 @@ async def test_infer_response_cache(cached_data_plane, sum_model, inference_requ
 async def test_response_cache_disabled(data_plane):
     response_cache = data_plane._get_response_cache()
     assert response_cache is None
+
+
+async def test_runtimes_handler_production_mode(data_plane):
+    """Test DataPlane.runtimes() in PRODUCTION mode."""
+    response = await data_plane.runtimes()
+
+    assert response.mode == "PRODUCTION"
+    assert response.allowed_model_implementations is not None
+    assert isinstance(response.allowed_model_implementations, list)
+    assert len(response.allowed_model_implementations) > 0
+    # Should include builtin runtimes
+    assert "mlserver_sklearn.SKLearnModel" in response.allowed_model_implementations
+
+
+async def test_runtimes_handler_development_mode(development_mode, data_plane):
+    """Test DataPlane.runtimes() in DEVELOPMENT mode."""
+    response = await data_plane.runtimes()
+
+    assert response.mode == "DEVELOPMENT"
+    assert response.allowed_model_implementations is None
+
+
+async def test_runtimes_handler_empty_allowlist(empty_allowlist_mode):
+    """Test DataPlane.runtimes() with empty allowlist.
+
+    Note: We skip the data_plane fixture since empty_allowlist_mode prevents
+    models from loading. We call the method directly instead.
+    """
+    from mlserver.handlers import DataPlane
+
+    # Call runtimes() static method - it doesn't need DataPlane instance
+    # since it only reads from settings files
+    response = await DataPlane.runtimes()
+
+    assert response.mode == "PRODUCTION"
+    assert response.allowed_model_implementations == []
+
+
+async def test_runtimes_handler_returns_sorted_list(data_plane):
+    """Test that DataPlane.runtimes() returns a sorted list in PRODUCTION mode."""
+    response = await data_plane.runtimes()
+
+    assert response.allowed_model_implementations is not None
+    # Verify list is sorted
+    sorted_list = sorted(response.allowed_model_implementations)
+    assert response.allowed_model_implementations == sorted_list
+
+
+async def test_runtimes_handler_includes_all_implementations(data_plane):
+    """Test that DataPlane.runtimes() includes all allowlisted implementations."""
+    import mlserver.settings as mlserver_settings
+    from conftest import TEST_ONLY_EXTRA_IMPLEMENTATIONS
+
+    response = await data_plane.runtimes()
+
+    assert response.allowed_model_implementations is not None
+    implementations_set = set(response.allowed_model_implementations)
+
+    # Should include all builtin runtimes
+    for builtin in mlserver_settings.ALLOWED_MODEL_IMPLEMENTATIONS:
+        assert builtin in implementations_set
+
+    # Should include test-only implementations
+    for test_impl in TEST_ONLY_EXTRA_IMPLEMENTATIONS:
+        assert test_impl in implementations_set
+
+
+async def test_runtimes_handler_returns_correct_type(data_plane):
+    """Test that DataPlane.runtimes() returns RuntimeSecurityResponse type."""
+    from mlserver.types import RuntimeSecurityResponse
+
+    response = await data_plane.runtimes()
+
+    assert isinstance(response, RuntimeSecurityResponse)

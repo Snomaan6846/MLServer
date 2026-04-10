@@ -1,1 +1,1 @@
-__version__ = "1.7.1+rhai7"
+__version__ = "1.7.1+rhaiv.8"
