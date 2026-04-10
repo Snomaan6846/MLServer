@@ -1,5 +1,4 @@
 import os
-import sys
 
 from typing import Optional, List, Tuple, Union
 
@@ -16,13 +15,6 @@ async def load_settings(
     """
     Load server and model settings.
     """
-    # NOTE: Insert current directory and model folder into syspath to load
-    # specified model.
-    sys.path.insert(0, ".")
-
-    if folder:
-        sys.path.insert(0, folder)
-
     settings = None
     if _path_exists(folder, DEFAULT_SETTINGS_FILENAME):
         settings_path = os.path.join(folder, DEFAULT_SETTINGS_FILENAME)  # type: ignore

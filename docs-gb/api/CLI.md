@@ -33,6 +33,15 @@ root build [OPTIONS] FOLDER
 
 - `--no-cache` (Default: `False`)
 
+- `--allow-runtime` `<text>`
+  Additional custom runtime import path to allow in the built image. Use exact dotted Python import paths (`module.ClassName`). For custom runtimes, each `--allow-runtime` must have a corresponding `--runtime-path` source baked into the artifact. Multiple options are allowed.
+
+- `--runtime-path` `<path>`
+  Path (relative to the build folder) to a custom runtime Python module or package to bake into the image import path. Directory paths must point to importable Python packages containing `__init__.py`. Multiple options are allowed.
+
+- `--dev` (Default: `False`)
+  Build a development image that allows any runtime to be loaded (DEVELOPMENT mode). Cannot be combined with `--allow-runtime` or `--runtime-path`.
+
 ### Arguments
 
 - `FOLDER`
@@ -49,6 +58,15 @@ root dockerfile [OPTIONS] FOLDER
 ### Options
 
 - `-i`, `--include-dockerignore` (Default: `False`)
+
+- `--allow-runtime` `<text>`
+  Additional custom runtime import path to include in the generated Dockerfile allowlist. Use exact dotted Python import paths (`module.ClassName`). For custom runtimes, each `--allow-runtime` must have a corresponding `--runtime-path`. Multiple options are allowed.
+
+- `--runtime-path` `<path>`
+  Path (relative to the folder) to a custom runtime Python module or package to include in generated Dockerfile import path. Directory paths must point to importable Python packages containing `__init__.py`. Multiple options are allowed.
+
+- `--dev` (Default: `False`)
+  Generate a Dockerfile for a development image that allows any runtime (DEVELOPMENT mode). Cannot be combined with `--allow-runtime` or `--runtime-path`.
 
 ### Arguments
 

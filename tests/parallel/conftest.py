@@ -153,7 +153,8 @@ def custom_request_message(sum_model_settings: ModelSettings) -> ModelRequestMes
 
 
 @pytest.fixture
-def env_model_settings(env_tarball: str) -> ModelSettings:
+def env_model_settings(development_mode, env_tarball: str) -> ModelSettings:
+    """Model settings with environment_tarball (requires DEVELOPMENT mode)."""
     return ModelSettings(
         name="env-model",
         implementation=EnvModel,
@@ -162,18 +163,20 @@ def env_model_settings(env_tarball: str) -> ModelSettings:
 
 
 @pytest.fixture
-def existing_env_model_settings(env_tarball: str, tmp_path) -> ModelSettings:
+def existing_env_model_settings(
+    development_mode, env_tarball: str, tmp_path
+) -> ModelSettings:
+    """Model settings with environment_path (requires DEVELOPMENT mode)."""
     from mlserver.env import _extract_env
 
     env_path = str(tmp_path)
-
     _extract_env(env_tarball, env_path)
-    model_settings = ModelSettings(
+
+    return ModelSettings(
         name="exising_env_model",
         implementation=EnvModel,
         parameters=ModelParameters(environment_path=env_path),
     )
-    yield model_settings
 
 
 @pytest.fixture

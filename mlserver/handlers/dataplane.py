@@ -15,6 +15,8 @@ from ..types import (
     MetadataServerResponse,
     InferenceRequest,
     InferenceResponse,
+    RuntimeSecurityResponse,
+    RuntimeSecurityMode,
 )
 from ..middleware import InferenceMiddlewares
 from ..cloudevents import CloudEventsMiddleware
@@ -67,11 +69,39 @@ class DataPlane:
         return model.ready
 
     async def metadata(self) -> MetadataServerResponse:
+        # Built-in extensions that are always available
+        builtin_extensions = ["model_repository", "runtime_security"]
+        # Combine with user-configured extensions
+        all_extensions = builtin_extensions + self._settings.extensions
         return MetadataServerResponse(
             name=self._settings.server_name,
             version=self._settings.server_version,
-            extensions=self._settings.extensions,
+            extensions=all_extensions,
         )
+
+    @staticmethod
+    async def runtimes() -> RuntimeSecurityResponse:
+        from ..settings import (
+            _load_image_baked_allowed_model_implementations,
+            _get_trusted_runtimes_artifact_path,
+        )
+
+        allowed = _load_image_baked_allowed_model_implementations(
+            _get_trusted_runtimes_artifact_path()
+        )
+
+        if allowed is not None:
+            # Production mode: file exists
+            return RuntimeSecurityResponse(
+                mode=RuntimeSecurityMode.PRODUCTION,
+                allowed_model_implementations=sorted(allowed),
+            )
+        else:
+            # Development mode: no file
+            return RuntimeSecurityResponse(
+                mode=RuntimeSecurityMode.DEVELOPMENT,
+                allowed_model_implementations=None,
+            )
 
     async def model_metadata(
         self, name: str, version: Optional[str] = None

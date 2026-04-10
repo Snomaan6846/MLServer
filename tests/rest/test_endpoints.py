@@ -51,7 +51,7 @@ async def test_metadata(rest_client: AsyncClient):
 
     assert metadata.name == "mlserver"
     assert metadata.version == __version__
-    assert metadata.extensions == []
+    assert metadata.extensions == ["model_repository", "runtime_security"]
 
 
 async def test_openapi(rest_client: AsyncClient):
@@ -277,3 +277,86 @@ async def test_infer_invalid_datatype_error(
     assert response.status_code == 422
 
     assert response.json()["detail"][0]["msg"] == datatype_error_message
+
+
+async def test_runtimes_endpoint_production_mode(rest_client):
+    """Test GET /v2/runtimes in PRODUCTION mode."""
+    endpoint = "/v2/runtimes"
+    response = await rest_client.get(endpoint)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["mode"] == "PRODUCTION"
+    assert "allowed_model_implementations" in data
+    assert isinstance(data["allowed_model_implementations"], list)
+    assert len(data["allowed_model_implementations"]) > 0
+    # Should include builtin runtimes
+    assert "mlserver_sklearn.SKLearnModel" in data["allowed_model_implementations"]
+
+
+async def test_runtimes_endpoint_development_mode(development_mode, rest_client):
+    """Test GET /v2/runtimes in DEVELOPMENT mode."""
+    endpoint = "/v2/runtimes"
+    response = await rest_client.get(endpoint)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["mode"] == "DEVELOPMENT"
+    # In DEVELOPMENT mode, allowed_model_implementations field should not be in response
+    assert "allowed_model_implementations" not in data
+
+
+async def test_runtimes_endpoint_schema_validation(rest_client):
+    """Test that /v2/runtimes response matches RuntimeSecurityResponse schema."""
+    from mlserver.types import RuntimeSecurityResponse
+
+    endpoint = "/v2/runtimes"
+    response = await rest_client.get(endpoint)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # In PRODUCTION mode, field should be present in JSON response
+    assert "allowed_model_implementations" in data
+
+    # Should be able to parse as RuntimeSecurityResponse
+    runtime_response = RuntimeSecurityResponse.model_validate(data)
+    assert runtime_response.mode == "PRODUCTION"
+    assert runtime_response.allowed_model_implementations is not None
+
+
+async def test_runtimes_endpoint_includes_all_implementations(rest_client):
+    """Test that /v2/runtimes includes all allowlisted implementations."""
+    import mlserver.settings as mlserver_settings
+    from conftest import TEST_ONLY_EXTRA_IMPLEMENTATIONS
+
+    endpoint = "/v2/runtimes"
+    response = await rest_client.get(endpoint)
+
+    assert response.status_code == 200
+    data = response.json()
+    implementations_set = set(data["allowed_model_implementations"])
+
+    # Should include all builtin runtimes
+    for builtin in mlserver_settings.ALLOWED_MODEL_IMPLEMENTATIONS:
+        assert builtin in implementations_set
+
+    # Should include test-only implementations
+    for test_impl in TEST_ONLY_EXTRA_IMPLEMENTATIONS:
+        assert test_impl in implementations_set
+
+
+async def test_runtimes_endpoint_sorted_list(rest_client):
+    """Test that /v2/runtimes returns a sorted list in PRODUCTION mode."""
+    endpoint = "/v2/runtimes"
+    response = await rest_client.get(endpoint)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    implementations = data["allowed_model_implementations"]
+    # Verify list is sorted
+    sorted_list = sorted(implementations)
+    assert implementations == sorted_list

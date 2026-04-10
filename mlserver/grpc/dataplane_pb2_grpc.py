@@ -64,6 +64,12 @@ class GRPCInferenceServiceStub(object):
             response_deserializer=dataplane__pb2.ServerMetadataResponse.FromString,
             _registered_method=True,
         )
+        self.RuntimeSecurity = channel.unary_unary(
+            "/inference.GRPCInferenceService/RuntimeSecurity",
+            request_serializer=dataplane__pb2.RuntimeSecurityRequest.SerializeToString,
+            response_deserializer=dataplane__pb2.RuntimeSecurityResponse.FromString,
+            _registered_method=True,
+        )
         self.ModelMetadata = channel.unary_unary(
             "/inference.GRPCInferenceService/ModelMetadata",
             request_serializer=dataplane__pb2.ModelMetadataRequest.SerializeToString,
@@ -132,6 +138,12 @@ class GRPCInferenceServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def RuntimeSecurity(self, request, context):
+        """Get runtime security configuration."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
     def ModelMetadata(self, request, context):
         """Get model metadata."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -190,6 +202,11 @@ def add_GRPCInferenceServiceServicer_to_server(servicer, server):
             servicer.ServerMetadata,
             request_deserializer=dataplane__pb2.ServerMetadataRequest.FromString,
             response_serializer=dataplane__pb2.ServerMetadataResponse.SerializeToString,
+        ),
+        "RuntimeSecurity": grpc.unary_unary_rpc_method_handler(
+            servicer.RuntimeSecurity,
+            request_deserializer=dataplane__pb2.RuntimeSecurityRequest.FromString,
+            response_serializer=dataplane__pb2.RuntimeSecurityResponse.SerializeToString,
         ),
         "ModelMetadata": grpc.unary_unary_rpc_method_handler(
             servicer.ModelMetadata,
@@ -347,6 +364,36 @@ class GRPCInferenceService(object):
             "/inference.GRPCInferenceService/ServerMetadata",
             dataplane__pb2.ServerMetadataRequest.SerializeToString,
             dataplane__pb2.ServerMetadataResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True,
+        )
+
+    @staticmethod
+    def RuntimeSecurity(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/inference.GRPCInferenceService/RuntimeSecurity",
+            dataplane__pb2.RuntimeSecurityRequest.SerializeToString,
+            dataplane__pb2.RuntimeSecurityResponse.FromString,
             options,
             channel_credentials,
             insecure,
