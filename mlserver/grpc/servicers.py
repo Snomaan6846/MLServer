@@ -6,6 +6,7 @@ from .converters import (
     ModelInferRequestConverter,
     ModelInferResponseConverter,
     ServerMetadataResponseConverter,
+    RuntimeSecurityResponseConverter,
     ModelMetadataResponseConverter,
     RepositoryIndexRequestConverter,
     RepositoryIndexResponseConverter,
@@ -56,6 +57,13 @@ class InferenceServicer(GRPCInferenceServiceServicer):
     ) -> pb.ServerMetadataResponse:
         metadata = await self._data_plane.metadata()
         return ServerMetadataResponseConverter.from_types(metadata)
+
+    @handle_mlserver_error
+    async def RuntimeSecurity(
+        self, request: pb.RuntimeSecurityRequest, context
+    ) -> pb.RuntimeSecurityResponse:
+        security = await self._data_plane.runtimes()
+        return RuntimeSecurityResponseConverter.from_types(security)
 
     @handle_mlserver_error
     async def ModelMetadata(

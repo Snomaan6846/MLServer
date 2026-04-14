@@ -83,6 +83,56 @@ Out of the box, MLServer provides support for:
 | Alibi-Explain | ✅        | [MLServer Alibi Explain](./runtimes/alibi-explain)               |
 | HuggingFace   | ✅        | [MLServer HuggingFace](./runtimes/huggingface)                   |
 
+### Runtime Security Maintainer Note
+
+MLServer enforces a trusted runtime implementation allowlist in
+`mlserver/settings.py` (`ALLOWED_MODEL_IMPLEMENTATIONS`) when resolving model
+implementations from `model-settings.json` and
+`MLSERVER_MODEL_IMPLEMENTATION`.
+
+If you add a new core runtime implementation shipped by this repository, you
+must also:
+
+1. Add the runtime import path to `ALLOWED_MODEL_IMPLEMENTATIONS`.
+2. Add or update tests validating allowlist behavior.
+3. Keep runtime docs/examples aligned with the implementation import path.
+
+For third-party or project-specific custom runtimes, do not extend the global
+allowlist. Use the image-scoped runtime workflow with `mlserver build`:
+
+**Building Images with Custom Runtimes:**
+
+```bash
+# PRODUCTION mode (production): Allowlist specific custom runtimes
+mlserver build . -t my-image \
+  --allow-runtime models.MyRuntime \
+  --runtime-path models.py
+
+# DEVELOPMENT mode (development): Allow any runtime
+mlserver build . -t my-dev-image --dev
+```
+
+### Runtime Security Modes
+
+MLServer operates in one of two security modes for loading custom runtimes:
+
+**PRODUCTION Mode (Production):**
+- Enforced when a trusted runtimes allowlist file exists in the image
+- Only explicitly allowlisted runtimes can be loaded
+- Custom runtimes must be baked into the image with `--allow-runtime` and `--runtime-path`
+- Provides strong security guarantees for production deployments
+
+**DEVELOPMENT Mode (Development):**
+- Active when no allowlist file exists (e.g., running `mlserver start` directly)
+- Supports dynamic loading of custom runtimes directly from model folders
+- Simply place your custom runtime `.py` file next to `model-settings.json`
+- Convenient for rapid local development and testing
+- **WARNING:** Should NEVER be used in production - allows arbitrary code execution
+
+You can query the current security mode through the `/v2/runtimes` REST endpoint
+or `RuntimeSecurity` gRPC method. See the [model-settings reference](./docs/reference/model-settings.md#querying-runtime-security-configuration)
+and [custom runtimes guide](./docs/user-guide/custom.md) for details.
+
 MLServer is licensed under the Apache License, Version 2.0. However please note that software used in conjunction with, or alongside, MLServer may be licensed under different terms. For example, Alibi Detect and Alibi Explain are both licensed under the Business Source License 1.1. For more information about the legal terms of products that are used in conjunction with or alongside MLServer, please refer to their respective documentation.
 
 ## Supported Python Versions

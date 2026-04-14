@@ -13,6 +13,8 @@ from .dataplane import (
     MetadataModelResponse,
     RequestInput,
     InferenceRequest,
+    RuntimeSecurityMode,
+    RuntimeSecurityResponse,
 )
 
 from .model_repository import (
@@ -47,4 +49,7 @@ __all__ = [
     "RepositoryIndexResponse",
     "RepositoryLoadErrorResponse",
     "RepositoryUnloadErrorResponse",
+    # Runtime Security
+    "RuntimeSecurityMode",
+    "RuntimeSecurityResponse",
 ]

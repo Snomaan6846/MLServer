@@ -4,6 +4,6 @@
   "parallel_workers": 0,
   "gzip_enabled": false,
   "cors_settings": {
-    "allow_origins": ["*"]
+    "allow_origins": ["http://localhost:3000", "http://localhost:8000"]
   }
 }

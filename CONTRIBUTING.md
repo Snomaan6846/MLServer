@@ -20,6 +20,10 @@ Installation for Contributing
 - setup `mlserver`: ```pip install .```
 - run examples in debugging mode and verify execution taking one to breakpoints in one's development branch
 
+Running Tests
+------------
+Use `make test` or `tox -e mlserver` to run the test suite. These commands handle test isolation and execution order correctly. See `tox.ini` for details on how different test suites are run.
+
 Raising a PR
 ------------
 - Choose a default PR template/templates available underneath `/docs/PULL_REQUEST_TEMPLATE/` as a `template` query param. 

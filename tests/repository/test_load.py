@@ -32,6 +32,19 @@ def custom_module_settings_path(
     return model_settings_path
 
 
+@pytest.fixture
+def untrusted_module_settings_path(
+    sum_model_settings: ModelSettings, tmp_path: str
+) -> str:
+    model_settings_path = os.path.join(tmp_path, "untrusted-model-settings.json")
+    with open(model_settings_path, "w") as f:
+        settings_dict = sum_model_settings.model_dump()
+        settings_dict["implementation"] = "malicious.CustomModel"
+        f.write(json.dumps(settings_dict))
+
+    return model_settings_path
+
+
 async def test_load_model_settings(
     sum_model_settings: MLModel, model_folder: ModelSettings
 ):
@@ -78,3 +91,10 @@ async def test_load_custom_module(
     assert pre_sys_path == post_sys_path
     assert model_settings.name == sum_model_settings.name
     assert model_settings.implementation_ == "fixtures.SumModel"
+
+
+async def test_load_untrusted_custom_module_rejected(
+    untrusted_module_settings_path: str,
+):
+    with pytest.raises(ValueError, match="trusted runtimes allowlist"):
+        _ = load_model_settings(untrusted_module_settings_path).implementation

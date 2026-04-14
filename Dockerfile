@@ -1,5 +1,7 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
 ARG RUNTIMES="lightgbm onnx sklearn xgboost"
+# Space-separated list of runtime import paths
+ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
 
 FROM ${BASE_IMAGE} AS wheel-builder
 
@@ -41,19 +43,18 @@ RUN pip install poetry==$POETRY_VERSION && \
 FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
+ARG TRUSTED_RUNTIMES
 ARG PYTHON_VERSION=3.12
 
-# Set a few default environment variables, including `LD_LIBRARY_PATH`
-# (required to use GKE's injected CUDA libraries).
+# Set default environment variables
 # NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
-    MLSERVER_ENV_TARBALL=/mnt/models/environment.tar.gz \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
     NUMBA_CACHE_DIR=/opt/mlserver/.cache
 
 # Install some base dependencies required for some libraries.
-# Libomp is needed by the LightGBM runtime.
+# libgomp is needed by the LightGBM runtime.
 RUN microdnf update -y && \
     microdnf install -y \
         libgomp \
@@ -79,16 +80,36 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip &&\
     pip install --upgrade pip wheel setuptools && \
+    pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     for _runtime in $RUNTIMES; do \
         _wheel="./dist/mlserver_$_runtime-"*.whl; \
         echo "--> Installing $_wheel..."; \
         pip install $_wheel --constraint ./dist/constraints.txt; \
     done && \
-    pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     rm -rf /root/.cache/pip
 
 COPY ./licenses/license.txt .
 COPY ./licenses/license.txt /licenses/
+
+# Generate trusted-runtimes.json with only installed runtimes
+RUN env TRUSTED_RUNTIMES="$TRUSTED_RUNTIMES" python3 <<'EOF'
+import json, os, sys
+from pathlib import Path
+from mlserver.settings import is_valid_runtime_import_path
+
+runtimes = os.environ.get("TRUSTED_RUNTIMES", "").split()
+invalid = [r for r in runtimes if not is_valid_runtime_import_path(r)]
+if invalid:
+    print(f"Invalid runtime import path(s): {invalid}", file=sys.stderr)
+    sys.exit(1)
+
+target_dir = Path("/etc/mlserver")
+target_dir.mkdir(parents=True, exist_ok=True)
+artifact_file = target_dir / "trusted-runtimes.json"
+artifact_file.write_text(json.dumps(runtimes))
+artifact_file.chmod(0o444)
+target_dir.chmod(0o555)
+EOF
 
 USER 1000
 
