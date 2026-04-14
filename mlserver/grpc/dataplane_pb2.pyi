@@ -162,6 +162,95 @@ class ServerMetadataResponse(google.protobuf.message.Message):
 
 global___ServerMetadataResponse = ServerMetadataResponse
 
+class RuntimeSecurityRequest(google.protobuf.message.Message):
+    """
+    RuntimeSecurity messages.
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor = ...
+    def __init__(
+        self,
+    ) -> None: ...
+
+global___RuntimeSecurityRequest = RuntimeSecurityRequest
+
+class AllowedModelImplementations(google.protobuf.message.Message):
+    """Wrapper for allowed model implementations list.
+    Used to allow the field to be truly optional/absent.
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor = ...
+    ITEMS_FIELD_NUMBER: builtins.int
+    @property
+    def items(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[
+        typing.Text
+    ]: ...
+    def __init__(
+        self,
+        *,
+        items: typing.Optional[typing.Iterable[typing.Text]] = ...,
+    ) -> None: ...
+    def ClearField(
+        self, field_name: typing_extensions.Literal["items", b"items"]
+    ) -> None: ...
+
+global___AllowedModelImplementations = AllowedModelImplementations
+
+class RuntimeSecurityResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor = ...
+    MODE_FIELD_NUMBER: builtins.int
+    ALLOWED_MODEL_IMPLEMENTATIONS_FIELD_NUMBER: builtins.int
+    mode: typing.Text = ...
+    """Runtime security mode: "PRODUCTION" or "DEVELOPMENT"."""
+
+    @property
+    def allowed_model_implementations(self) -> global___AllowedModelImplementations:
+        """List of allowed model implementation import paths.
+        Only present when mode is "PRODUCTION", absent when "DEVELOPMENT".
+        """
+        pass
+
+    def __init__(
+        self,
+        *,
+        mode: typing.Text = ...,
+        allowed_model_implementations: typing.Optional[
+            global___AllowedModelImplementations
+        ] = ...,
+    ) -> None: ...
+    def HasField(
+        self,
+        field_name: typing_extensions.Literal[
+            "_allowed_model_implementations",
+            b"_allowed_model_implementations",
+            "allowed_model_implementations",
+            b"allowed_model_implementations",
+        ],
+    ) -> builtins.bool: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "_allowed_model_implementations",
+            b"_allowed_model_implementations",
+            "allowed_model_implementations",
+            b"allowed_model_implementations",
+            "mode",
+            b"mode",
+        ],
+    ) -> None: ...
+    def WhichOneof(
+        self,
+        oneof_group: typing_extensions.Literal[
+            "_allowed_model_implementations", b"_allowed_model_implementations"
+        ],
+    ) -> typing.Optional[
+        typing_extensions.Literal["allowed_model_implementations"]
+    ]: ...
+
+global___RuntimeSecurityResponse = RuntimeSecurityResponse
+
 class ModelMetadataRequest(google.protobuf.message.Message):
     """
     ModelMetadata messages.

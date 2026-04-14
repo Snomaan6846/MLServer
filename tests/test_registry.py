@@ -1,12 +1,13 @@
 import pytest
 import asyncio
+import json
 
 from asyncio import CancelledError
 from typing import List, Union
 
 from mlserver.model import MLModel
 from mlserver.errors import MLServerError, ModelNotFound
-from mlserver.registry import MultiModelRegistry, SingleModelRegistry
+from mlserver.registry import MultiModelRegistry, SingleModelRegistry, model_initialiser
 from mlserver.settings import ModelSettings, ModelParameters
 
 from .fixtures import ErrorModel, SlowModel
@@ -282,3 +283,35 @@ async def test_rolling_reload(
         await reload_task
     except CancelledError:
         pass
+
+
+def test_model_initialiser_wraps_runtime_allowlist_value_error():
+    class _InvalidModelSettings:
+        name = "bad-model"
+
+        @property
+        def implementation(self):
+            raise ValueError(
+                "Model implementation 'malicious.CustomModel' is not trusted"
+            )
+
+    with pytest.raises(RuntimeError, match="Refused to load model 'bad-model'"):
+        model_initialiser(_InvalidModelSettings())  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "exc_type", [ImportError, AttributeError, OSError, ValueError, json.JSONDecodeError]
+)
+def test_model_initialiser_wraps_runtime_import_resolution_errors(exc_type):
+    class _InvalidModelSettings:
+        name = "bad-model"
+
+        @property
+        def implementation(self):
+            # JSONDecodeError requires msg, doc, pos arguments
+            if exc_type == json.JSONDecodeError:
+                raise exc_type("failed to resolve runtime import", "", 0)
+            raise exc_type("failed to resolve runtime import")
+
+    with pytest.raises(RuntimeError, match="Refused to load model 'bad-model'"):
+        model_initialiser(_InvalidModelSettings())  # type: ignore[arg-type]
