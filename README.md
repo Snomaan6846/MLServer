@@ -199,7 +199,7 @@ To run all of the tests for MLServer and the runtimes, use:
 make test
 ```
 
-To run run tests for a single file, use something like:
+To run run tests for a single file, use something like: syed 1
 
 ```bash
 tox -e py3 -- tests/batch_processing/test_rest.py
