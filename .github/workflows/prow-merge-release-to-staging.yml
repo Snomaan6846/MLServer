@@ -258,6 +258,7 @@ jobs:
           gh pr create \
             --base "$TARGET_BRANCH" \
             --head "$SYNC_BRANCH" \
+            --label "tide/merge-method-merge" \
             --title "Sync $RELEASE_BRANCH to $TARGET_BRANCH" \
             --body "$(cat <<EOF
           ## Description
