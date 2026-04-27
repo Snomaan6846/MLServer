@@ -138,14 +138,13 @@ class InferencePoolRegistry:
         )
 
         if not env_tarball:
-            return (
-                self._pools.setdefault(
-                    inference_pool_gid,
-                    InferencePool(self._settings, on_worker_stop=self._on_worker_stop),
+            if not inference_pool_gid:
+                return self._default_pool
+            if inference_pool_gid not in self._pools:
+                self._pools[inference_pool_gid] = InferencePool(
+                    self._settings, on_worker_stop=self._on_worker_stop
                 )
-                if inference_pool_gid
-                else self._default_pool
-            )
+            return self._pools[inference_pool_gid]
 
         env_hash = await compute_hash_of_file(env_tarball)
         if inference_pool_gid is not None:
@@ -278,8 +277,16 @@ class InferencePoolRegistry:
         unloaded = await pool.unload_model(model)
 
         if pool != self._default_pool and pool.empty():
-            logger.info(f"Inference pool with hash '{pool.env_hash}' is now empty")
-            await self._close_pool(pool.env_hash)
+            if pool.env_hash:
+                logger.info(f"Inference pool with hash '{pool.env_hash}' is now empty")
+                await self._close_pool(pool.env_hash)
+            elif (
+                model.settings.parameters
+                and model.settings.parameters.inference_pool_gid
+            ):
+                gid = model.settings.parameters.inference_pool_gid
+                logger.info(f"Inference pool with GID '{gid}' is now empty")
+                await self._close_pool(gid)
 
         return unloaded
 
