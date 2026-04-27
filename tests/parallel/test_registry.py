@@ -319,3 +319,126 @@ def test_autogenerate_inference_pool_gid(
         else (inference_pool_grid or patch_uuid)
     )
     assert model_settings.parameters.inference_pool_gid == expected_gid
+
+
+async def test_same_gid_reuses_pool(
+    inference_pool_registry: InferencePoolRegistry,
+    sum_model_settings: ModelSettings,
+    inference_request: InferenceRequest,
+):
+    """Two models with the same inference_pool_gid must share one pool instance."""
+    shared_gid = "shared-gid"
+
+    settings_a = deepcopy(sum_model_settings)
+    settings_a.name = "model-a"
+    settings_a.parameters.inference_pool_gid = shared_gid
+
+    settings_b = deepcopy(sum_model_settings)
+    settings_b.name = "model-b"
+    settings_b.parameters.inference_pool_gid = shared_gid
+
+    loaded_a = await inference_pool_registry.load_model(SumModel(settings_a))
+    pool_after_first = inference_pool_registry._pools[shared_gid]
+
+    loaded_b = await inference_pool_registry.load_model(SumModel(settings_b))
+    pool_after_second = inference_pool_registry._pools[shared_gid]
+
+    assert pool_after_first is pool_after_second
+    assert len(inference_pool_registry._pools) == 1
+
+    response_a = await loaded_a.predict(inference_request)
+    response_b = await loaded_b.predict(inference_request)
+    assert len(response_a.outputs) == 1
+    assert len(response_b.outputs) == 1
+
+    await inference_pool_registry.unload_model(loaded_a)
+    await inference_pool_registry.unload_model(loaded_b)
+
+
+async def test_same_gid_no_redundant_pool_spawn(
+    inference_pool_registry: InferencePoolRegistry,
+    simple_model_settings: ModelSettings,
+):
+    """Second load with same GID must not construct a new InferencePool.
+
+    Regression test for the setdefault() bug where InferencePool() was
+    eagerly evaluated (spawning workers) even when the gid was already
+    registered.
+    """
+    shared_gid = "shared-gid"
+
+    settings_a = deepcopy(simple_model_settings)
+    settings_a.name = "model-a"
+    settings_a.parameters.inference_pool_gid = shared_gid
+
+    settings_b = deepcopy(simple_model_settings)
+    settings_b.name = "model-b"
+    settings_b.parameters.inference_pool_gid = shared_gid
+
+    loaded_a = await inference_pool_registry.load_model(SumModel(settings_a))
+    existing_pool = inference_pool_registry._pools[shared_gid]
+
+    with patch("mlserver.parallel.registry.InferencePool") as MockPool:
+        loaded_b = await inference_pool_registry.load_model(SumModel(settings_b))
+        MockPool.assert_not_called()
+
+    assert inference_pool_registry._pools[shared_gid] is existing_pool
+
+    await inference_pool_registry.unload_model(loaded_a)
+    await inference_pool_registry.unload_model(loaded_b)
+
+
+async def test_same_gid_pool_cleanup(
+    inference_pool_registry: InferencePoolRegistry,
+    simple_model_settings: ModelSettings,
+):
+    """GID-only pool must be properly cleaned up when empty.
+
+    Tests that when the last model using a GID-only pool is unloaded,
+    the pool is correctly removed from the registry and its resources are freed.
+    Validates the fix for the cleanup bug where GID-only pools were leaked.
+    """
+    shared_gid = "cleanup-test-gid"
+
+    settings = deepcopy(simple_model_settings)
+    settings.parameters.inference_pool_gid = shared_gid
+
+    # Load and verify pool exists
+    loaded = await inference_pool_registry.load_model(SumModel(settings))
+    assert shared_gid in inference_pool_registry._pools
+    assert len(inference_pool_registry._pools) == 1
+
+    # Unload and verify pool is cleaned up
+    await inference_pool_registry.unload_model(loaded)
+    assert shared_gid not in inference_pool_registry._pools
+    assert len(inference_pool_registry._pools) == 0
+
+
+async def test_same_gid_pool_cleanup_multi_model(
+    inference_pool_registry: InferencePoolRegistry,
+    simple_model_settings: ModelSettings,
+):
+    """Shared pool persists until all models unloaded."""
+    shared_gid = "multi-model-gid"
+
+    settings_a = deepcopy(simple_model_settings)
+    settings_a.name = "model-a"
+    settings_a.parameters.inference_pool_gid = shared_gid
+
+    settings_b = deepcopy(simple_model_settings)
+    settings_b.name = "model-b"
+    settings_b.parameters.inference_pool_gid = shared_gid
+
+    loaded_a = await inference_pool_registry.load_model(SumModel(settings_a))
+    loaded_b = await inference_pool_registry.load_model(SumModel(settings_b))
+
+    assert shared_gid in inference_pool_registry._pools
+    assert len(inference_pool_registry._pools) == 1
+
+    await inference_pool_registry.unload_model(loaded_a)
+    assert shared_gid in inference_pool_registry._pools
+    assert len(inference_pool_registry._pools) == 1
+
+    await inference_pool_registry.unload_model(loaded_b)
+    assert shared_gid not in inference_pool_registry._pools
+    assert len(inference_pool_registry._pools) == 0
