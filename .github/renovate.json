@@ -33,6 +33,7 @@
         "at any time"
       ],
       "versioning": "semver",
+      "ignoreUnstable": false,
       "enabled": true
     }
   ]
