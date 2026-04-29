@@ -1,9 +1,11 @@
 import pytest
 
+from collections.abc import AsyncGenerator
 from fastapi import FastAPI
 from httpx import AsyncClient
 
 from mlserver.handlers import DataPlane, ModelRepositoryHandlers
+from mlserver.model import MLModel
 from mlserver.parallel import InferencePoolRegistry
 from mlserver.batching import load_batching
 from mlserver.rest import RESTServer
@@ -11,13 +13,11 @@ from mlserver.registry import MultiModelRegistry
 from mlserver import Settings, ModelSettings
 from prometheus_client.registry import CollectorRegistry
 
-from ..fixtures import SumModel
-
 
 @pytest.fixture
 async def model_registry(
     sum_model_settings: ModelSettings, inference_pool_registry: InferencePoolRegistry
-) -> MultiModelRegistry:
+) -> AsyncGenerator[MultiModelRegistry, None]:
     model_registry = MultiModelRegistry(
         on_model_load=[inference_pool_registry.load_model, load_batching],
         on_model_reload=[inference_pool_registry.reload_model],
@@ -42,9 +42,9 @@ async def rest_server(
     settings: Settings,
     data_plane: DataPlane,
     model_repository_handlers: ModelRepositoryHandlers,
-    sum_model: SumModel,
+    sum_model: MLModel,
     prometheus_registry: CollectorRegistry,
-) -> RESTServer:
+) -> AsyncGenerator[RESTServer, None]:
     server = RESTServer(
         settings,
         data_plane=data_plane,
@@ -64,6 +64,6 @@ def rest_app(rest_server: RESTServer) -> FastAPI:
 
 
 @pytest.fixture
-async def rest_client(rest_app: FastAPI) -> AsyncClient:
+async def rest_client(rest_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(app=rest_app, base_url="http://test") as ac:
         yield ac

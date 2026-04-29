@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import random
 
-from typing import Optional
+from collections.abc import Generator
 from prometheus_client import Histogram
 
 from mlserver.settings import ModelSettings, ModelParameters
@@ -21,7 +21,9 @@ from ..fixtures import SumModel
 
 
 @pytest.fixture
-def sum_model_context(sum_model_settings: ModelSettings) -> ModelSettings:
+def sum_model_context(
+    sum_model_settings: ModelSettings,
+) -> Generator[ModelSettings, None, None]:
     with model_context(sum_model_settings):
         yield sum_model_settings
 
@@ -37,7 +39,7 @@ def sum_model_context(sum_model_settings: ModelSettings) -> ModelSettings:
         ("foo", None, {SELDON_MODEL_NAME_LABEL: "foo", SELDON_MODEL_VERSION_LABEL: ""}),
     ],
 )
-def test_model_context(name: str, version: Optional[str], expected: dict):
+def test_model_context(name: str, version: str | None, expected: dict):
     model_settings = ModelSettings(
         name=name, implementation=SumModel, parameters=ModelParameters(version=version)
     )
@@ -92,7 +94,8 @@ def test_log(metrics_registry: MetricsRegistry, sum_model_context: ModelSettings
     metric = metrics_registry["foo"]
     assert isinstance(metric, Histogram)
     assert len(metric._metrics) == 1
-    labeled_metric = metric._metrics[
-        (sum_model_context.name, sum_model_context.version)
+    version = sum_model_context.version or ""
+    labeled_metric = metric._metrics[  # type: ignore[index]
+        (sum_model_context.name, version)
     ]
-    assert labeled_metric._sum._value == 3.2
+    assert labeled_metric._sum._value == 3.2  # type: ignore[attr-defined]

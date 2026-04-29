@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional, List, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from .codecs import (
     encode_response_output,
@@ -27,9 +28,9 @@ from .types import (
 
 
 def _generate_metadata_index(
-    metadata_tensors: Optional[List[MetadataTensor]],
-) -> Dict[str, MetadataTensor]:
-    metadata_index: Dict[str, MetadataTensor] = {}
+    metadata_tensors: list[MetadataTensor] | None,
+) -> dict[str, MetadataTensor]:
+    metadata_index: dict[str, MetadataTensor] = {}
 
     if not metadata_tensors:
         return metadata_index
@@ -48,7 +49,7 @@ class MLModel:
 
     def __init__(self, settings: ModelSettings):
         self._settings = settings
-        self._inputs_index: Dict[str, MetadataTensor] = {}
+        self._inputs_index: dict[str, MetadataTensor] = {}
 
         self._inputs_index = _generate_metadata_index(self._settings.inputs)
         self._outputs_index = _generate_metadata_index(self._settings.outputs)
@@ -114,7 +115,7 @@ class MLModel:
         return self._settings.name
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         """
         Model version, from the model settings.
         """
@@ -128,7 +129,7 @@ class MLModel:
         return self._settings
 
     @property
-    def inputs(self) -> Optional[List[MetadataTensor]]:
+    def inputs(self) -> list[MetadataTensor] | None:
         """
         Expected model inputs, from the model settings.
 
@@ -138,12 +139,12 @@ class MLModel:
         return self._settings.inputs
 
     @inputs.setter
-    def inputs(self, value: List[MetadataTensor]):
+    def inputs(self, value: list[MetadataTensor]):
         self._settings.inputs = value
         self._inputs_index = _generate_metadata_index(self._settings.inputs)
 
     @property
-    def outputs(self) -> Optional[List[MetadataTensor]]:
+    def outputs(self) -> list[MetadataTensor] | None:
         """
         Expected model outputs, from the model settings.
 
@@ -153,14 +154,14 @@ class MLModel:
         return self._settings.outputs
 
     @outputs.setter
-    def outputs(self, value: List[MetadataTensor]):
+    def outputs(self, value: list[MetadataTensor]):
         self._settings.outputs = value
         self._outputs_index = _generate_metadata_index(self._settings.outputs)
 
     def decode(
         self,
         request_input: RequestInput,
-        default_codec: Optional[InputCodecLike] = None,
+        default_codec: InputCodecLike | None = None,
     ) -> Any:
         """
         Helper to decode a **request input** into its corresponding high-level
@@ -184,7 +185,7 @@ class MLModel:
     def decode_request(
         self,
         inference_request: InferenceRequest,
-        default_codec: Optional[RequestCodecLike] = None,
+        default_codec: RequestCodecLike | None = None,
     ) -> Any:
         """
         Helper to decode an **inference request** into its corresponding
@@ -208,7 +209,7 @@ class MLModel:
     def encode_response(
         self,
         payload: Any,
-        default_codec: Optional[RequestCodecLike] = None,
+        default_codec: RequestCodecLike | None = None,
     ) -> InferenceResponse:
         """
         Helper to encode a high-level Python object into its corresponding
@@ -233,7 +234,7 @@ class MLModel:
         self,
         payload: Any,
         request_output: RequestOutput,
-        default_codec: Optional[InputCodecLike] = None,
+        default_codec: InputCodecLike | None = None,
     ) -> ResponseOutput:
         """
         Helper to encode a high-level Python object into its corresponding

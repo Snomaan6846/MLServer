@@ -2,7 +2,8 @@ import asyncio
 import functools
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 
 # TODO: this is very similar to `asyncio.to_thread` (python 3.9+),

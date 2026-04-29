@@ -2,8 +2,6 @@ import pytest
 import os
 import xgboost as xgb
 
-from typing import List
-
 from mlserver.errors import InferenceError
 from mlserver.settings import ModelSettings
 from mlserver.codecs import CodecError
@@ -62,7 +60,7 @@ async def test_predict(model: XGBoostModel, inference_request: InferenceRequest)
 async def test_predict_classifier(
     classifier: XGBoostModel,
     inference_request: InferenceRequest,
-    req_outputs: List[str],
+    req_outputs: list[str],
 ):
     inference_request.outputs = [
         RequestOutput(name=req_output) for req_output in req_outputs

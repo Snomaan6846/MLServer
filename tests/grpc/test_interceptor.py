@@ -1,8 +1,6 @@
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from typing import AsyncGenerator
-
 from grpc import StatusCode
 from mlserver.grpc.interceptors import PromServerInterceptor
 from mlserver.codecs import StringCodec
@@ -16,7 +14,7 @@ from mlserver.grpc import dataplane_pb2 as pb
 @pytest.mark.parametrize("sum_model_settings", [lazy_fixture("text_model_settings")])
 async def test_prometheus_unary_unary(
     grpc_server: GRPCServer,
-    inference_service_stub: AsyncGenerator[GRPCInferenceServiceStub, None],
+    inference_service_stub: GRPCInferenceServiceStub,
     model_generate_request: pb.ModelInferRequest,
 ):
     # send 10 requests
@@ -66,7 +64,7 @@ async def test_prometheus_unary_unary(
 )
 async def test_prometheus_stream_stream(
     grpc_server: GRPCServer,
-    inference_service_stub: AsyncGenerator[GRPCInferenceServiceStub, None],
+    inference_service_stub: GRPCInferenceServiceStub,
     model_generate_request: pb.ModelInferRequest,
     model_name: str,
 ):

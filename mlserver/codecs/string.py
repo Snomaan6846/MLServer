@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from ..types import RequestInput, ResponseOutput, Parameters
 
@@ -28,7 +28,7 @@ def decode_str(encoded: ListElement, str_codec=_DefaultStrCodec) -> str:
     return ""
 
 
-def _decode_input_or_output(input_or_output: InputOrOutput) -> List[str]:
+def _decode_input_or_output(input_or_output: InputOrOutput) -> list[str]:
     packed = input_or_output.data.root
     unpacked = map(decode_str, as_list(packed))
     return list(unpacked)
@@ -41,7 +41,7 @@ class StringCodec(InputCodec):
     """
 
     ContentType = "str"
-    TypeHint = List[str]
+    TypeHint = list[str]
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -49,7 +49,7 @@ class StringCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: List[str], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[str], use_bytes: bool = True, **kwargs
     ) -> ResponseOutput:
         packed = payload
         if use_bytes:
@@ -65,16 +65,16 @@ class StringCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> List[str]:
+    def decode_output(cls, response_output: ResponseOutput) -> list[str]:
         return _decode_input_or_output(response_output)
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List[str]:
+    def decode_input(cls, request_input: RequestInput) -> list[str]:
         return _decode_input_or_output(request_input)
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: List[str], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[str], use_bytes: bool = True, **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name, payload, use_bytes)
 
@@ -98,4 +98,4 @@ class StringRequestCodec(SingleInputRequestCodec):
 
     InputCodec = StringCodec
     ContentType = StringCodec.ContentType
-    TypeHint = List[str]
+    TypeHint = list[str]

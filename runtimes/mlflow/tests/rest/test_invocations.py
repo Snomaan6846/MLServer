@@ -1,12 +1,8 @@
 import pytest
 
-from typing import Optional, Union
-
 
 @pytest.mark.parametrize("content_type", ["", None, "application/pdf"])
-async def test_invocations_invalid_content_type(
-    rest_client, content_type: Optional[str]
-):
+async def test_invocations_invalid_content_type(rest_client, content_type: str | None):
     headers = {}
     if content_type is not None:
         headers = {"Content-Type": content_type}
@@ -24,9 +20,7 @@ async def test_invocations_invalid_content_type(
         ("application/json", {"inputs": {"foo": [1, 2, 3]}}),
     ],
 )
-async def test_invocations_tensor(
-    rest_client, content_type: str, payload: Union[list, dict]
-):
+async def test_invocations_tensor(rest_client, content_type: str, payload: list | dict):
     response = await rest_client.post(
         "/invocations", headers={"Content-Type": content_type}, json=payload
     )
@@ -55,7 +49,7 @@ async def test_invocations_tensor(
     ],
 )
 async def test_invocations_dataframe(
-    rest_client, content_type: str, payload: Union[list, dict]
+    rest_client, content_type: str, payload: list | dict
 ):
     response = await rest_client.post(
         "/invocations", headers={"Content-Type": content_type}, json=payload

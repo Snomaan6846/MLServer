@@ -2,7 +2,6 @@ import pytest
 import asyncio
 import platform
 
-from typing import Dict, Optional
 from unittest.mock import patch
 
 from mlserver.utils import (
@@ -47,7 +46,7 @@ for scheme in ["", "file:"]:
     "uri, source, expected",
     test_get_model_uri_paramaters,
 )
-async def test_get_model_uri(uri: str, source: Optional[str], expected: str):
+async def test_get_model_uri(uri: str, source: str | None, expected: str):
     model_settings = ModelSettings(
         implementation=SumModel, parameters=ModelParameters(uri=uri)
     )
@@ -85,7 +84,7 @@ def test_insert_headers(parameters: Parameters):
         (Parameters(headers={"foo": "bar"}), {"foo": "bar"}),
     ],
 )
-def test_extract_headers(parameters: Parameters, expected: Dict[str, str]):
+def test_extract_headers(parameters: Parameters, expected: dict[str, str]):
     inference_response = InferenceResponse(
         model_name="foo", outputs=[], parameters=parameters
     )
@@ -113,7 +112,7 @@ def _check_uvloop_availability():
         ("1.7.0.dev0", "1.7.0.dev0"),
     ],
 )
-def test_get_normalized_version(version: Optional[str], expected: str):
+def test_get_normalized_version(version: str | None, expected: str):
     assert get_normalized_version(version) == expected
 
 

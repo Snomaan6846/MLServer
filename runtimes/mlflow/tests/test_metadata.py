@@ -1,8 +1,6 @@
 import pytest
 import numpy as np
 
-from typing import Tuple, List
-
 from mlflow.types.schema import (
     ColSpec,
     TensorSpec,
@@ -82,7 +80,7 @@ from mlserver_mlflow.metadata import (
         ),
     ],
 )
-def test_get_content_type(input_spec: InputSpec, expected: Tuple[MDatatype, str]):
+def test_get_content_type(input_spec: InputSpec, expected: tuple[MDatatype, str]):
     datatype, content_type = _get_content_type(input_spec)
     assert (datatype, content_type) == expected
 
@@ -100,7 +98,7 @@ def test_get_content_type(input_spec: InputSpec, expected: Tuple[MDatatype, str]
         ),
     ],
 )
-def test_get_shape(input_spec: InputSpec, expected: List[int]):
+def test_get_shape(input_spec: InputSpec, expected: list[int]):
     shape = _get_shape(input_spec)
     assert shape == expected
 
@@ -221,7 +219,7 @@ def test_get_shape(input_spec: InputSpec, expected: List[int]):
         ),
     ],
 )
-def test_to_metadata_tensors(schema: Schema, expected: List[MetadataTensor]):
+def test_to_metadata_tensors(schema: Schema, expected: list[MetadataTensor]):
     metadata_tensors = to_metadata_tensors(schema)
 
     assert metadata_tensors == expected

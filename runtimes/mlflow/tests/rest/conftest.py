@@ -2,7 +2,7 @@ import pytest
 
 from fastapi import FastAPI
 from httpx import AsyncClient
-from typing import Iterable, AsyncIterable
+from collections.abc import AsyncIterable, Iterable
 from prometheus_client.registry import REGISTRY, CollectorRegistry
 from starlette_exporter import PrometheusMiddleware
 

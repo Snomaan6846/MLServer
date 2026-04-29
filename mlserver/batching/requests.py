@@ -1,5 +1,5 @@
 from collections import defaultdict, OrderedDict
-from typing import Dict, List, Optional, Union, Any, DefaultDict
+from typing import Any
 
 from ..types import (
     InferenceRequest,
@@ -12,11 +12,11 @@ from ..types import (
 from .shape import Shape
 
 
-def _get_data(payload: Union[RequestInput, ResponseOutput]):
+def _get_data(payload: RequestInput | ResponseOutput):
     return getattr(payload.data, "root", payload.data)
 
 
-def _get_parameters(payload: ResponseOutput) -> DefaultDict[Any, Any]:
+def _get_parameters(payload: ResponseOutput) -> defaultdict[Any, Any]:
     parameters = defaultdict(list)
     if payload.parameters is not None:
         payload_parameters = payload.parameters.model_dump()
@@ -34,9 +34,9 @@ def _get_parameters(payload: ResponseOutput) -> DefaultDict[Any, Any]:
 
 def _merge_parameters(
     all_params: dict,
-    parametrised_obj: Union[
-        InferenceRequest, InferenceResponse, RequestInput, RequestOutput
-    ],
+    parametrised_obj: (
+        InferenceRequest | InferenceResponse | RequestInput | RequestOutput
+    ),
 ) -> dict:
     if not parametrised_obj.parameters:
         return all_params
@@ -47,9 +47,9 @@ def _merge_parameters(
 
 def _merge_input_parameters(
     all_params: dict,
-    parametrised_obj: Union[
-        InferenceRequest, InferenceResponse, RequestInput, RequestOutput
-    ],
+    parametrised_obj: (
+        InferenceRequest | InferenceResponse | RequestInput | RequestOutput
+    ),
 ) -> dict:
     if not parametrised_obj.parameters:
         return all_params
@@ -79,9 +79,7 @@ def _merge_input_parameters(
     return new_all_params
 
 
-def _merge_data(
-    all_data: Union[list, List[str], List[bytes]]
-) -> Union[list, str, bytes]:
+def _merge_data(all_data: list | list[str] | list[bytes]) -> list | str | bytes:
     sampled_datum = all_data[0]
 
     if isinstance(sampled_datum, str):
@@ -98,25 +96,25 @@ def _merge_data(
 
 
 class BatchedRequests:
-    def __init__(self, inference_requests: Dict[str, InferenceRequest] = {}):
+    def __init__(self, inference_requests: dict[str, InferenceRequest] = {}):
         self.inference_requests = inference_requests
 
         # External IDs represent the incoming prediction IDs that need to match
         # 1:1 between request and response.
         # Since we can't ensure the uniqueness (or even presence) of the
         # external IDs, we'll also maintain our own list of internal IDs.
-        self._ids_mapping: Dict[str, Optional[str]] = OrderedDict()
+        self._ids_mapping: dict[str, str | None] = OrderedDict()
 
         # Minibatch here refers to the individual batch size of the input head
         # of each input request (i.e. the number of datapoints on each input
         # request)
-        self._minibatch_sizes: Dict[str, int] = OrderedDict()
+        self._minibatch_sizes: dict[str, int] = OrderedDict()
 
         self.merged_request = self._merge_requests()
 
     def _merge_requests(self) -> InferenceRequest:
-        inputs_index: Dict[str, Dict[str, RequestInput]] = defaultdict(OrderedDict)
-        outputs_index: Dict[str, Dict[str, RequestOutput]] = defaultdict(OrderedDict)
+        inputs_index: dict[str, dict[str, RequestInput]] = defaultdict(OrderedDict)
+        outputs_index: dict[str, dict[str, RequestOutput]] = defaultdict(OrderedDict)
         all_params: dict = {}
         has_outputs = False  # if no outputs are defined, then outputs=None
 
@@ -150,7 +148,7 @@ class BatchedRequests:
         return InferenceRequest(inputs=inputs, outputs=outputs, parameters=params)
 
     def _merge_request_inputs(
-        self, request_inputs: Dict[str, RequestInput]
+        self, request_inputs: dict[str, RequestInput]
     ) -> RequestInput:
         # Note that minibatch sizes could be different on each input head,
         # however, to simplify the implementation, here we assume that it will
@@ -182,7 +180,7 @@ class BatchedRequests:
         )
 
     def _merge_request_outputs(
-        self, request_outputs: Dict[str, RequestOutput]
+        self, request_outputs: dict[str, RequestOutput]
     ) -> RequestOutput:
         all_params: dict = {}
         for internal_id, request_output in request_outputs.items():
@@ -197,8 +195,8 @@ class BatchedRequests:
 
     def split_response(
         self, batched_response: InferenceResponse
-    ) -> Dict[str, InferenceResponse]:
-        responses: Dict[str, InferenceResponse] = {}
+    ) -> dict[str, InferenceResponse]:
+        responses: dict[str, InferenceResponse] = {}
 
         for response_output in batched_response.outputs:
             response_outputs = self._split_response_output(response_output)
@@ -219,7 +217,7 @@ class BatchedRequests:
 
     def _split_response_output(
         self, response_output: ResponseOutput
-    ) -> Dict[str, ResponseOutput]:
+    ) -> dict[str, ResponseOutput]:
         all_data = self._split_data(response_output)
         if response_output.parameters is not None:
             all_parameters = self._split_parameters(response_output)
@@ -243,7 +241,7 @@ class BatchedRequests:
 
         return response_outputs
 
-    def _split_data(self, response_output: ResponseOutput) -> Dict[str, Any]:
+    def _split_data(self, response_output: ResponseOutput) -> dict[str, Any]:
         merged_shape = Shape(response_output.shape)
         element_size = merged_shape.elem_size
         merged_data = _get_data(response_output)
@@ -260,7 +258,7 @@ class BatchedRequests:
 
     def _split_parameters(
         self, response_output: ResponseOutput
-    ) -> Dict[str, Parameters]:
+    ) -> dict[str, Parameters]:
         merged_parameters = _get_parameters(response_output)
         idx = 0
 

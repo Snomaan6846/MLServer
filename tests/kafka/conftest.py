@@ -4,10 +4,9 @@ import asyncio
 import logging
 
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+from collections.abc import AsyncGenerator, Generator
 from kafka.admin import KafkaAdminClient
 from docker.client import DockerClient
-from typing import Tuple
-
 from mlserver.types import InferenceRequest
 from mlserver.utils import generate_uuid, install_uvloop_event_loop
 from mlserver.settings import Settings, ModelSettings
@@ -58,7 +57,7 @@ def docker_client() -> DockerClient:
 
 
 @pytest.fixture(scope="module")
-def kafka_network(docker_client: DockerClient) -> str:
+def kafka_network(docker_client: DockerClient) -> Generator[str, None, None]:
     kafka_network = f"kafka-{generate_uuid()}"
     network = docker_client.networks.create(
         name=kafka_network,
@@ -74,7 +73,9 @@ def kafka_network(docker_client: DockerClient) -> str:
 
 
 @pytest.fixture(scope="module")
-def zookeeper(docker_client: DockerClient, kafka_network: str) -> str:
+def zookeeper(
+    docker_client: DockerClient, kafka_network: str
+) -> Generator[str, None, None]:
     [zookeeper_port] = get_available_ports()
     zookeeper_name = f"zookeeper-{generate_uuid()}"
 
@@ -101,7 +102,9 @@ def zookeeper(docker_client: DockerClient, kafka_network: str) -> str:
 
 
 @pytest.fixture(scope="module")
-async def kafka(docker_client: DockerClient, zookeeper: str, kafka_network: str) -> str:
+async def kafka(
+    docker_client: DockerClient, zookeeper: str, kafka_network: str
+) -> AsyncGenerator[str, None]:
     [kafka_port] = get_available_ports()
     kafka_name = f"kafka-{generate_uuid()}"
 
@@ -138,7 +141,7 @@ async def kafka(docker_client: DockerClient, zookeeper: str, kafka_network: str)
 
 
 @pytest.fixture(scope="module")
-async def kafka_topics(kafka: str) -> Tuple[str, str]:
+async def kafka_topics(kafka: str) -> AsyncGenerator[tuple[str, str], None]:
     input_topic = "mlserver-input-topic"
     output_topic = "mlserver-output-topic"
     topics = [input_topic, output_topic]
@@ -146,7 +149,7 @@ async def kafka_topics(kafka: str) -> Tuple[str, str]:
     admin_client = KafkaAdminClient(bootstrap_servers=kafka)
     await create_test_topics(admin_client, topics)
 
-    yield tuple(topics)
+    yield (input_topic, output_topic)
 
     # NOTE: Deleting topics seems to hang for some reason
     #  admin_client.delete_topics(topics=topics, timeout_ms=1000)
@@ -154,7 +157,7 @@ async def kafka_topics(kafka: str) -> Tuple[str, str]:
 
 @pytest.fixture
 def kafka_settings(
-    settings: Settings, kafka: str, kafka_topics: Tuple[str, str]
+    settings: Settings, kafka: str, kafka_topics: tuple[str, str]
 ) -> Settings:
     input_topic, output_topic = kafka_topics
 
@@ -167,7 +170,9 @@ def kafka_settings(
 
 
 @pytest.fixture
-async def kafka_server(kafka_settings: Settings, data_plane: DataPlane) -> KafkaServer:
+async def kafka_server(
+    kafka_settings: Settings, data_plane: DataPlane
+) -> AsyncGenerator[KafkaServer, None]:
     server = KafkaServer(kafka_settings, data_plane)
 
     server_task = asyncio.create_task(server.start())

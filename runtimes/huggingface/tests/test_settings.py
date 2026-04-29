@@ -1,7 +1,5 @@
 import pytest
 
-from typing import Dict
-
 from mlserver.settings import ModelSettings, ModelParameters
 
 from mlserver_huggingface.runtime import HuggingFaceRuntime
@@ -72,7 +70,7 @@ def model_settings_extra_empty():
 def test_merge_huggingface_settings_extra(
     model_settings: str,
     env_params: ExtraDict,
-    expected: Dict,
+    expected: dict,
     request: pytest.FixtureRequest,
 ):
     assert expected == merge_huggingface_settings_extra(

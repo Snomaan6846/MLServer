@@ -2,14 +2,12 @@ import os
 import shutil
 import json
 
-from typing import List
-
 from ..conftest import TESTS_PATH, TESTDATA_PATH
 from ..utils import _render_env_yml
 
 
 def _copy_test_files(
-    model_folder: str, model_settings: dict, to_copy: List[str]
+    model_folder: str, model_settings: dict, to_copy: list[str]
 ) -> str:
     model_settings_path = os.path.join(model_folder, "model-settings.json")
     with open(model_settings_path, "w") as model_settings_file:

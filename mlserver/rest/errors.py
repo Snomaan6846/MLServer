@@ -1,4 +1,3 @@
-from typing import Optional
 from fastapi import Request
 from pydantic import BaseModel
 
@@ -7,7 +6,7 @@ from ..errors import MLServerError
 
 
 class APIErrorResponse(BaseModel):
-    error: Optional[str] = None
+    error: str | None = None
 
 
 async def handle_mlserver_error(request: Request, exc: MLServerError) -> Response:

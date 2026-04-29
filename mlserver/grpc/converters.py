@@ -1,4 +1,5 @@
-from typing import Any, Union, Mapping, Optional
+from typing import Any
+from collections.abc import Mapping
 from ..types import Datatype
 
 from . import dataplane_pb2 as pb
@@ -24,7 +25,7 @@ _FIELDS = {
 }
 
 
-def _get_value(pb_object, default: Optional[Any] = None) -> Any:
+def _get_value(pb_object, default: Any | None = None) -> Any:
     fields = pb_object.ListFields()
     if len(fields) == 0:
         return default
@@ -316,7 +317,7 @@ class ParametersConverter:
     @classmethod
     def to_types(
         cls, pb_object: Mapping[str, pb.InferParameter]
-    ) -> Optional[types.Parameters]:
+    ) -> types.Parameters | None:
         if not pb_object:
             return None
 
@@ -345,7 +346,7 @@ class ParametersConverter:
         return pb_object
 
     @classmethod
-    def _get_inferparameter_key(cls, value: Union[bool, str, int]) -> Optional[str]:
+    def _get_inferparameter_key(cls, value: bool | str | int) -> str | None:
         if isinstance(value, bool):
             return "bool_param"
         elif isinstance(value, str):
@@ -475,7 +476,7 @@ class InferOutputTensorConverter:
 class RepositoryIndexRequestConverter:
     @classmethod
     def to_types(
-        cls, pb_object: Union[pb.RepositoryIndexRequest, mr_pb.RepositoryIndexRequest]
+        cls, pb_object: pb.RepositoryIndexRequest | mr_pb.RepositoryIndexRequest
     ) -> types.RepositoryIndexRequest:
         return types.RepositoryIndexRequest(
             ready=pb_object.ready,
@@ -484,14 +485,14 @@ class RepositoryIndexRequestConverter:
     @classmethod
     def from_types(
         cls, type_object: types.RepositoryIndexRequest
-    ) -> Union[pb.RepositoryIndexRequest, mr_pb.RepositoryIndexRequest]:
+    ) -> pb.RepositoryIndexRequest | mr_pb.RepositoryIndexRequest:
         raise NotImplementedError("Implement me")
 
 
 class RepositoryIndexResponseConverter:
     @classmethod
     def to_types(
-        cls, pb_object: Union[pb.RepositoryIndexResponse, mr_pb.RepositoryIndexResponse]
+        cls, pb_object: pb.RepositoryIndexResponse | mr_pb.RepositoryIndexResponse
     ) -> types.RepositoryIndexResponse:
         raise NotImplementedError("Implement me")
 
@@ -500,7 +501,7 @@ class RepositoryIndexResponseConverter:
         cls,
         type_object: types.RepositoryIndexResponse,
         use_model_repository: bool = False,
-    ) -> Union[pb.RepositoryIndexResponse, mr_pb.RepositoryIndexResponse]:
+    ) -> pb.RepositoryIndexResponse | mr_pb.RepositoryIndexResponse:
         models = [
             RepositoryIndexResponseItemConverter.from_types(
                 model, use_model_repository=use_model_repository
@@ -517,10 +518,10 @@ class RepositoryIndexResponseItemConverter:
     @classmethod
     def to_types(
         cls,
-        pb_object: Union[
-            pb.RepositoryIndexResponse.ModelIndex,
-            mr_pb.RepositoryIndexResponse.ModelIndex,
-        ],
+        pb_object: (
+            pb.RepositoryIndexResponse.ModelIndex
+            | mr_pb.RepositoryIndexResponse.ModelIndex
+        ),
     ) -> types.RepositoryIndexResponseItem:
         raise NotImplementedError("Implement me")
 
@@ -529,9 +530,9 @@ class RepositoryIndexResponseItemConverter:
         cls,
         type_object: types.RepositoryIndexResponseItem,
         use_model_repository: bool = False,
-    ) -> Union[
-        pb.RepositoryIndexResponse.ModelIndex, mr_pb.RepositoryIndexResponse.ModelIndex
-    ]:
+    ) -> (
+        pb.RepositoryIndexResponse.ModelIndex | mr_pb.RepositoryIndexResponse.ModelIndex
+    ):
         model_index = pb.RepositoryIndexResponse.ModelIndex(
             name=type_object.name,
             state=str(type_object.state),

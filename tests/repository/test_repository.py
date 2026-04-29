@@ -17,6 +17,7 @@ def multi_model_folder(model_folder: str, sum_model_settings: ModelSettings) -> 
     os.remove(model_settings_path)
 
     num_models = 5
+    assert sum_model_settings.parameters is not None
     for idx in range(num_models):
         sum_model_settings.parameters.version = f"v{idx}"
 
@@ -46,15 +47,18 @@ async def test_list(
 
     loaded_model_settings = settings_list[0]
     assert loaded_model_settings.name == sum_model_settings.name
+    assert loaded_model_settings.parameters is not None
+    assert sum_model_settings.parameters is not None
     assert (
-        loaded_model_settings.parameters.version  # type: ignore
-        == sum_model_settings.parameters.version  # type: ignore
+        loaded_model_settings.parameters.version
+        == sum_model_settings.parameters.version
     )
-    assert loaded_model_settings.parameters.uri == str(  # type: ignore
-        model_repository._root
+    assert loaded_model_settings.parameters.uri == str(
+        model_repository._root  # type: ignore[attr-defined]
     )
     assert loaded_model_settings._source == os.path.join(
-        model_repository._root, DEFAULT_MODEL_SETTINGS_FILENAME
+        model_repository._root,  # type: ignore[attr-defined]
+        DEFAULT_MODEL_SETTINGS_FILENAME,
     )
 
 
@@ -66,6 +70,8 @@ async def test_list_multi_model(multi_model_folder: str):
 
     assert len(settings_list) == 5
     for idx, model_settings in enumerate(settings_list):
+        assert model_settings.parameters is not None
+        assert model_settings.parameters.version is not None
         model_settings_path = os.path.join(
             multi_model_folder,
             model_settings.name,
@@ -73,7 +79,7 @@ async def test_list_multi_model(multi_model_folder: str):
             DEFAULT_MODEL_SETTINGS_FILENAME,
         )
 
-        assert model_settings.parameters.version == f"v{idx}"  # type: ignore
+        assert model_settings.parameters.version == f"v{idx}"
         assert model_settings._source == model_settings_path
 
 
@@ -83,14 +89,16 @@ async def test_list_fallback(
     sum_model_settings: ModelSettings,
     model_repository: ModelRepository,
 ):
+    assert sum_model_settings.parameters is not None
+    assert sum_model_settings.parameters.version is not None
     monkeypatch.setenv(f"{ENV_PREFIX_MODEL_SETTINGS}NAME", sum_model_settings.name)
     monkeypatch.setenv(
         f"{ENV_PREFIX_MODEL_SETTINGS}VERSION",
-        sum_model_settings.parameters.version,  # type: ignore
+        sum_model_settings.parameters.version,
     )
     monkeypatch.setenv(
         f"{ENV_PREFIX_MODEL_SETTINGS}IMPLEMENTATION",
-        sum_model_settings.implementation_,  # type: ignore
+        sum_model_settings.implementation_,  # type: ignore[arg-type]
     )
 
     model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
@@ -102,9 +110,10 @@ async def test_list_fallback(
 
     default_model_settings = all_settings[0]
     assert default_model_settings.name == sum_model_settings.name
+    assert default_model_settings.parameters is not None
     assert (
-        default_model_settings.parameters.version  # type: ignore
-        == sum_model_settings.parameters.version  # type: ignore
+        default_model_settings.parameters.version
+        == sum_model_settings.parameters.version
     )
     assert default_model_settings._source is None
 

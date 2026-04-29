@@ -3,7 +3,7 @@ import inspect
 import numpy as np
 import pandas as pd
 
-from typing import Any, Optional
+from typing import Any
 
 from mlserver.types import InferenceRequest, RequestInput, Parameters, TensorData
 from mlserver.codecs import RequestCodec, NumpyCodec, StringCodec
@@ -247,7 +247,7 @@ def test_decode_request(
     sum_model: MLModel,
     inference_request: InferenceRequest,
     expected: Any,
-    default_codec: Optional[RequestCodec],
+    default_codec: RequestCodec | None,
 ):
     decoded_request = sum_model.decode_request(inference_request, default_codec)
 

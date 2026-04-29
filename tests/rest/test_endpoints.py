@@ -1,7 +1,6 @@
 import pytest
 from pytest_lazyfixture import lazy_fixture
 
-from typing import Optional
 from httpx import AsyncClient
 from httpx_sse import aconnect_sse
 
@@ -88,7 +87,7 @@ async def test_model_metadata(
     "model_name,model_version", [("sum-model", "v1.2.3"), ("sum-model", None)]
 )
 async def test_model_openapi(
-    rest_client: AsyncClient, model_name: str, model_version: Optional[str]
+    rest_client: AsyncClient, model_name: str, model_version: str | None
 ):
     endpoint = f"/v2/models/{model_name}/docs/dataplane.json"
     if model_version is not None:
@@ -105,7 +104,7 @@ async def test_model_openapi(
     "model_name,model_version", [("sum-model", "v1.2.3"), ("sum-model", None)]
 )
 async def test_model_docs(
-    rest_client: AsyncClient, model_name: str, model_version: Optional[str]
+    rest_client: AsyncClient, model_name: str, model_version: str | None
 ):
     endpoint = f"/v2/models/{model_name}/docs"
     if model_version is not None:
@@ -123,7 +122,7 @@ async def test_infer(
     rest_client: AsyncClient,
     inference_request: InferenceRequest,
     model_name: str,
-    model_version: Optional[str],
+    model_version: str | None,
 ):
     endpoint = f"/v2/models/{model_name}/infer"
     if model_version is not None:
@@ -145,7 +144,7 @@ async def test_generate(
     rest_client: AsyncClient,
     generate_request: InferenceRequest,
     model_name: str,
-    model_version: Optional[str],
+    model_version: str | None,
 ):
     endpoint = f"/v2/models/{model_name}/generate"
     if model_version is not None:

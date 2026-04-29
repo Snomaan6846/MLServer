@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Optional, Dict
+from typing import Any
 
 from mlserver.types import InferenceRequest, InferenceResponse, Parameters
 from mlserver.codecs import (
@@ -11,10 +11,8 @@ from mlserver.codecs import (
 )
 from mlserver.codecs.lists import is_list_of
 
-from typing import Any
 
-
-TensorDict = Dict[str, np.ndarray]
+TensorDict = dict[str, np.ndarray]
 
 
 @register_request_codec
@@ -37,8 +35,8 @@ class TensorDictCodec(RequestCodec):
         cls,
         model_name: str,
         payload: TensorDict,
-        model_version: Optional[str] = None,
-        **kwargs
+        model_version: str | None = None,
+        **kwargs,
     ) -> InferenceResponse:
         outputs = [
             NumpyCodec.encode_output(name, value, **kwargs)

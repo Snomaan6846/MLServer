@@ -8,12 +8,13 @@ import asyncio
 import numpy as np
 import aiofiles
 import logging
+
+from typing_extensions import Self
 import click
 import json
 import orjson
 
 from time import perf_counter as timer
-from typing import Dict, List, Optional, Tuple
 
 from pydantic import ValidationError
 
@@ -83,7 +84,7 @@ def setup_logging(debug: bool):
         logger.setLevel(logging.DEBUG)
 
 
-def get_headers(request_id: str, headers: Dict[str, str]) -> Dict[str, str]:
+def get_headers(request_id: str, headers: dict[str, str]) -> dict[str, str]:
     headers = {"content-type": "application/json", **headers}
     if request_id:
         headers["seldon-puid"] = request_id
@@ -94,13 +95,13 @@ def get_headers(request_id: str, headers: Dict[str, str]) -> Dict[str, str]:
 @dataclass
 class TritonRequest:
     id: str
-    inputs: List[httpclient.InferInput]
-    outputs: Optional[List[httpclient.InferRequestedOutput]]
+    inputs: list[httpclient.InferInput]
+    outputs: list[httpclient.InferRequestedOutput] | None
 
     @classmethod
     def from_inference_request(
         cls, inference_request: InferenceRequest, binary_data: bool
-    ) -> "TritonRequest":
+    ) -> Self:
         inputs = []
         for request_input in inference_request.inputs or []:
             new_input = httpclient.InferInput(
@@ -128,7 +129,7 @@ class TritonRequest:
             request_id = ""
         else:
             request_id = inference_request.id
-        return TritonRequest(request_id, inputs, outputs)
+        return cls(request_id, inputs, outputs)
 
 
 def infer_result_to_infer_response(item: httpclient.InferResult) -> InferenceResponse:
@@ -162,7 +163,7 @@ def infer_result_to_infer_response(item: httpclient.InferResult) -> InferenceRes
     return inference_response
 
 
-def _preprocess_headers(headers: List[str]) -> Dict[str, str]:
+def _preprocess_headers(headers: list[str]) -> dict[str, str]:
     output = {}
     for item in headers:
         try:
@@ -194,8 +195,8 @@ def _serialize_inference_error(index: int, error: Exception) -> BatchOutputItem:
 
 
 def preprocess_items(
-    items: List[BatchInputItem], binary_data: bool
-) -> Tuple[TritonRequest, BatchedRequests, List[BatchOutputItem], Dict[str, int]]:
+    items: list[BatchInputItem], binary_data: bool
+) -> tuple[TritonRequest, BatchedRequests, list[BatchOutputItem], dict[str, int]]:
     item_indices = {}
     inference_requests = {}
     invalid_inputs = []
@@ -229,8 +230,8 @@ def preprocess_items(
 def postprocess_items(
     infer_result: httpclient.InferResult,
     batched: BatchedRequests,
-    item_indices: Dict[str, int],
-) -> List[BatchOutputItem]:
+    item_indices: dict[str, int],
+) -> list[BatchOutputItem]:
     full_inference_response = infer_result_to_infer_response(infer_result)
     output_items = []
     for item_id, inference_response in batched.split_response(
@@ -258,7 +259,7 @@ async def send_requests(
     model_name: str,
     triton_client: httpclient.InferenceServerClient,
     triton_request: TritonRequest,
-    headers: Dict[str, str],
+    headers: dict[str, str],
     retries: int,
     worker_id: int,
 ) -> httpclient.InferResult:
@@ -281,14 +282,14 @@ async def send_requests(
 
 
 async def process_items(
-    items: List[BatchInputItem],
+    items: list[BatchInputItem],
     model_name: str,
     worker_id: int,
     retries: int,
     triton_client: httpclient.InferenceServerClient,
-    headers: Dict[str, str],
+    headers: dict[str, str],
     binary_data: bool,
-) -> List[BatchOutputItem]:
+) -> list[BatchOutputItem]:
     try:
         triton_request, batched, invalid_inputs, inference_indices = preprocess_items(
             items, binary_data
@@ -326,7 +327,7 @@ async def process_items(
 
 
 async def produce(
-    queue: "asyncio.Queue[List[BatchInputItem]]", fname: str, batch_size: int
+    queue: asyncio.Queue[list[BatchInputItem]], fname: str, batch_size: int
 ):
     async with aiofiles.open(fname, "rb") as f:
         index = 0
@@ -348,11 +349,11 @@ async def consume(
     batch_interval: float,
     batch_jitter: float,
     triton_client: httpclient.InferenceServerClient,
-    headers: Dict[str, str],
+    headers: dict[str, str],
     binary_data: bool,
     extra_verbose: bool,
-    queue_in: "asyncio.Queue[List[BatchInputItem]]",
-    queue_out: "asyncio.Queue[List[BatchOutputItem]]",
+    queue_in: asyncio.Queue[list[BatchInputItem]],
+    queue_out: asyncio.Queue[list[BatchOutputItem]],
 ):
     while True:
         input_items = await queue_in.get()
@@ -386,7 +387,7 @@ async def consume(
         queue_in.task_done()
 
 
-async def finalize(queue: "asyncio.Queue[List[BatchOutputItem]]", fname: str) -> int:
+async def finalize(queue: asyncio.Queue[list[BatchOutputItem]], fname: str) -> int:
     # TODO: Test if output directory is writtable, sysexit otherwise.
     counter = 0
     try:
@@ -417,7 +418,7 @@ async def process_batch(
     output_data_path: str,
     binary_data: bool,
     transport: str,
-    request_headers: List[str],
+    request_headers: list[str],
     timeout: float,
     batch_interval: float,
     batch_jitter: float,
@@ -477,8 +478,8 @@ async def process_batch(
         ssl_context=ssl_context,
     )
 
-    queue_in: asyncio.Queue[List[BatchInputItem]] = asyncio.Queue(2 * workers)
-    queue_out: asyncio.Queue[List[BatchOutputItem]] = asyncio.Queue(2 * workers)
+    queue_in: asyncio.Queue[list[BatchInputItem]] = asyncio.Queue(2 * workers)
+    queue_out: asyncio.Queue[list[BatchOutputItem]] = asyncio.Queue(2 * workers)
 
     consumers = []
     for worker_id in range(workers):

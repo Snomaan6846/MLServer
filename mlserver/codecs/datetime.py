@@ -1,4 +1,4 @@
-from typing import Any, Union, List
+from typing import Any
 from datetime import datetime
 from functools import partial
 
@@ -6,7 +6,7 @@ from ..types import RequestInput, ResponseOutput, Parameters
 from .lists import is_list_of, as_list, ListElement
 from .base import InputCodec, register_input_codec
 
-_Datetime = Union[str, datetime]
+_Datetime = str | datetime
 _DatetimeStrCodec = "ascii"
 
 
@@ -18,7 +18,7 @@ def _to_iso(elem: _Datetime) -> str:
     return elem.isoformat()
 
 
-def _encode_datetime(elem: _Datetime, use_bytes: bool) -> Union[bytes, str]:
+def _encode_datetime(elem: _Datetime, use_bytes: bool) -> bytes | str:
     iso_date = _to_iso(elem)
     if not use_bytes:
         return iso_date
@@ -45,7 +45,7 @@ class DatetimeCodec(InputCodec):
     """
 
     ContentType = "datetime"
-    TypeHint = List[_Datetime]
+    TypeHint = list[_Datetime]
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -53,7 +53,7 @@ class DatetimeCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: List[_Datetime], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[_Datetime], use_bytes: bool = True, **kwargs
     ) -> ResponseOutput:
         packed = map(partial(_encode_datetime, use_bytes=use_bytes), payload)
         shape = [len(payload), 1]
@@ -66,14 +66,14 @@ class DatetimeCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> List[datetime]:
+    def decode_output(cls, response_output: ResponseOutput) -> list[datetime]:
         packed = response_output.data.root
 
         return list(map(_decode_datetime, as_list(packed)))
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: List[_Datetime], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[_Datetime], use_bytes: bool = True, **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name, payload, use_bytes=use_bytes)
         return RequestInput(
@@ -85,7 +85,7 @@ class DatetimeCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List[datetime]:
+    def decode_input(cls, request_input: RequestInput) -> list[datetime]:
         packed = request_input.data.root
 
         return list(map(_decode_datetime, as_list(packed)))

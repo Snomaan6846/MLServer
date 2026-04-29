@@ -1,10 +1,9 @@
 import abc
+import builtins
 import os
 import glob
 
 from pydantic import ValidationError
-from typing import List
-
 from ..settings import ModelParameters, ModelSettings
 from ..errors import ModelNotFound
 from ..logging import logger
@@ -16,11 +15,11 @@ DEFAULT_MODEL_SETTINGS_FILENAME = "model-settings.json"
 
 class ModelRepository(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    async def list(self) -> List[ModelSettings]:
+    async def list(self) -> builtins.list[ModelSettings]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def find(self, name: str) -> List[ModelSettings]:
+    async def find(self, name: str) -> builtins.list[ModelSettings]:
         raise NotImplementedError
 
 
@@ -33,7 +32,7 @@ class SchemalessModelRepository(ModelRepository):
     def __init__(self, root: str):
         self._root = root
 
-    async def list(self) -> List[ModelSettings]:
+    async def list(self) -> builtins.list[ModelSettings]:
         all_model_settings = []
 
         # TODO: Use an async alternative for filesys ops
@@ -64,7 +63,7 @@ class SchemalessModelRepository(ModelRepository):
 
         return all_model_settings
 
-    async def find(self, name: str) -> List[ModelSettings]:
+    async def find(self, name: str) -> builtins.list[ModelSettings]:
         all_settings = await self.list()
         selected = []
         for model_settings in all_settings:

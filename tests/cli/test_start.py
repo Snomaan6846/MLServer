@@ -5,9 +5,9 @@ import signal
 import sys
 
 from aiohttp.client_exceptions import ClientResponseError
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 from subprocess import Popen, TimeoutExpired
-from typing import Tuple
 
 from mlserver.settings import ModelSettings, Settings
 from mlserver.types import InferenceRequest
@@ -62,7 +62,7 @@ def _stop_mlserver(process: Popen) -> None:
 
 
 @pytest.fixture
-def settings(settings: Settings, free_ports: Tuple[int, int]) -> Settings:
+def settings(settings: Settings, free_ports: tuple[int, int, int]) -> Settings:
     http_port, grpc_port, metrics_port = free_ports
 
     settings.http_port = http_port
@@ -75,7 +75,7 @@ def settings(settings: Settings, free_ports: Tuple[int, int]) -> Settings:
 @pytest.fixture
 def mlserver_start_sum_model(
     tmp_path: str, settings: Settings, sum_model_settings: ModelSettings
-) -> Popen:
+) -> Generator[Popen, None, None]:
     # Baseline scenario: importable runtime (`tests.fixtures.SumModel`).
     sum_model_folder = case_sum_model(tmp_path, settings, sum_model_settings)
     p = _spawn_mlserver(sum_model_folder)
@@ -88,7 +88,7 @@ def mlserver_start_sum_model(
 @pytest.fixture
 def mlserver_start_custom_module(
     tmp_path: str, settings: Settings, sum_model_settings: ModelSettings
-) -> Popen:
+) -> Generator[Popen, None, None]:
     # Security scenario: model-folder module (`custom.SumModel`) should not load.
     custom_module_folder = case_custom_module(tmp_path, settings, sum_model_settings)
     p = _spawn_mlserver(custom_module_folder)
@@ -99,7 +99,7 @@ def mlserver_start_custom_module(
 
 
 @pytest.fixture
-async def rest_client(settings: Settings) -> RESTClient:
+async def rest_client(settings: Settings) -> AsyncGenerator[RESTClient, None]:
     http_server = f"127.0.0.1:{settings.http_port}"
     client = RESTClient(http_server)
 
@@ -228,7 +228,7 @@ def test_server_startup_aborts_with_corrupted_allowlist(
     server shutdown rather than just logging errors.
     """
     # Create corrupted trusted-runtimes.json artifact
-    corrupted_artifact = tmp_path / "corrupted-runtimes.json"
+    corrupted_artifact = Path(str(tmp_path)) / "corrupted-runtimes.json"
     corrupted_artifact.write_text("{invalid-json", encoding="utf-8")
 
     # Override artifact path via environment variable

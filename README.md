@@ -149,7 +149,7 @@ MLServer is licensed under the Apache License, Version 2.0. However please note 
 | -------------- | ------ |
 | 3.7            | 🔴     |
 | 3.8            | 🔴     |
-| 3.9            | 🟢     |
+| 3.9            | 🔴     |
 | 3.10           | 🟢     |
 | 3.11           | 🟢     |
 | 3.12           | 🟢     |

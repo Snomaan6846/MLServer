@@ -4,8 +4,6 @@ import json
 import keyword
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Tuple
-
 from ..repository import DEFAULT_MODEL_SETTINGS_FILENAME
 from ..settings import canonicalize_runtime_import_path, is_valid_runtime_import_path
 
@@ -316,7 +314,7 @@ def calculate_runtime_requirements(
 
 
 def validate_runtime_path_preconditions(
-    runtime_source_paths: Optional[Sequence[str]],
+    runtime_source_paths: Sequence[str] | None,
     required_modules: set[str],
     *,
     runtime_paths_without_allowlist_message: str,
@@ -339,12 +337,12 @@ def validate_runtime_path_preconditions(
 def _resolve_and_compute_output_path(
     candidate: Path,
     runtime_path: str,
-    folder_path: Optional[Path],
-    build_folder: Optional[str],
+    folder_path: Path | None,
+    build_folder: str | None,
     *,
     use_relative_paths_in_build_folder: bool,
     reject_build_folder_root: bool,
-) -> Tuple[Optional[Path], str, str]:
+) -> tuple[Path | None, str, str]:
     """Resolve runtime path and compute output/destination paths."""
     if folder_path is None:
         resolved = None
@@ -381,7 +379,7 @@ def _resolve_and_compute_output_path(
 def _classify_and_validate_runtime_source(
     candidate: Path,
     runtime_path: str,
-    resolved: Optional[Path],
+    resolved: Path | None,
     *,
     source_specific_module_name_errors: bool,
 ) -> tuple[str, bool]:
@@ -425,7 +423,7 @@ def normalise_runtime_source_paths(
     required_modules: set[str],
     required_nested_packages: set[str],
     *,
-    build_folder: Optional[str] = None,
+    build_folder: str | None = None,
     use_relative_paths_in_build_folder: bool = False,
     reject_build_folder_root: bool = False,
     source_specific_module_name_errors: bool = False,

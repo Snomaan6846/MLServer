@@ -43,20 +43,20 @@ def test_validate_module_name_rejects_dunder():
         validate_module_name("__future__", "__future__.py")
 
 
-def test_check_destination_collision_accepts_unique():
+def test_check_destination_collision_accepts_unique() -> None:
     destination_names: dict[str, str] = {}
     check_destination_collision(destination_names, "custom.py", "custom.py")
     check_destination_collision(destination_names, "other.py", "other.py")
     assert len(destination_names) == 2
 
 
-def test_check_destination_collision_accepts_same_source():
+def test_check_destination_collision_accepts_same_source() -> None:
     destination_names: dict[str, str] = {}
     check_destination_collision(destination_names, "custom.py", "custom.py")
     check_destination_collision(destination_names, "custom.py", "custom.py")
 
 
-def test_check_destination_collision_rejects_collision():
+def test_check_destination_collision_rejects_collision() -> None:
     destination_names: dict[str, str] = {}
     check_destination_collision(destination_names, "runtime.py", "a/runtime.py")
 

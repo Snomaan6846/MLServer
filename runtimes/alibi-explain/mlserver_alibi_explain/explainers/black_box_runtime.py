@@ -1,4 +1,4 @@
-from typing import Type, Any, Dict, List, Union, Optional
+from typing import Any
 
 import numpy as np
 from alibi.api.interfaces import Explanation, Explainer
@@ -22,7 +22,7 @@ class AlibiExplainBlackBoxRuntime(AlibiExplainRuntimeBase):
     to infer feature from the underlying model (no gradients etc.)
     """
 
-    def __init__(self, settings: ModelSettings, explainer_class: Type[Explainer]):
+    def __init__(self, settings: ModelSettings, explainer_class: type[Explainer]):
         self._explainer_class = explainer_class
 
         # if we are here we are sure that settings.parameters is set,
@@ -32,7 +32,7 @@ class AlibiExplainBlackBoxRuntime(AlibiExplainRuntimeBase):
         explainer_settings = AlibiExplainSettings(**extra)  # type: ignore
 
         self.infer_uri = explainer_settings.infer_uri
-        self.infer_metadata: Optional[MetadataModelResponse] = None
+        self.infer_metadata: MetadataModelResponse | None = None
         self.ssl_verify_path = ""
         if explainer_settings.ssl_verify_path is not None:
             self.ssl_verify_path = explainer_settings.ssl_verify_path
@@ -52,11 +52,11 @@ class AlibiExplainBlackBoxRuntime(AlibiExplainRuntimeBase):
 
         return True
 
-    def _explain_impl(self, input_data: Any, explain_parameters: Dict) -> Explanation:
+    def _explain_impl(self, input_data: Any, explain_parameters: dict) -> Explanation:
         if not self.alibi_explain_settings.explainer_batch:
             # if we get a list of strings, we can only explain the first elem and there
             # is no way of just sending a plain string in v2, it has to be in a list
-            # as the encoding is List[str] with content_type "BYTES"
+            # as the encoding is list[str] with content_type "BYTES"
             # we also assume that the explain data will contain a batch dimension,
             # and in current implementation we will only explain the first data element.
             # this is for explainers that do not support batch, e.g. anchors
@@ -64,7 +64,7 @@ class AlibiExplainBlackBoxRuntime(AlibiExplainRuntimeBase):
 
         return self._model.explain(input_data, **explain_parameters)
 
-    def _infer_impl(self, input_data: Union[np.ndarray, List[str]]) -> np.ndarray:
+    def _infer_impl(self, input_data: np.ndarray | list[str]) -> np.ndarray:
         # The contract is that alibi-explain would input/output ndarray
         # in the case of AnchorText, we have a list of strings instead though.
         # TODO: for now we only support v2 protocol, do we need more support?
