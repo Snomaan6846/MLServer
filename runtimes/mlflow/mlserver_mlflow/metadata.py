@@ -1,4 +1,4 @@
-from typing import Union, Tuple, List, Optional
+from typing import TypeAlias
 
 from mlflow.types.schema import (
     Schema,
@@ -24,7 +24,7 @@ from mlserver.codecs.numpy import to_datatype
 
 from .codecs import TensorDictCodec
 
-InputSpec = Union[ColSpec, TensorSpec]
+InputSpec: TypeAlias = ColSpec | TensorSpec
 
 DefaultInputPrefix = "input-"
 DefaultOutputPrefix = "output-"
@@ -41,7 +41,7 @@ _MLflowToContentType = {
 }
 
 
-def _get_content_type(input_spec: InputSpec) -> Tuple[MDatatype, str]:
+def _get_content_type(input_spec: InputSpec) -> tuple[MDatatype, str]:
     if isinstance(input_spec, TensorSpec):
         datatype = to_datatype(input_spec.type)
         return datatype, NumpyCodec.ContentType
@@ -53,7 +53,7 @@ def _get_content_type(input_spec: InputSpec) -> Tuple[MDatatype, str]:
     return _MLflowToContentType[input_spec.type]
 
 
-def _get_shape(input_spec: InputSpec) -> List[int]:
+def _get_shape(input_spec: InputSpec) -> list[int]:
     if isinstance(input_spec, TensorSpec):
         return list(input_spec.shape)
 
@@ -62,7 +62,7 @@ def _get_shape(input_spec: InputSpec) -> List[int]:
 
 def to_metadata_tensors(
     schema: Schema, prefix=DefaultInputPrefix
-) -> List[MetadataTensor]:
+) -> list[MetadataTensor]:
     metadata_tensors = []
 
     for idx, input_spec in enumerate(schema.inputs):
@@ -83,7 +83,7 @@ def to_metadata_tensors(
     return metadata_tensors
 
 
-def to_model_content_type(schema: Schema) -> Optional[str]:
+def to_model_content_type(schema: Schema) -> str | None:
     # This logic is based on MLflow's `mlflow.pyfunc._enforce_schema` method:
     # https://github.com/mlflow/mlflow/blob/ded7e447c20d259030260f1579693f9c5337a3ae/mlflow/pyfunc/__init__.py#L499
     if schema.is_tensor_spec():

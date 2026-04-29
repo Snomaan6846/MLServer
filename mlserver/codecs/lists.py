@@ -2,13 +2,14 @@
 Utils to work transparently with either lists of strings, or single strings.
 """
 
-from typing import Any, Type, Union, List, Iterator
+from typing import Any
+from collections.abc import Iterator
 
-ListElement = Union[bytes, str]
-ListPayload = Union[ListElement, List[ListElement]]
+ListElement = bytes | str
+ListPayload = ListElement | list[ListElement]
 
 
-def is_list_of(payload: Any, instance_type: Type):
+def is_list_of(payload: Any, instance_type: type[Any]):
     if not isinstance(payload, list):
         return False
 

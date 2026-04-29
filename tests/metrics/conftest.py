@@ -15,7 +15,10 @@ def prometheus_endpoint(settings: Settings) -> PrometheusEndpoint:
 @pytest.fixture
 async def metrics_client(mlserver: MLServer, settings: Settings):
     http_server = f"{settings.host}:{settings.metrics_port}"
-    client = MetricsClient(http_server, metrics_endpoint=settings.metrics_endpoint)
+    client = MetricsClient(
+        http_server,
+        metrics_endpoint=settings.metrics_endpoint,  # type: ignore[arg-type]
+    )
 
     yield client
 

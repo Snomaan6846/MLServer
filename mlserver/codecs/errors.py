@@ -1,4 +1,4 @@
-from typing import Optional, Any, Dict, List, Type
+from typing import Any
 
 from ..types import RequestInput
 from ..errors import MLServerError
@@ -7,8 +7,8 @@ from ..errors import MLServerError
 class CodecNotFound(MLServerError):
     def __init__(
         self,
-        name: Optional[str] = None,
-        payload_type: Optional[str] = None,
+        name: str | None = None,
+        payload_type: str | None = None,
         is_input: bool = False,
         is_request: bool = False,
     ):
@@ -44,7 +44,9 @@ class CodecError(MLServerError):
 
 
 class OutputNotFound(MLServerError):
-    def __init__(self, output_idx: int, output_type: Type, output_hints: List[Type]):
+    def __init__(
+        self, output_idx: int, output_type: type[Any], output_hints: list[type[Any]]
+    ):
         expected_outputs = [f"'{output_hint}'" for output_hint in output_hints]
         msg = (
             f"Unexpected output value at position '{output_idx}' ({output_type}). "
@@ -54,7 +56,7 @@ class OutputNotFound(MLServerError):
 
 
 class InputsNotFound(MLServerError):
-    def __init__(self, inputs: List[RequestInput], input_hints: Dict[str, Any]):
+    def __init__(self, inputs: list[RequestInput], input_hints: dict[str, Any]):
         input_names = [f"'{inp.name}'" for inp in inputs]
         available_inputs = [f"'{input_name}'" for input_name in input_hints.keys()]
         msg = (

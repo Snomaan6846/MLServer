@@ -2,7 +2,8 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from typing import Any, Callable, Dict, Optional, List, Tuple
+from typing import Any
+from collections.abc import Callable
 
 from mlserver.types import (
     InferenceRequest,
@@ -22,15 +23,15 @@ from mlserver.codecs.pandas import PandasCodec
 from ..fixtures import SimpleModel
 
 
-async def predict_fn(foo: np.ndarray, bar: List[str]) -> np.ndarray:
+async def predict_fn(foo: np.ndarray, bar: list[str]) -> np.ndarray:
     return np.array([3])
 
 
-def _implicit_optional(foo: np.ndarray, bar: List[str] = None) -> np.ndarray:
+def _implicit_optional(foo: np.ndarray, bar: list[str] | None = None) -> np.ndarray:
     return np.array([2])
 
 
-def _explicit_optional(foo: np.ndarray, bar: Optional[List[str]]) -> np.ndarray:
+def _explicit_optional(foo: np.ndarray, bar: list[str] | None) -> np.ndarray:
     return np.array([2])
 
 
@@ -65,7 +66,7 @@ def test_get_codecs(signature_codec: SignatureCodec):
 
 
 def test_get_codecs_with_request():
-    def _f(foo: pd.DataFrame) -> (np.ndarray, pd.DataFrame):
+    def _f(foo: pd.DataFrame) -> tuple[np.ndarray, pd.DataFrame]:
         return np.array([2]), pd.DataFrame({"bar": [2]})
 
     signature_codec = SignatureCodec(_f)
@@ -112,8 +113,8 @@ def test_get_codecs_with_optional(predict_fn: Callable):
 )
 def test_decode_request(
     signature_codec: SignatureCodec,
-    request_inputs: List[RequestInput],
-    input_codecs: Dict[str, Codec],
+    request_inputs: list[RequestInput],
+    input_codecs: dict[str, Codec],
     expected_values: dict,
 ):
     signature_codec._input_codecs = input_codecs
@@ -270,10 +271,10 @@ def test_decode_request_not_found(
 def test_encode_response(
     signature_codec: SignatureCodec,
     output_values: np.ndarray,
-    output_codecs: List[InputCodec],
-    expected_outputs: List[ResponseOutput],
+    output_codecs: list[InputCodec],
+    expected_outputs: list[ResponseOutput],
 ):
-    signature_codec._output_codecs = output_codecs
+    signature_codec._output_codecs = output_codecs  # type: ignore[assignment]
     response = signature_codec.encode_response(model_name="foo", payload=output_values)
 
     assert response.model_name == "foo"
@@ -288,7 +289,7 @@ def test_encode_response(
     ],
 )
 def test_encode_response_not_found(
-    signature_codec: SignatureCodec, invalid_values: List[Any]
+    signature_codec: SignatureCodec, invalid_values: list[Any]
 ):
     """
     Ensure the `SignatureCodec` detects when an output does not match the
@@ -312,7 +313,7 @@ async def test_decode_args(
 
 
 def test_as_list_typing_tuple():
-    signature_list = _as_list(Tuple[np.ndarray, np.ndarray])
+    signature_list = _as_list(tuple[np.ndarray, np.ndarray])
     assert signature_list == [np.ndarray, np.ndarray]
 
 

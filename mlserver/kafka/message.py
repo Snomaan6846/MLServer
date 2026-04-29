@@ -1,35 +1,34 @@
-from typing import Dict, Optional, List, Tuple
-
 from pydantic import BaseModel
+from typing_extensions import Self
 from ..codecs.json import encode_to_json_bytes, decode_from_bytelike_json_to_dict
 
 
-def _encode_headers(h: Dict[str, str]) -> List[Tuple[str, bytes]]:
+def _encode_headers(h: dict[str, str]) -> list[tuple[str, bytes]]:
     return [(k, v.encode("utf-8")) for k, v in h.items()]
 
 
-def _decode_headers(h: List[Tuple[str, bytes]]) -> Dict[str, str]:
+def _decode_headers(h: list[tuple[str, bytes]]) -> dict[str, str]:
     return {k: v.decode("utf-8") for k, v in h}
 
 
 class KafkaMessage(BaseModel):
-    key: Optional[str] = None
+    key: str | None = None
     value: dict
-    headers: Dict[str, str]
+    headers: dict[str, str]
 
     @classmethod
     def from_types(
-        cls, key: Optional[str], value: BaseModel, headers: Dict[str, str]
-    ) -> "KafkaMessage":
+        cls, key: str | None, value: BaseModel, headers: dict[str, str]
+    ) -> Self:
         as_dict = value.model_dump()
-        return KafkaMessage(key=key, value=as_dict, headers=headers)
+        return cls(key=key, value=as_dict, headers=headers)
 
     @classmethod
-    def from_kafka_record(cls, kafka_record) -> "KafkaMessage":
+    def from_kafka_record(cls, kafka_record) -> Self:
         key = kafka_record.key
         value = decode_from_bytelike_json_to_dict(kafka_record.value)
         headers = _decode_headers(kafka_record.headers)
-        return KafkaMessage(key=key, value=value, headers=headers)
+        return cls(key=key, value=value, headers=headers)
 
     @property
     def encoded_key(self) -> bytes:
@@ -43,5 +42,5 @@ class KafkaMessage(BaseModel):
         return encode_to_json_bytes(self.value)
 
     @property
-    def encoded_headers(self) -> List[Tuple[str, bytes]]:
+    def encoded_headers(self) -> list[tuple[str, bytes]]:
         return _encode_headers(self.headers)

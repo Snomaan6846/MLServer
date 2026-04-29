@@ -30,7 +30,9 @@ async def test_load_models(sum_model_settings: ModelSettings, model_folder: str)
     model_settings = models_settings[0]
     parameters = models_settings[0].parameters
     assert model_settings.name == sum_model_settings.name
-    assert parameters.version == sum_model_settings.parameters.version  # type: ignore
+    assert parameters is not None
+    assert sum_model_settings.parameters is not None
+    assert parameters.version == sum_model_settings.parameters.version
 
 
 async def test_disable_load_models(settings: Settings, model_folder: str):

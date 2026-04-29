@@ -6,7 +6,6 @@ from asyncio import Task, CancelledError
 from multiprocessing import Process, Queue
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
-from typing import Optional
 
 from ..registry import MultiModelRegistry
 from ..utils import install_uvloop_event_loop, schedule_with_callback
@@ -35,7 +34,7 @@ def _noop():
 
 class Worker(Process):
     def __init__(
-        self, settings: Settings, responses: Queue, env: Optional[Environment] = None
+        self, settings: Settings, responses: Queue, env: Environment | None = None
     ):
         super().__init__()
         self._settings = settings

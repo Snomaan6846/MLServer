@@ -6,8 +6,9 @@ import glob
 import json
 import sys
 
+from collections.abc import AsyncGenerator, Generator
 from filelock import FileLock
-from typing import Dict, Any, Tuple
+from typing import Any
 from starlette_exporter import PrometheusMiddleware
 from prometheus_client.registry import REGISTRY, CollectorRegistry
 from unittest.mock import Mock
@@ -25,12 +26,13 @@ from mlserver.logging import configure_logger
 from mlserver.env import Environment
 from mlserver.metrics.registry import MetricsRegistry, REGISTRY as METRICS_REGISTRY
 from mlserver import types, Settings, ModelSettings, MLServer
+from mlserver.model import MLModel
 
 from .metrics.utils import unregister_metrics
-from .fixtures import SumModel, TextModel, TextStreamModel, ErrorModel, SimpleModel
+from .fixtures import TextModel, TextStreamModel, ErrorModel, SimpleModel
 from .utils import RESTClient, get_available_ports, _pack, _get_tarball_name
 
-MIN_PYTHON_VERSION = (3, 9)
+MIN_PYTHON_VERSION = (3, 10)
 MAX_PYTHON_VERSION = (3, 12)
 PYTHON_VERSIONS = [
     (major, minor)
@@ -79,13 +81,13 @@ def testdata_cache_path() -> str:
     params=get_python_versions(),
     ids=[f"py{major}{minor}" for (major, minor) in get_python_versions()],
 )
-def env_python_version(request: pytest.FixtureRequest) -> Tuple[int, int]:
+def env_python_version(request: pytest.FixtureRequest) -> tuple[int, int]:
     return request.param
 
 
 @pytest.fixture
 async def env_tarball(
-    env_python_version: Tuple[int, int],
+    env_python_version: tuple[int, int],
     testdata_cache_path: str,
 ) -> str:
     tarball_name = _get_tarball_name(env_python_version)
@@ -115,7 +117,7 @@ async def env_tarball(
 
 
 @pytest.fixture
-async def env(env_tarball: str, tmp_path: str) -> Environment:
+async def env(env_tarball: str, tmp_path: str) -> AsyncGenerator[Environment, None]:
     env = await Environment.from_tarball(env_tarball, str(tmp_path))
     yield env
 
@@ -142,14 +144,16 @@ def add_tests_path_to_sys_path():
 
 
 @pytest.fixture
-def metrics_registry() -> MetricsRegistry:
+def metrics_registry() -> Generator[MetricsRegistry, None, None]:
     yield METRICS_REGISTRY
 
     unregister_metrics(METRICS_REGISTRY)
 
 
 @pytest.fixture
-def prometheus_registry(metrics_registry: MetricsRegistry) -> CollectorRegistry:
+def prometheus_registry(
+    metrics_registry: MetricsRegistry,
+) -> Generator[CollectorRegistry, None, None]:
     """
     Fixture used to ensure the registry is cleaned on each run.
     Otherwise, `py-grpc-prometheus` will complain that metrics already exist.
@@ -210,7 +214,7 @@ def error_model_settings() -> ModelSettings:
 @pytest.fixture
 async def error_model(
     model_registry: MultiModelRegistry, error_model_settings: ModelSettings
-) -> ErrorModel:
+) -> MLModel:
     await model_registry.load(error_model_settings)
     return await model_registry.get_model(error_model_settings.name)
 
@@ -218,7 +222,7 @@ async def error_model(
 @pytest.fixture
 async def simple_model(
     model_registry: MultiModelRegistry, simple_model_settings: ModelSettings
-) -> SimpleModel:
+) -> MLModel:
     await model_registry.load(simple_model_settings)
     return await model_registry.get_model(simple_model_settings.name)
 
@@ -226,7 +230,7 @@ async def simple_model(
 @pytest.fixture
 async def sum_model(
     model_registry: MultiModelRegistry, sum_model_settings: ModelSettings
-) -> SumModel:
+) -> MLModel:
     return await model_registry.get_model(sum_model_settings.name)
 
 
@@ -243,7 +247,7 @@ def text_model_settings() -> ModelSettings:
 @pytest.fixture
 async def text_model(
     model_registry: MultiModelRegistry, text_model_settings: ModelSettings
-) -> TextModel:
+) -> MLModel:
     await model_registry.load(text_model_settings)
     return await model_registry.get_model(text_model_settings.name)
 
@@ -262,7 +266,7 @@ def text_stream_model_settings() -> ModelSettings:
 @pytest.fixture
 async def text_stream_model(
     model_registry: MultiModelRegistry, text_stream_model_settings: ModelSettings
-) -> TextModel:
+) -> MLModel:
     await model_registry.load(text_stream_model_settings)
     return await model_registry.get_model(text_stream_model_settings.name)
 
@@ -292,7 +296,7 @@ def generate_request() -> types.InferenceRequest:
 
 
 @pytest.fixture
-def inference_request_invalid_datatype() -> Dict[str, Any]:
+def inference_request_invalid_datatype() -> dict[str, Any]:
     payload_path = os.path.join(
         TESTDATA_PATH, "inference-request-invalid-datatype.json"
     )
@@ -433,7 +437,7 @@ async def rest_client(mlserver: MLServer, settings: Settings):
 @pytest.fixture
 async def inference_pool_registry(
     settings: Settings, prometheus_registry: CollectorRegistry
-) -> InferencePoolRegistry:
+) -> AsyncGenerator[InferencePoolRegistry, None]:
     registry = InferencePoolRegistry(settings)
     yield registry
 

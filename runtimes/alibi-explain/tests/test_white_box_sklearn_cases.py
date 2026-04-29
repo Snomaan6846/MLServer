@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Any
+from typing import Any
 import os
 import joblib
 import pytest
@@ -47,7 +47,7 @@ def income_data() -> dict:
 
 def case_tree_shap(
     sk_income_model_uri, income_data, tmp_path
-) -> Tuple[ModelSettings, Explainer, InferenceRequest, dict]:
+) -> tuple[ModelSettings, Explainer, InferenceRequest, dict]:
     """
     TreeShap explainer with a sklearn classifier. Test load from uri only (as requires
     fitting).
@@ -58,7 +58,7 @@ def case_tree_shap(
         "model_output": "raw",
         "task": "classification",
     }
-    explain_kwargs: Dict[str, Any] = {}
+    explain_kwargs: dict[str, Any] = {}
 
     return build_test_case(
         "tree_shap",
@@ -74,7 +74,7 @@ def case_tree_shap(
 @pytest.mark.parametrize("save", [True, False])
 def case_tree_partial_dependence(
     sk_income_model_uri, income_data, tmp_path, save
-) -> Tuple[ModelSettings, Explainer, InferenceRequest, dict]:
+) -> tuple[ModelSettings, Explainer, InferenceRequest, dict]:
     """
     TreePartialDependence explainer with a sklearn classifier. Test Load from uri and
     init w/ params.
@@ -101,7 +101,7 @@ def case_tree_partial_dependence(
 
 def case_tree_partial_dependence_variance(
     sk_income_model_uri, income_data
-) -> Tuple[ModelSettings, Explainer, InferenceRequest, dict]:
+) -> tuple[ModelSettings, Explainer, InferenceRequest, dict]:
     """
     TreePartialDependence explainer with a sklearn classifier. Test Init w/ params.
 

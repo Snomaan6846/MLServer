@@ -1,7 +1,6 @@
 import os
 import io
 import base64
-from typing import Union
 from PIL import Image
 from mlserver_huggingface.codecs.image import _pil_base64encode, _pil_base64decode
 
@@ -23,11 +22,11 @@ def file_bytescontent(fname: str) -> bytes:
         return f.read()
 
 
-def open_image(fname: str) -> "Image.Image":
+def open_image(fname: str) -> Image.Image:
     return Image.open(file_path(fname))
 
 
-def image_base64(fname: str, use_bytes: bool = False) -> Union[str, bytes]:
+def image_base64(fname: str, use_bytes: bool = False) -> str | bytes:
     return _pil_base64encode(open_image(file_path(fname)), use_bytes=use_bytes)
 
 
@@ -57,5 +56,5 @@ def image_base64_str(fname: str) -> str:
 
 # why not "Image.open", Pillow save would change image quality,
 #  which caused file content changed
-def build_image(fname: str) -> "Image.Image":
+def build_image(fname: str) -> Image.Image:
     return _pil_base64decode(image_base64(fname))

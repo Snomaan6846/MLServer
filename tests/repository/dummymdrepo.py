@@ -1,11 +1,12 @@
-from typing import List
+import builtins
+
 from mlserver.repository.repository import ModelRepository
 from mlserver.settings import ModelSettings
 from mlserver.errors import ModelNotFound
 
 
 class DummyModelRepository(ModelRepository):
-    def __init__(self, root: str, files: List[str]) -> None:
+    def __init__(self, root: str, files: builtins.list[str]) -> None:
         self._model_settings = []
 
         if files:
@@ -15,12 +16,12 @@ class DummyModelRepository(ModelRepository):
                 model_settings = ModelSettings.parse_file(model_settings_path)
                 self._model_settings.append(model_settings)
 
-    async def list(self) -> List[ModelSettings]:
+    async def list(self) -> builtins.list[ModelSettings]:
         return self._model_settings
 
-    async def find(self, name: str) -> List[ModelSettings]:
+    async def find(self, name: str) -> builtins.list[ModelSettings]:
         all_settings = await self.list()
-        result = []
+        result: builtins.list[ModelSettings] = []
         for model_settings in all_settings:
             if model_settings.name == name:
                 result.append(model_settings)

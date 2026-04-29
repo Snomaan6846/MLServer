@@ -1,4 +1,3 @@
-from typing import Dict
 from functools import wraps
 from unittest.mock import patch
 
@@ -30,14 +29,14 @@ def remove_kwarg(func, to_remove):
 
 
 class _TestClientWrapper:
-    def __init__(self, data: Dict):
+    def __init__(self, data: dict):
         self.response = data
 
     def get_test_client(self):
         app = FastAPI()
 
         @app.get("/")
-        async def metadata() -> Dict:
+        async def metadata() -> dict:
             return self.response
 
         test_client = TestClient(app)

@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import mul
-from typing import List
+from typing_extensions import Self
 
 
 class Shape:
@@ -8,14 +8,14 @@ class Shape:
     Helper class to manipulate shapes.
     """
 
-    def __init__(self, shape: List[int]):
+    def __init__(self, shape: list[int]):
         self._shape = shape.copy()
 
-    def to_list(self) -> List[int]:
+    def to_list(self) -> list[int]:
         return self._shape.copy()
 
-    def copy(self) -> "Shape":
-        return Shape(self.to_list())
+    def copy(self) -> Self:
+        return self.__class__(self.to_list())
 
     @property
     def batch_axis(self) -> int:

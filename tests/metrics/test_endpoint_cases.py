@@ -1,13 +1,10 @@
-from typing import Optional
-
-
-def case_metrics() -> Optional[str]:
+def case_metrics() -> str | None:
     return "/metrics"
 
 
-def case_prometheus() -> Optional[str]:
+def case_prometheus() -> str | None:
     return "/prometheus"
 
 
-def case_disabled() -> Optional[str]:
+def case_disabled() -> str | None:
     return None

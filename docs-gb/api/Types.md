@@ -8,7 +8,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `error` | `Optional[str]` | `None` | - |
+| `error` | `str \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -42,10 +42,10 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | `Optional[str]` | `None` | - |
-| `inputs` | `List[RequestInput]` | `-` | - |
-| `outputs` | `Optional[List[RequestOutput]]` | `None` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
+| `id` | `str \| None` | `None` | - |
+| `inputs` | `list[RequestInput]` | `-` | - |
+| `outputs` | `list[RequestOutput] \| None` | `None` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -241,11 +241,11 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `id` | `Optional[str]` | `None` | - |
+| `id` | `str \| None` | `None` | - |
 | `model_name` | `str` | `-` | - |
-| `model_version` | `Optional[str]` | `None` | - |
-| `outputs` | `List[ResponseOutput]` | `-` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
+| `model_version` | `str \| None` | `None` | - |
+| `outputs` | `list[ResponseOutput]` | `-` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -448,12 +448,12 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `inputs` | `Optional[List[MetadataTensor]]` | `None` | - |
+| `inputs` | `list[MetadataTensor] \| None` | `None` | - |
 | `name` | `str` | `-` | - |
-| `outputs` | `Optional[List[MetadataTensor]]` | `None` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
+| `outputs` | `list[MetadataTensor] \| None` | `None` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
 | `platform` | `str` | `-` | - |
-| `versions` | `Optional[List[str]]` | `None` | - |
+| `versions` | `list[str] \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -660,7 +660,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `extensions` | `List[str]` | `-` | - |
+| `extensions` | `list[str]` | `-` | - |
 | `name` | `str` | `-` | - |
 | `version` | `str` | `-` | - |
 <details><summary>JSON Schema</summary>
@@ -706,8 +706,8 @@ An enumeration.
 |-------|------|---------|-------------|
 | `datatype` | `Datatype` | `-` | - |
 | `name` | `str` | `-` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
-| `shape` | `List[int]` | `-` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
+| `shape` | `list[int]` | `-` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -811,8 +811,8 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `content_type` | `Optional[str]` | `None` | - |
-| `headers` | `Optional[Dict[str, Any]]` | `None` | - |
+| `content_type` | `str \| None` | `None` | - |
+| `headers` | `dict[str, Any] \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -859,7 +859,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `ready` | `Optional[bool]` | `None` | - |
+| `ready` | `bool \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -893,7 +893,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `root` | `List[RepositoryIndexResponseItem]` | `-` | - |
+| `root` | `list[RepositoryIndexResponseItem]` | `-` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -966,7 +966,7 @@ An enumeration.
 | `name` | `str` | `-` | - |
 | `reason` | `str` | `-` | - |
 | `state` | `State` | `-` | - |
-| `version` | `Optional[str]` | `None` | - |
+| `version` | `str \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -1029,7 +1029,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `error` | `Optional[str]` | `None` | - |
+| `error` | `str \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -1063,7 +1063,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `error` | `Optional[str]` | `None` | - |
+| `error` | `str \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -1100,8 +1100,8 @@ An enumeration.
 | `data` | `TensorData` | `-` | - |
 | `datatype` | `Datatype` | `-` | - |
 | `name` | `str` | `-` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
-| `shape` | `List[int]` | `-` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
+| `shape` | `list[int]` | `-` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -1220,7 +1220,7 @@ An enumeration.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `name` | `str` | `-` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -1296,8 +1296,8 @@ An enumeration.
 | `data` | `TensorData` | `-` | - |
 | `datatype` | `Datatype` | `-` | - |
 | `name` | `str` | `-` | - |
-| `parameters` | `Optional[Parameters]` | `None` | - |
-| `shape` | `List[int]` | `-` | - |
+| `parameters` | `Parameters \| None` | `None` | - |
+| `shape` | `list[int]` | `-` | - |
 <details><summary>JSON Schema</summary>
 
 
@@ -1419,7 +1419,7 @@ An enumeration.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `root` | `Union[List[Any], Any]` | `-` | - |
+| `root` | `list[Any] \| Any` | `-` | - |
 <details><summary>JSON Schema</summary>
 
 

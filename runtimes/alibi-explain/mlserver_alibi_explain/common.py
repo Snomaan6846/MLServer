@@ -1,6 +1,6 @@
 import re
 from importlib import import_module
-from typing import Any, Optional, Type, Union, List
+from typing import Any
 
 import numpy as np
 import requests
@@ -29,7 +29,7 @@ SELDON_SKIP_LOGGING_HEADER = "Seldon-Skip-Logging"
 
 
 #  TODO: add this utility in the codec.
-def convert_from_bytes(output: ResponseOutput, ty: Optional[Type] = None) -> Any:
+def convert_from_bytes(output: ResponseOutput, ty: type | None = None) -> Any:
     """
     This utility function decodes the response from bytes string to python object dict.
     It is related to decoding StringCodec
@@ -51,7 +51,7 @@ def convert_from_bytes(output: ResponseOutput, ty: Optional[Type] = None) -> Any
 def remote_predict(
     v2_payload: InferenceRequest, predictor_url: str, ssl_verify_path: str
 ) -> InferenceResponse:
-    verify: Union[str, bool] = True
+    verify: str | bool = True
     if ssl_verify_path != "":
         verify = ssl_verify_path
     response_raw = requests.post(
@@ -67,7 +67,7 @@ def remote_predict(
 
 def remote_metadata(url: str, ssl_verify_path: str) -> MetadataModelResponse:
     """Get metadata from v2 endpoint"""
-    verify: Union[str, bool] = True
+    verify: str | bool = True
     if ssl_verify_path != "":
         verify = ssl_verify_path
     response_raw = requests.get(url, verify=verify)
@@ -92,12 +92,12 @@ class AlibiExplainSettings(BaseSettings):
 
     infer_uri: str
     explainer_type: str
-    explainer_batch: Optional[bool] = False
+    explainer_batch: bool | None = False
     # In cases where the inference model can output multiple fields and
     # we are interested in a specific field for explanation
-    infer_output: Optional[str] = None
-    init_parameters: Optional[dict] = None
-    ssl_verify_path: Optional[str] = None
+    infer_output: str | None = None
+    init_parameters: dict | None = None
+    ssl_verify_path: str | None = None
 
 
 def import_and_get_class(class_path: str) -> type:
@@ -107,9 +107,9 @@ def import_and_get_class(class_path: str) -> type:
 
 
 def to_v2_inference_request(
-    input_data: Union[np.ndarray, List[str]],
-    metadata: Optional[MetadataModelResponse],
-    output: Optional[str],
+    input_data: np.ndarray | list[str],
+    metadata: MetadataModelResponse | None,
+    output: str | None,
 ) -> InferenceRequest:
     """
     Encode numpy payload to v2 protocol.
@@ -154,7 +154,7 @@ def to_v2_inference_request(
 
     print(outputs)
     print(default_outputs)
-    # For List[str] (e.g. AnchorText), we use StringCodec for input
+    # For list[str] (e.g. AnchorText), we use StringCodec for input
     input_payload_codec = StringCodec if isinstance(input_data, list) else NumpyCodec
     v2_request = InferenceRequest(
         id=id_name,

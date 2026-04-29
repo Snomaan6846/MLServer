@@ -1,7 +1,6 @@
-from typing import Dict, List
 from mlserver.types import MetadataTensor
 
-METADATA: Dict[str, Dict[str, List[MetadataTensor]]] = {
+METADATA: dict[str, dict[str, list[MetadataTensor]]] = {
     "audio-classification": dict(
         inputs=[
             # file path inputs

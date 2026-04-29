@@ -6,7 +6,7 @@ been merged with the GRPCInferenceService's dataplane.
 import pytest
 import grpc
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from grpc import aio
 
 from mlserver.settings import Settings
@@ -21,7 +21,7 @@ from mlserver.grpc import model_repository_pb2 as mr_pb
 
 @pytest.fixture
 def grpc_repository_index_request() -> mr_pb.RepositoryIndexRequest:
-    return mr_pb.RepositoryIndexRequest(ready=None)
+    return mr_pb.RepositoryIndexRequest(ready=False)
 
 
 @pytest.fixture

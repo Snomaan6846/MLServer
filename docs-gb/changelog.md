@@ -382,7 +382,7 @@ class MyCustomRuntime(MLModel):
     return self.ready
 
   @decode_args
-  async def predict(self, questions: List[str], context: List[str]) -> np.ndarray:
+  async def predict(self, questions: list[str], context: list[str]) -> np.ndarray:
     # TODO: Replace for custom logic to run inference
     return self._model.predict(questions, context)
 ```

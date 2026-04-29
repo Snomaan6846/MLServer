@@ -1,7 +1,5 @@
 import pytest
 
-from typing import Optional
-
 from mlserver.errors import ModelNotFound
 from mlserver.registry import MultiModelRegistry
 from mlserver.handlers import ModelRepositoryHandlers
@@ -18,9 +16,8 @@ async def test_index(
 
     assert len(repo_index) == 1
     assert repo_index[0].name == sum_model_settings.name
-    assert (
-        repo_index[0].version == sum_model_settings.parameters.version  # type: ignore
-    )
+    assert sum_model_settings.parameters is not None
+    assert repo_index[0].version == sum_model_settings.parameters.version
     assert repo_index[0].state == State.READY
 
 
@@ -34,9 +31,8 @@ async def test_index_unavailable_model(
 
     assert len(repo_index) == 1
     assert repo_index[0].name == sum_model_settings.name
-    assert (
-        repo_index[0].version == sum_model_settings.parameters.version  # type: ignore
-    )
+    assert sum_model_settings.parameters is not None
+    assert repo_index[0].version == sum_model_settings.parameters.version
     assert repo_index[0].state == State.UNAVAILABLE
 
 
@@ -45,7 +41,7 @@ async def test_index_filter_ready(
     model_repository_handlers: ModelRepositoryHandlers,
     repository_index_request: RepositoryIndexRequest,
     sum_model_settings: ModelSettings,
-    ready: Optional[bool],
+    ready: bool | None,
     expected: int,
 ):
     await model_repository_handlers.unload(sum_model_settings.name)
@@ -90,12 +86,14 @@ async def test_load_removes_stale_models(
     # Load a few models which are not present on the repository (including a
     # default one), therefore they will be stale
     stale_settings = sum_model_settings.copy(deep=True)
+    assert stale_settings.parameters is not None
     stale_settings.parameters.version = None
     await model_registry.load(stale_settings)
 
     to_load = ["v0", "v1", "v2"]
     for version in to_load:
         stale_settings = sum_model_settings.copy(deep=True)
+        assert stale_settings.parameters is not None
         stale_settings.parameters.version = version
         await model_registry.load(stale_settings)
 
@@ -115,6 +113,7 @@ async def test_load_removes_stale_models(
     # ensure they are not present on the repository either)
     registry_models = await model_registry.get_models(sum_model_settings.name)
     repo_models = list(await model_repository_handlers.index(repository_index_request))
+    assert sum_model_settings.parameters is not None
     expected_version = sum_model_settings.parameters.version
 
     assert len(registry_models) == 1

@@ -1,6 +1,6 @@
 import io
 import json
-from typing import Dict, Any, List
+from typing import Any
 import base64
 import numpy as np
 from PIL import Image, ImageChops
@@ -65,7 +65,7 @@ class Convertor:
             return raw
 
     @classmethod
-    def convert_conversation(cls, d: Dict[str, Any]):
+    def convert_conversation(cls, d: dict[str, Any]):
         if set(d.keys()) == conversation_keys:
             return Conversation(
                 text=d["new_user_input"],
@@ -76,7 +76,7 @@ class Convertor:
         return None
 
     @classmethod
-    def convert_dict(cls, d: Dict[str, Any]):
+    def convert_dict(cls, d: dict[str, Any]):
         conversation = cls.convert_conversation(d)
         if conversation is not None:
             return conversation
@@ -101,7 +101,7 @@ class Convertor:
         return tmp
 
     @classmethod
-    def convert_list(cls, list_data: List[Any]):
+    def convert_list(cls, list_data: list[Any]):
         nl = []
         for el in list_data:
             if isinstance(el, list):
@@ -122,7 +122,7 @@ class EqualUtil:
         return False
 
     @staticmethod
-    def list_equal(list1: List[Any], list2: List[Any]) -> bool:
+    def list_equal(list1: list[Any], list2: list[Any]) -> bool:
         if len(list1) != len(list2):
             return False
         for idx, el in enumerate(list1):
@@ -144,7 +144,7 @@ class EqualUtil:
         return True
 
     @staticmethod
-    def dict_equal(dict1: Dict[Any, Any], dict2: Dict[Any, Any]) -> bool:
+    def dict_equal(dict1: dict[Any, Any], dict2: dict[Any, Any]) -> bool:
         if not set(dict1.keys()) == set(dict2.keys()):
             return False
         for k, v in dict1.items():

@@ -1,4 +1,5 @@
-from typing import Any, Callable, Optional
+from typing import Any
+from collections.abc import Callable
 from enum import Enum
 from functools import wraps
 
@@ -21,7 +22,7 @@ class ParallelModel(MLModel):
         super().__init__(model.settings)
         self._model = model
         self._dispatcher = dispatcher
-        self._metadata: Optional[MetadataModelResponse] = None
+        self._metadata: MetadataModelResponse | None = None
         self._add_custom_handlers()
 
     def _add_custom_handlers(self):
@@ -59,7 +60,7 @@ class ParallelModel(MLModel):
 
         return inference_response
 
-    async def _send(self, method_name: str, *args, **kwargs) -> Optional[Any]:
+    async def _send(self, method_name: str, *args, **kwargs) -> Any | None:
         req_message = ModelRequestMessage(
             model_name=self.name,
             model_version=self.version,

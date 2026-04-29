@@ -2,8 +2,6 @@ import asyncio
 import signal
 import logging
 
-from typing import Optional, List
-
 from mlserver.repository.factory import ModelRepositoryFactory
 
 from .model import MLModel
@@ -111,7 +109,7 @@ class MLServer:
         if self._settings.kafka_enabled:
             self._kafka_server = KafkaServer(self._settings, self._data_plane)
 
-    async def start(self, models_settings: List[ModelSettings] = []):
+    async def start(self, models_settings: list[ModelSettings] = []):
         # Validate runtime security configuration before starting servers to prevent
         # a window where endpoints are accessible but security hasn't been verified
         try:
@@ -189,7 +187,7 @@ class MLServer:
                 sig, lambda s=sig: asyncio.create_task(self.stop(sig=s))
             )
 
-    async def stop(self, sig: Optional[int] = None):
+    async def stop(self, sig: int | None = None):
         if self._inference_pool_registry:
             await self._inference_pool_registry.close()
 

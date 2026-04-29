@@ -12,7 +12,6 @@ import json
 from json import JSONDecodeError
 import os
 
-from typing import List, Tuple, Type
 from pydantic_settings import BaseSettings
 
 from mlserver.settings import Settings, ModelSettings, ModelParameters
@@ -20,8 +19,8 @@ from mlserver.cli.serve import DEFAULT_SETTINGS_FILENAME
 from mlserver.repository import DEFAULT_MODEL_SETTINGS_FILENAME
 
 
-def load_default_settings(folder: str) -> List[Tuple[Type[BaseSettings], dict]]:
-    default_settings = []
+def load_default_settings(folder: str) -> list[tuple[type[BaseSettings], dict]]:
+    default_settings: list[tuple[type[BaseSettings], dict]] = []
 
     settings_path = os.path.join(folder, DEFAULT_SETTINGS_FILENAME)
     if os.path.isfile(settings_path):
@@ -45,7 +44,7 @@ def _read_json_file(file_path: str) -> dict:
         return json.load(file)
 
 
-def get_default_env(default_settings: List[Tuple[Type[BaseSettings], dict]]) -> dict:
+def get_default_env(default_settings: list[tuple[type[BaseSettings], dict]]) -> dict:
     env = {}
     for settings_class, raw_defaults in default_settings:
         env.update(_convert_to_env(settings_class, raw_defaults))
@@ -53,7 +52,7 @@ def get_default_env(default_settings: List[Tuple[Type[BaseSettings], dict]]) -> 
     return env
 
 
-def _convert_to_env(settings_class: Type[BaseSettings], raw_defaults: dict) -> dict:
+def _convert_to_env(settings_class: type[BaseSettings], raw_defaults: dict) -> dict:
     env = {}
 
     env_prefix = _get_env_prefix(settings_class)
@@ -64,7 +63,7 @@ def _convert_to_env(settings_class: Type[BaseSettings], raw_defaults: dict) -> d
     return env
 
 
-def _get_env_prefix(settings_class: Type[BaseSettings]) -> str:
+def _get_env_prefix(settings_class: type[BaseSettings]) -> str:
     if not hasattr(settings_class, "Config"):
         return ""
 

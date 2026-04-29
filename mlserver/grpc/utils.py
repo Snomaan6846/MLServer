@@ -1,6 +1,6 @@
 import grpc
 
-from typing import Callable, Dict, Tuple
+from collections.abc import Callable
 from fastapi import status
 
 from grpc import ServicerContext
@@ -17,7 +17,7 @@ STATUS_CODE_MAPPING = {
 }
 
 
-def to_headers(context: ServicerContext) -> Dict[str, str]:
+def to_headers(context: ServicerContext) -> dict[str, str]:
     metadata = context.invocation_metadata()
     if hasattr(context, "trailing_metadata"):
         # NOTE: Older versions of `grpcio` (e.g. `grpcio==1.34.0`) don't expose
@@ -30,7 +30,7 @@ def to_headers(context: ServicerContext) -> Dict[str, str]:
     return headers
 
 
-def to_metadata(headers: Dict[str, str]) -> Tuple[Tuple[str, str], ...]:
+def to_metadata(headers: dict[str, str]) -> tuple[tuple[str, str], ...]:
     return tuple((key.lower(), value) for key, value in headers.items())
 
 
