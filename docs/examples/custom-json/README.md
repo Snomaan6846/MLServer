@@ -63,7 +63,7 @@ class JsonHelloWorldModel(MLModel):
             ],
         )
 
-    def _extract_json(self, payload: types.InferenceRequest) -> Dict[str, Any]:
+    def _extract_json(self, payload: types.InferenceRequest) -> dict[str, Any]:
         inputs = {}
         for inp in payload.inputs:
             inputs[inp.name] = json.loads(

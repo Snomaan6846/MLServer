@@ -115,7 +115,6 @@ from mlserver.codecs import decode_args
 from mlserver.utils import get_model_uri
 from numpyro.infer import Predictive
 from numpyro import distributions as dist
-from typing import Optional
 
 
 class NumpyroModel(MLModel):
@@ -135,9 +134,9 @@ class NumpyroModel(MLModel):
     @decode_args
     async def predict(
         self,
-        marriage: Optional[np.ndarray] = None,
-        age: Optional[np.ndarray] = None,
-        divorce: Optional[np.ndarray] = None,
+        marriage: np.ndarray | None = None,
+        age: np.ndarray | None = None,
+        divorce: np.ndarray | None = None,
     ) -> np.ndarray:
         predictions = self._predictive(
             rng_key=random.PRNGKey(0), marriage=marriage, age=age, divorce=divorce

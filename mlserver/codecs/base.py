@@ -1,12 +1,10 @@
 import functools
 
-from typing import Any, ClassVar, Dict, Iterable, Optional, Type, Union
+from typing import Any, ClassVar, get_args, get_origin
+from collections.abc import Iterable
 
 from ..types import InferenceRequest, InferenceResponse, RequestInput, ResponseOutput
 from ..logging import logger
-
-InputCodecLike = Union[Type["InputCodec"], "InputCodec"]
-RequestCodecLike = Union[Type["RequestCodec"], "RequestCodec"]
 
 
 def deprecated(reason: str):
@@ -32,7 +30,7 @@ class InputCodec:
     """
 
     ContentType: ClassVar[str] = ""
-    TypeHint: ClassVar[Type] = type(None)
+    TypeHint: ClassVar[type[Any]] = type(None)
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -93,7 +91,7 @@ class RequestCodec:
     """
 
     ContentType: ClassVar[str] = ""
-    TypeHint: ClassVar[Type] = type(None)
+    TypeHint: ClassVar[type[Any]] = type(None)
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -105,7 +103,7 @@ class RequestCodec:
     @classmethod
     @deprecated("The encode() method is now deprecated. Use encode_response() instead.")
     def encode(
-        cls, model_name: str, payload: Any, model_version: Optional[str] = None
+        cls, model_name: str, payload: Any, model_version: str | None = None
     ) -> InferenceResponse:
         return cls.encode_response(model_name, payload, model_version)
 
@@ -114,7 +112,7 @@ class RequestCodec:
         cls,
         model_name: str,
         payload: Any,
-        model_version: Optional[str] = None,
+        model_version: str | None = None,
         **kwargs,
     ) -> InferenceResponse:
         """
@@ -149,9 +147,13 @@ class RequestCodec:
         raise NotImplementedError()
 
 
+InputCodecLike = type[InputCodec] | InputCodec
+RequestCodecLike = type[RequestCodec] | RequestCodec
+
+
 def _find_codec_by_payload(
-    payload: Any, codecs: Iterable[Union[RequestCodec, InputCodec]]
-) -> Optional[Union[RequestCodec, InputCodec]]:
+    payload: Any, codecs: Iterable[RequestCodec | InputCodec]
+) -> RequestCodec | InputCodec | None:
     matching_codecs = []
     for codec in codecs:
         if codec.can_encode(payload):
@@ -172,12 +174,30 @@ def _find_codec_by_payload(
     return first_codec
 
 
+def _type_hints_equivalent(a: Any, b: Any) -> bool:
+    """True if ``a`` and ``b`` denote the same hint
+    (e.g. ``typing.List[str]`` vs ``list[str]``).
+
+    Union/Optional cross-style pairs (typing.Union vs | syntax) are handled
+    by the == check: Python 3.10+ defines __eq__ across both Union forms.
+    The get_origin/get_args path handles generic aliases (List vs list, etc.).
+    """
+    if a == b:
+        return True
+    origin_a, origin_b = get_origin(a), get_origin(b)
+    if origin_a is None or origin_b is None:
+        return False
+    if origin_a is not origin_b:
+        return False
+    return get_args(a) == get_args(b)
+
+
 def _find_codec_by_type_hint(
-    type_hint: Type, codecs: Iterable[Union[RequestCodec, InputCodec]]
-) -> Optional[Union[RequestCodec, InputCodec]]:
+    type_hint: type[Any], codecs: Iterable[RequestCodec | InputCodec]
+) -> RequestCodec | InputCodec | None:
     matching_codecs = []
     for codec in codecs:
-        if codec.TypeHint == type_hint:
+        if _type_hints_equivalent(codec.TypeHint, type_hint):
             matching_codecs.append(codec)
 
     if len(matching_codecs) == 0:
@@ -204,8 +224,8 @@ class _CodecRegistry:
 
     def __init__(
         self,
-        input_codecs: Dict[str, InputCodecLike] = {},
-        request_codecs: Dict[str, RequestCodecLike] = {},
+        input_codecs: dict[str, InputCodecLike] = {},
+        request_codecs: dict[str, RequestCodecLike] = {},
     ):
         self._input_codecs = input_codecs
         self._request_codecs = request_codecs
@@ -216,10 +236,10 @@ class _CodecRegistry:
 
     def find_input_codec(
         self,
-        content_type: Optional[str] = None,
-        payload: Optional[Any] = None,
-        type_hint: Optional[Type] = None,
-    ) -> Optional[InputCodecLike]:
+        content_type: str | None = None,
+        payload: Any | None = None,
+        type_hint: type[Any] | None = None,
+    ) -> InputCodecLike | None:
         if content_type:
             return self._input_codecs.get(content_type)
         elif payload:
@@ -229,14 +249,14 @@ class _CodecRegistry:
 
         return None
 
-    def find_input_codec_by_payload(self, payload: Any) -> Optional[InputCodecLike]:
+    def find_input_codec_by_payload(self, payload: Any) -> InputCodecLike | None:
         return _find_codec_by_payload(
             payload, self._input_codecs.values()  # type: ignore
         )
 
     def find_input_codec_by_type_hint(
-        self, type_hint: Type
-    ) -> Optional[InputCodecLike]:
+        self, type_hint: type[Any]
+    ) -> InputCodecLike | None:
         return _find_codec_by_type_hint(
             type_hint, self._input_codecs.values()  # type: ignore
         )
@@ -247,10 +267,10 @@ class _CodecRegistry:
 
     def find_request_codec(
         self,
-        content_type: Optional[str] = None,
-        payload: Optional[Any] = None,
-        type_hint: Optional[Type] = None,
-    ) -> Optional[RequestCodecLike]:
+        content_type: str | None = None,
+        payload: Any | None = None,
+        type_hint: type[Any] | None = None,
+    ) -> RequestCodecLike | None:
         if content_type:
             return self._request_codecs.get(content_type)
         elif payload:
@@ -260,14 +280,14 @@ class _CodecRegistry:
 
         return None
 
-    def find_request_codec_by_payload(self, payload: Any) -> Optional[RequestCodecLike]:
+    def find_request_codec_by_payload(self, payload: Any) -> RequestCodecLike | None:
         return _find_codec_by_payload(
             payload, self._request_codecs.values()  # type: ignore
         )
 
     def find_request_codec_by_type_hint(
-        self, type_hint: Type
-    ) -> Optional[RequestCodecLike]:
+        self, type_hint: type[Any]
+    ) -> RequestCodecLike | None:
         return _find_codec_by_type_hint(
             type_hint, self._request_codecs.values()  # type: ignore
         )

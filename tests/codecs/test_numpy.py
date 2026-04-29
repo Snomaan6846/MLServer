@@ -159,6 +159,7 @@ def test_codec_idempotent(request_input: RequestInput):
     assert response_output.datatype == request_input_result.datatype
     assert response_output.shape == request_input_result.shape
     assert response_output.data == request_input_result.data
+    assert request_input_result.parameters is not None
     assert request_input_result.parameters.content_type == NumpyCodec.ContentType
 
 

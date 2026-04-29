@@ -1,20 +1,18 @@
 import asyncio
 import pytest
 
-from typing import List
-
 from mlserver.batching.adaptive import AdaptiveBatcher
 from mlserver.batching.shape import Shape
 from mlserver.types import InferenceRequest, RequestInput
 from mlserver.model import MLModel
 from mlserver.utils import generate_uuid
 
-from .conftest import TestRequestSender
+from .conftest import RequestSender
 
 
 async def test_batch_requests(
     adaptive_batcher: AdaptiveBatcher,
-    send_request: TestRequestSender,
+    send_request: RequestSender,
 ):
     max_batch_size = adaptive_batcher._max_batch_size
     sent_requests = dict(
@@ -31,7 +29,7 @@ async def test_batch_requests(
 
 async def test_batch_requests_timeout(
     adaptive_batcher: AdaptiveBatcher,
-    send_request: TestRequestSender,
+    send_request: RequestSender,
 ):
     """
     Test that a batch size smaller than the max batch size, the timeout is hit
@@ -49,7 +47,7 @@ async def test_batch_requests_timeout(
 
 async def test_batcher(
     adaptive_batcher: AdaptiveBatcher,
-    send_request: TestRequestSender,
+    send_request: RequestSender,
     sum_model: MLModel,
 ):
     max_batch_size = adaptive_batcher._max_batch_size
@@ -73,7 +71,7 @@ async def test_batcher(
 
 async def test_batcher_propagates_errors(
     adaptive_batcher: AdaptiveBatcher,
-    send_request: TestRequestSender,
+    send_request: RequestSender,
     mocker,
 ):
     message = "This is an error"
@@ -86,8 +84,12 @@ async def test_batcher_propagates_errors(
         await asyncio.gather(*[send_request() for _ in range(max_batch_size)])
     )
 
-    adaptive_batcher._predict_fn = mocker.stub("_predict_fn")
-    adaptive_batcher._predict_fn.return_value = _async_exception()
+    adaptive_batcher._predict_fn = mocker.stub(  # type: ignore[assignment]
+        "_predict_fn"
+    )
+    adaptive_batcher._predict_fn.return_value = (  # type: ignore[attr-defined]
+        _async_exception()
+    )
     await adaptive_batcher._batcher()
 
     for internal_id, _ in sent_requests.items():
@@ -108,8 +110,10 @@ async def test_batcher_cancels_responses(
 
     num_requests = adaptive_batcher._max_batch_size * 2 + 2
 
-    adaptive_batcher._batcher = mocker.stub("_batcher")
-    adaptive_batcher._batcher.side_effect = iter(_async_exception, None)
+    adaptive_batcher._batcher = mocker.stub("_batcher")  # type: ignore[method-assign]
+    adaptive_batcher._batcher.side_effect = iter(  # type: ignore[attr-defined]
+        _async_exception, None
+    )
 
     requests = [
         InferenceRequest(
@@ -184,7 +188,7 @@ async def test_batcher_cancels_responses(
     ],
 )
 async def test_predict(
-    requests: List[InferenceRequest],
+    requests: list[InferenceRequest],
     adaptive_batcher: AdaptiveBatcher,
     sum_model: MLModel,
 ):

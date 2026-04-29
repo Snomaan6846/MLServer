@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import tensorflow as tf
 from alibi.api.interfaces import Explanation
@@ -10,7 +10,7 @@ from mlserver_alibi_explain.explainers.white_box_runtime import (
 
 
 class IntegratedGradientsWrapper(AlibiExplainWhiteBoxRuntime):
-    def _explain_impl(self, input_data: Any, explain_parameters: Dict) -> Explanation:
+    def _explain_impl(self, input_data: Any, explain_parameters: dict) -> Explanation:
         # TODO: how are we going to deal with that?
         assert self._inference_model is not None, "Inference model is not set"
         predictions = self._inference_model(input_data).numpy().argmax(axis=1)

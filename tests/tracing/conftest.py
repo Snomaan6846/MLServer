@@ -5,7 +5,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from mlserver import Settings, MLServer
 from pytest import fixture
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from mlserver.grpc.dataplane_pb2_grpc import GRPCInferenceServiceStub
 from grpc import aio
 
@@ -17,7 +17,7 @@ def settings(settings: Settings) -> Settings:
 
 
 @fixture
-def span_exporter(mocker) -> SpanExporter:
+def span_exporter(mocker) -> Generator[SpanExporter, None, None]:
     span_exporter = InMemorySpanExporter()
     mocker.patch("mlserver.tracing._create_span_exporter", return_value=span_exporter)
     yield span_exporter
@@ -25,7 +25,9 @@ def span_exporter(mocker) -> SpanExporter:
 
 
 @fixture(autouse=True)
-def tracer_provider(mocker, span_exporter, settings) -> TracerProvider:
+def tracer_provider(
+    mocker, span_exporter, settings
+) -> Generator[TracerProvider, None, None]:
     resource = Resource(attributes={"service.name.testing": "mlserver-testing"})
     tracer_provider = TracerProvider(resource=resource)
     span_processor = SimpleSpanProcessor(span_exporter)

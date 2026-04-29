@@ -14,7 +14,7 @@ bootstrap-test:
 	done
 
 install-dev:
-	poetry install --sync --with all-runtimes --with all-runtimes-dev
+	poetry sync --with all-runtimes --with all-runtimes-dev
 
 lock:
 	echo "Locking mlserver deps..."
@@ -90,6 +90,8 @@ lint:
 	do \
 		mypy $$_runtime || exit 1; \
 	done
+	mypy ./tests
+	mypy ./hack
 	mypy ./benchmarking
 	mypy ./docs/examples
 

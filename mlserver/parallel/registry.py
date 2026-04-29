@@ -2,8 +2,6 @@ import asyncio
 import os
 import signal
 
-from typing import Optional, Dict, List
-
 from ..settings import ModelSettings
 from ..utils import to_absolute_path
 from ..model import MLModel
@@ -18,15 +16,15 @@ from .pool import InferencePool, InferencePoolHook
 ENV_HASH_ATTR = "__env_hash__"
 
 
-def _set_environment_hash(model: MLModel, env_hash: Optional[str]):
+def _set_environment_hash(model: MLModel, env_hash: str | None):
     setattr(model, ENV_HASH_ATTR, env_hash)
 
 
-def _get_environment_hash(model: MLModel) -> Optional[str]:
+def _get_environment_hash(model: MLModel) -> str | None:
     return getattr(model, ENV_HASH_ATTR, None)
 
 
-def _get_env_tarball(model: MLModel) -> Optional[str]:
+def _get_env_tarball(model: MLModel) -> str | None:
     model_settings = model.settings
     if model_settings.parameters is None:
         return None
@@ -39,7 +37,7 @@ def _get_env_tarball(model: MLModel) -> Optional[str]:
 
 
 def _append_gid_environment_hash(
-    env_hash: str, inference_pool_gid: Optional[str] = None
+    env_hash: str, inference_pool_gid: str | None = None
 ) -> str:
     return f"{env_hash}-{inference_pool_gid}"
 
@@ -51,14 +49,14 @@ class InferencePoolRegistry:
     """
 
     def __init__(
-        self, settings: Settings, on_worker_stop: List[InferencePoolHook] = []
+        self, settings: Settings, on_worker_stop: list[InferencePoolHook] = []
     ):
         self._settings = settings
         self._on_worker_stop = on_worker_stop
         self._default_pool = InferencePool(
             self._settings, on_worker_stop=on_worker_stop
         )
-        self._pools: Dict[str, InferencePool] = {}
+        self._pools: dict[str, InferencePool] = {}
 
         os.makedirs(self._settings.environments_dir, exist_ok=True)
 
@@ -96,7 +94,7 @@ class InferencePoolRegistry:
     async def _get_or_create_with_existing_env(
         self,
         environment_path: str,
-        inference_pool_gid: Optional[str],
+        inference_pool_gid: str | None,
     ) -> InferencePool:
         """
         Creates or returns the InferencePool for a model that uses an existing
@@ -298,7 +296,7 @@ class InferencePoolRegistry:
             *[self._close_pool(env_hash) for env_hash in self._pools],
         )
 
-    async def _close_pool(self, env_hash: Optional[str] = None):
+    async def _close_pool(self, env_hash: str | None = None):
         pool = self._default_pool
         if env_hash:
             pool = self._pools[env_hash]

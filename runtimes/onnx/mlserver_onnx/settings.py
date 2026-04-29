@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import ValidationError
@@ -18,29 +18,29 @@ class OnnxSettings(BaseSettings):
         protected_namespaces=(),
     )
 
-    providers: Optional[List[str]] = None
+    providers: list[str] | None = None
     """Ordered list of execution providers; tried in this order."""
 
-    provider_options: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    provider_options: dict[str, Any] | list[dict[str, Any]] | None = None
     """Provider-specific options, aligned with the providers list."""
 
-    session_options: Optional[Dict[str, Any]] = None
+    session_options: dict[str, Any] | None = None
     """ONNX Runtime SessionOptions attributes applied at load."""
 
-    session_config_entries: Optional[Dict[str, Any]] = None
+    session_config_entries: dict[str, Any] | None = None
     """Key/value entries applied via SessionOptions.add_session_config_entry."""
 
-    run_options: Optional[Dict[str, Any]] = None
+    run_options: dict[str, Any] | None = None
     """ONNX Runtime RunOptions attributes applied per inference."""
 
 
-def _get_env_settings() -> Dict[str, Any]:
+def _get_env_settings() -> dict[str, Any]:
     """Read ONNX settings from the environment (MLSERVER_MODEL_ONNX_*)."""
     env_settings = OnnxSettings()
     return env_settings.model_dump(exclude_defaults=True, exclude_none=True)
 
 
-def _merge_onnx_settings_extra(model_settings: ModelSettings) -> Dict[str, Any]:
+def _merge_onnx_settings_extra(model_settings: ModelSettings) -> dict[str, Any]:
     """
     Merge parameters.extra with env; file overrides env for conflicting keys.
     """

@@ -1,7 +1,7 @@
 import os
 import orjson
 
-from typing import Optional, Dict, Union, NewType
+from typing import NewType
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from distutils.util import strtobool
 from transformers.pipelines import SUPPORTED_TASKS
@@ -59,20 +59,20 @@ class HuggingFaceSettings(BaseSettings):
     to specify source and target.
     """
 
-    pretrained_model: Optional[str] = None
+    pretrained_model: str | None = None
     """
     Name of the model that should be loaded in the pipeline.
     """
-    model_kwargs: Optional[dict] = None
+    model_kwargs: dict | None = None
     """
     model kwargs that should be loaded in the pipeline.
     """
-    pretrained_tokenizer: Optional[str] = None
+    pretrained_tokenizer: str | None = None
     """
     Name of the tokenizer that should be loaded in the pipeline.
     """
 
-    framework: Optional[str] = None
+    framework: str | None = None
     """
     The framework to use, either "pt" for PyTorch or "tf" for TensorFlow.
     """
@@ -85,13 +85,13 @@ class HuggingFaceSettings(BaseSettings):
     runtime.
     """
 
-    device: Optional[Union[int, str]] = None
+    device: int | str | None = None
     """
     Device in which this pipeline will be loaded (e.g., "cpu", "cuda:1", "mps",
     or a GPU ordinal rank like 1). Default value of None becomes cpu.
     """
 
-    inter_op_threads: Optional[int] = None
+    inter_op_threads: int | None = None
     """
     Threads used for parallelism between independent operations.
     PyTorch:
@@ -100,7 +100,7 @@ class HuggingFaceSettings(BaseSettings):
     https://www.tensorflow.org/api_docs/python/tf/config/threading/set_inter_op_parallelism_threads
     """
 
-    intra_op_threads: Optional[int] = None
+    intra_op_threads: int | None = None
     """
     Threads used within an individual op for parallelism.
     PyTorch:
@@ -124,7 +124,7 @@ EXTRA_TYPE_DICT = {
     "BOOL": bool,
 }
 
-ExtraDict = NewType("ExtraDict", Dict[str, Union[str, bool, float, int]])
+ExtraDict = NewType("ExtraDict", dict[str, str | bool | float | int])
 
 
 def parse_parameters_from_env() -> ExtraDict:

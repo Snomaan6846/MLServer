@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Any, List
+from typing import Any
 
 from mlserver.types import RequestInput, ResponseOutput, Parameters
 
@@ -27,7 +27,7 @@ class NumpyListCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: List[np.ndarray], **kwargs
+        cls, name: str, payload: list[np.ndarray], **kwargs
     ) -> ResponseOutput:
         # NOTICE: composed np.array may cause loss of accuracy
         composed = np.array(payload)
@@ -43,12 +43,12 @@ class NumpyListCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> List[np.ndarray]:
+    def decode_output(cls, response_output: ResponseOutput) -> list[np.ndarray]:
         return cls.decode_input(response_output)  # type: ignore
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: List[np.ndarray], **kwargs
+        cls, name: str, payload: list[np.ndarray], **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name=name, payload=payload)
 
@@ -61,7 +61,7 @@ class NumpyListCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List[np.ndarray]:
+    def decode_input(cls, request_input: RequestInput) -> list[np.ndarray]:
         model_data = _to_ndarray(request_input)
         reshaped = model_data.reshape(request_input.shape)
         return [el for el in reshaped]

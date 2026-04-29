@@ -1,4 +1,4 @@
-from typing import Any, Union, Dict, Optional, List
+from typing import Any
 
 from ..types import (
     InferenceRequest,
@@ -24,17 +24,17 @@ from .errors import CodecError
 DefaultOutputPrefix = "output-"
 DefaultInputPrefix = "input-"
 
-InputOrOutput = Union[RequestInput, ResponseOutput]
-Codec = Union[InputCodecLike, RequestCodecLike]
+InputOrOutput = RequestInput | ResponseOutput
+Codec = InputCodecLike | RequestCodecLike
 
-Parametrised = Union[
-    InferenceRequest, RequestInput, RequestOutput, ResponseOutput, InferenceResponse
-]
-Tagged = Union[MetadataTensor, ModelSettings]
+Parametrised = (
+    InferenceRequest | RequestInput | RequestOutput | ResponseOutput | InferenceResponse
+)
+Tagged = MetadataTensor | ModelSettings
 DecodedParameterName = "_decoded_payload"
 
 
-def inject_batch_dimension(shape: List[int]) -> List[int]:
+def inject_batch_dimension(shape: list[int]) -> list[int]:
     """
     Utility method to ensure that 1-dimensional shapes
     assume that `[N] == [N, D]`.
@@ -46,8 +46,8 @@ def inject_batch_dimension(shape: List[int]) -> List[int]:
 
 
 def _get_content_type(
-    request: Parametrised, metadata: Optional[Tagged] = None
-) -> Optional[str]:
+    request: Parametrised, metadata: Tagged | None = None
+) -> str | None:
     if request.parameters and request.parameters.content_type:
         return request.parameters.content_type
 
@@ -68,8 +68,8 @@ def _save_decoded(parametrised_obj: Parametrised, decoded_payload: Any):
 def encode_response_output(
     payload: Any,
     request_output: RequestOutput,
-    metadata_outputs: Dict[str, MetadataTensor] = {},
-) -> Optional[ResponseOutput]:
+    metadata_outputs: dict[str, MetadataTensor] = {},
+) -> ResponseOutput | None:
     output_metadata = metadata_outputs.get(request_output.name)
     content_type = _get_content_type(request_output, output_metadata)
     codec = (
@@ -90,7 +90,7 @@ def encode_response_output(
 def encode_inference_response(
     payload: Any,
     model_settings: ModelSettings,
-) -> Optional[InferenceResponse]:
+) -> InferenceResponse | None:
     # TODO: Allow users to override codec through model's metadata
     codec = find_request_codec_by_payload(payload)
 
@@ -106,8 +106,8 @@ def encode_inference_response(
 
 def decode_request_input(
     request_input: RequestInput,
-    metadata_inputs: Dict[str, MetadataTensor] = {},
-) -> Optional[Any]:
+    metadata_inputs: dict[str, MetadataTensor] = {},
+) -> Any | None:
     input_metadata = metadata_inputs.get(request_input.name)
     content_type = _get_content_type(request_input, input_metadata)
     if content_type is None:
@@ -124,9 +124,9 @@ def decode_request_input(
 
 def decode_inference_request(
     inference_request: InferenceRequest,
-    model_settings: Optional[ModelSettings] = None,
-    metadata_inputs: Dict[str, MetadataTensor] = {},
-) -> Optional[Any]:
+    model_settings: ModelSettings | None = None,
+    metadata_inputs: dict[str, MetadataTensor] = {},
+) -> Any | None:
     for request_input in inference_request.inputs:
         decode_request_input(request_input, metadata_inputs)
 
@@ -176,7 +176,7 @@ class SingleInputRequestCodec(RequestCodec):
     element.
     """
 
-    InputCodec: Optional[InputCodecLike] = None
+    InputCodec: InputCodecLike | None = None
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -190,7 +190,7 @@ class SingleInputRequestCodec(RequestCodec):
         cls,
         model_name: str,
         payload: Any,
-        model_version: Optional[str] = None,
+        model_version: str | None = None,
         **kwargs,
     ) -> InferenceResponse:
         if cls.InputCodec is None:

@@ -1,6 +1,7 @@
 import asyncio
 import pytest
 
+from collections.abc import AsyncGenerator
 from multiprocessing import Queue
 
 from mlserver.settings import Settings, ModelSettings, ModelParameters
@@ -23,7 +24,7 @@ from ..fixtures import ErrorModel, EnvModel
 
 
 @pytest.fixture
-async def inference_pool(settings: Settings) -> InferencePool:
+async def inference_pool(settings: Settings) -> AsyncGenerator[InferencePool, None]:
     pool = InferencePool(settings)
     yield pool
 
@@ -36,7 +37,9 @@ async def dispatcher(inference_pool) -> Dispatcher:
 
 
 @pytest.fixture
-async def error_model(inference_pool: InferencePool, error_model: MLModel) -> MLModel:
+async def error_model(
+    inference_pool: InferencePool, error_model: MLModel
+) -> AsyncGenerator[MLModel, None]:
     model = await inference_pool.load_model(error_model)
 
     yield model
@@ -45,7 +48,7 @@ async def error_model(inference_pool: InferencePool, error_model: MLModel) -> ML
 
 
 @pytest.fixture
-async def load_error_model() -> MLModel:
+async def load_error_model() -> AsyncGenerator[MLModel, None]:
     error_model_settings = ModelSettings(
         name="foo",
         implementation=ErrorModel,
@@ -66,11 +69,13 @@ def settings(settings: Settings, tmp_path: str) -> Settings:
 
 
 @pytest.fixture
-async def responses(settings: Settings) -> Queue:
+async def responses(  # type: ignore[type-arg]
+    settings: Settings,
+) -> AsyncGenerator[Queue, None]:
     # NOTE: This fixture depends on settings to ensure the multiprocessing
     # context has been set ahead of time to `spawn` (handled in the
     # configure_inference_pool method)
-    q = Queue()
+    q: Queue = Queue()  # type: ignore[type-arg]
     yield q
 
     q.close()
@@ -80,9 +85,9 @@ async def responses(settings: Settings) -> Queue:
 async def worker(
     settings: Settings,
     event_loop: asyncio.AbstractEventLoop,
-    responses: Queue,
+    responses: Queue,  # type: ignore[type-arg]
     load_message: ModelUpdateMessage,
-) -> Worker:
+) -> AsyncGenerator[Worker, None]:
     worker = Worker(settings, responses)
 
     # Simulate the worker running on a different process, but keep it to a
@@ -100,7 +105,7 @@ async def worker(
     yield worker
 
     await worker.stop()
-    await cancel_task(worker_task)
+    await cancel_task(worker_task)  # type: ignore[arg-type]
 
 
 @pytest.fixture
@@ -121,6 +126,7 @@ def unload_message(sum_model_settings: ModelSettings) -> ModelUpdateMessage:
 def inference_request_message(
     sum_model_settings: ModelSettings, inference_request: InferenceRequest
 ) -> ModelRequestMessage:
+    assert sum_model_settings.parameters is not None
     return ModelRequestMessage(
         id=generate_uuid(),
         model_name=sum_model_settings.name,
@@ -132,6 +138,7 @@ def inference_request_message(
 
 @pytest.fixture
 def metadata_request_message(sum_model_settings: ModelSettings) -> ModelRequestMessage:
+    assert sum_model_settings.parameters is not None
     return ModelRequestMessage(
         id=generate_uuid(),
         model_name=sum_model_settings.name,
@@ -142,6 +149,7 @@ def metadata_request_message(sum_model_settings: ModelSettings) -> ModelRequestM
 
 @pytest.fixture
 def custom_request_message(sum_model_settings: ModelSettings) -> ModelRequestMessage:
+    assert sum_model_settings.parameters is not None
     return ModelRequestMessage(
         id=generate_uuid(),
         model_name=sum_model_settings.name,

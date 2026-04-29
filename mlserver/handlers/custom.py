@@ -1,6 +1,7 @@
 import inspect
 
-from typing import Tuple, Any, Callable, List
+from typing import Any
+from collections.abc import Callable
 from pydantic import BaseModel
 
 from ..model import MLModel
@@ -27,7 +28,7 @@ def register_custom_handler(handler: CustomHandler, method: _HandlerMethod):
     setattr(method, _CustomHandlerAttr, handler)
 
 
-def get_custom_handlers(model: MLModel) -> List[Tuple[CustomHandler, _HandlerMethod]]:
+def get_custom_handlers(model: MLModel) -> list[tuple[CustomHandler, _HandlerMethod]]:
     handlers = []
     members = inspect.getmembers(model)
 

@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
+from collections.abc import Sequence
 
 import onnx
 from onnx import helper
@@ -24,7 +25,7 @@ RUN_OPTIONS_KEY = "run_options"
 
 def _build_session_options(
     settings: OnnxSettings,
-) -> Optional[ort.SessionOptions]:
+) -> ort.SessionOptions | None:
     """
     Build SessionOptions from settings.
 
@@ -58,8 +59,8 @@ def _build_session_options(
 
 
 def _apply_session_config_entries(
-    options: Optional[ort.SessionOptions], settings: OnnxSettings
-) -> Optional[ort.SessionOptions]:
+    options: ort.SessionOptions | None, settings: OnnxSettings
+) -> ort.SessionOptions | None:
     """
     Apply session_config_entries to SessionOptions.
 
@@ -95,7 +96,7 @@ def _apply_session_config_entries(
     return options
 
 
-def _build_run_options(settings: OnnxSettings) -> Optional[ort.RunOptions]:
+def _build_run_options(settings: OnnxSettings) -> ort.RunOptions | None:
     """
     Build RunOptions from settings.
 
@@ -126,7 +127,7 @@ def _build_run_options(settings: OnnxSettings) -> Optional[ort.RunOptions]:
     return options
 
 
-def _get_providers(settings: OnnxSettings) -> List[str]:
+def _get_providers(settings: OnnxSettings) -> list[str]:
     """
     Resolve execution providers from settings.
 
@@ -156,7 +157,7 @@ def _get_providers(settings: OnnxSettings) -> List[str]:
 
 def _get_provider_options(
     settings: OnnxSettings, providers: Sequence[str]
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """
     Resolve provider_options aligned with the providers list.
 
@@ -221,7 +222,7 @@ def _onnx_elem_type_to_datatype(elem_type: int) -> Datatype:
         ) from None
 
 
-def _onnx_shape_to_list(value_info: onnx.ValueInfoProto) -> List[int]:
+def _onnx_shape_to_list(value_info: onnx.ValueInfoProto) -> list[int]:
     """
     Convert ONNX tensor shape to a list of ints; dynamic dims become -1.
 
@@ -264,7 +265,7 @@ def _value_info_to_metadata(value_info: onnx.ValueInfoProto) -> MetadataTensor:
     )
 
 
-def _extract_metadata(model_uri: str) -> Dict[str, List[MetadataTensor]]:
+def _extract_metadata(model_uri: str) -> dict[str, list[MetadataTensor]]:
     """
     Extract input and output metadata from the ONNX model file.
 

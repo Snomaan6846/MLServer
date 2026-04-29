@@ -1,8 +1,7 @@
 import orjson
 
 from functools import lru_cache
-from typing import Optional, Tuple
-from importlib_resources import files
+from importlib.resources import files
 
 MODEL_NAME_PARAMETER = "model_name"
 MODEL_VERSION_PARAMETER = "model_version"
@@ -14,7 +13,7 @@ def get_openapi_schema() -> dict:
     return orjson.loads(openapi_schema_path.read_bytes())
 
 
-def get_model_schema_uri(model_name: str, model_version: Optional[str]) -> str:
+def get_model_schema_uri(model_name: str, model_version: str | None) -> str:
     base = f"/v2/models/{model_name}"
     if model_version:
         base = f"{base}/versions/{model_version}"
@@ -23,7 +22,7 @@ def get_model_schema_uri(model_name: str, model_version: Optional[str]) -> str:
 
 
 @lru_cache
-def get_model_schema(model_name: str, model_version: Optional[str]) -> dict:
+def get_model_schema(model_name: str, model_version: str | None) -> dict:
     openapi_schema = get_openapi_schema()
     generic_paths = openapi_schema["paths"]
     model_paths = {}
@@ -41,7 +40,7 @@ def get_model_schema(model_name: str, model_version: Optional[str]) -> dict:
 
 
 def _get_model_info(
-    openapi_schema: dict, model_name: str, model_version: Optional[str]
+    openapi_schema: dict, model_name: str, model_version: str | None
 ) -> dict:
     model_title = f"Model {model_name}"
     if model_version:
@@ -57,7 +56,7 @@ def _get_model_info(
     return model_info
 
 
-def _fill_path_spec(path_spec, model_name, model_version) -> Optional[Tuple[str, dict]]:
+def _fill_path_spec(path_spec, model_name, model_version) -> tuple[str, dict] | None:
     path, spec = path_spec
 
     model_name_placeholder = f"{{{MODEL_NAME_PARAMETER}}}"
@@ -88,7 +87,7 @@ def _fill_path_spec(path_spec, model_name, model_version) -> Optional[Tuple[str,
 
 
 def _remove_prefilled_parameters(
-    parameters: list, model_name: str, model_version: Optional[str]
+    parameters: list, model_name: str, model_version: str | None
 ) -> list:
     filtered_parameters = []
 

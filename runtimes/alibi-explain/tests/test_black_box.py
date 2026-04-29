@@ -304,7 +304,7 @@ async def test_end_2_end_explain_v1_output(
                 ],  # from output
             ),
         ),
-        # List[str] payload
+        # list[str] payload
         (
             ["dummy", "dummy text"],
             None,

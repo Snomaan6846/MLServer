@@ -18,8 +18,6 @@ Usage (on host):
   python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux
 """
 
-from __future__ import annotations
-
 import argparse
 import concurrent.futures
 import hashlib

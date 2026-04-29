@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import Any
 from mlserver.codecs.base import InputCodec, register_input_codec
 from mlserver.types import RequestInput, ResponseOutput, Parameters
 from transformers.pipelines import Conversation
@@ -20,7 +20,7 @@ class HuggingfaceConversationCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: List[Conversation], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[Conversation], use_bytes: bool = True, **kwargs
     ) -> ResponseOutput:
         encoded = [json_encode(item, use_bytes=use_bytes) for item in payload]
         shape = [len(encoded), 1]
@@ -35,13 +35,13 @@ class HuggingfaceConversationCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> List[Any]:
+    def decode_output(cls, response_output: ResponseOutput) -> list[Any]:
         packed = response_output.data
         return [json_decode(item) for item in packed]
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: List[Conversation], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[Conversation], use_bytes: bool = True, **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name, payload, use_bytes)
         return RequestInput(
@@ -55,6 +55,6 @@ class HuggingfaceConversationCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List[Conversation]:
+    def decode_input(cls, request_input: RequestInput) -> list[Conversation]:
         packed = request_input.data
         return [json_decode(item) for item in packed]

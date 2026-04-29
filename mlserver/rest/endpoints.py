@@ -2,7 +2,7 @@ from fastapi.requests import Request
 from fastapi.responses import Response, HTMLResponse, StreamingResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from ..types import (
     MetadataModelResponse,
@@ -48,7 +48,7 @@ class Endpoints:
         return get_swagger_ui_html(openapi_url=openapi_url, title=title)
 
     async def model_openapi(
-        self, model_name: str, model_version: Optional[str] = None
+        self, model_name: str, model_version: str | None = None
     ) -> dict:
         # NOTE: Right now, we use the `model_metadata` method to check that the
         # model exists.
@@ -58,7 +58,7 @@ class Endpoints:
         return get_model_schema(model_name, model_version)
 
     async def model_docs(
-        self, model_name: str, model_version: Optional[str] = None
+        self, model_name: str, model_version: str | None = None
     ) -> HTMLResponse:
         # NOTE: Right now, we use the `model_metadata` method to check that the
         # model exists.
@@ -74,7 +74,7 @@ class Endpoints:
         return get_swagger_ui_html(openapi_url=openapi_url, title=title)
 
     async def model_ready(
-        self, model_name: str, model_version: Optional[str] = None
+        self, model_name: str, model_version: str | None = None
     ) -> Response:
         is_ready = await self._data_plane.model_ready(model_name, model_version)
         return Response(status_code=to_status_code(is_ready))
@@ -86,7 +86,7 @@ class Endpoints:
         return await self._data_plane.runtimes()
 
     async def model_metadata(
-        self, model_name: str, model_version: Optional[str] = None
+        self, model_name: str, model_version: str | None = None
     ) -> MetadataModelResponse:
         return await self._data_plane.model_metadata(model_name, model_version)
 
@@ -96,7 +96,7 @@ class Endpoints:
         raw_response: Response,
         payload: InferenceRequest,
         model_name: str,
-        model_version: Optional[str] = None,
+        model_version: str | None = None,
     ) -> InferenceResponse:
 
         request_headers = dict(raw_request.headers)
@@ -117,7 +117,7 @@ class Endpoints:
         raw_request: Request,
         payload: InferenceRequest,
         model_name: str,
-        model_version: Optional[str] = None,
+        model_version: str | None = None,
     ) -> StreamingResponse:
 
         request_headers = dict(raw_request.headers)

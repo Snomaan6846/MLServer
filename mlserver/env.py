@@ -7,8 +7,8 @@ import tarfile
 import glob
 import hashlib
 
-from typing import List, Optional
 from functools import cached_property
+from typing_extensions import Self
 
 from .logging import logger
 
@@ -70,8 +70,8 @@ class Environment:
 
     @classmethod
     async def from_tarball(
-        cls, tarball_path: str, env_path: str, env_hash: Optional[str] = None
-    ) -> "Environment":
+        cls, tarball_path: str, env_path: str, env_hash: str | None = None
+    ) -> Self:
         """
         Instantiate an Environment object from an environment tarball.
         If the env hash is not provided, it will be computed on-the-fly.
@@ -85,7 +85,7 @@ class Environment:
         return cls(env_path, env_hash)
 
     @cached_property
-    def _sys_path(self) -> List[str]:
+    def _sys_path(self) -> list[str]:
         """
         Extra paths that will be added to `sys.path` (i.e. `PYTHONPATH`) to
         expose the custom environment.
@@ -135,7 +135,7 @@ class Environment:
 
         return ""
 
-    def __enter__(self) -> "Environment":
+    def __enter__(self) -> Self:
         self._prev_sys_path = sys.path
         self._prev_bin_path = os.environ["PATH"]
 

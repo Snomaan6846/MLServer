@@ -1,8 +1,6 @@
 import pytest
 import numpy as np
 
-from typing import List
-
 from mlserver.types import RequestInput, ResponseOutput, TensorData
 from mlserver.raw import (
     _pack_bytes,
@@ -30,7 +28,7 @@ def test_unpack_bytes():
         ["one", "two", "three"],
     ],
 )
-def test_pack_bytes(unpacked: List[str]):
+def test_pack_bytes(unpacked: list[bytes | str]):
     expected = b"\x03\x00\x00\x00one\x03\x00\x00\x00two\x05\x00\x00\x00three"
 
     packed = _pack_bytes(unpacked)
@@ -68,11 +66,11 @@ def test_pack_bytes(unpacked: List[str]):
 )
 def test_unpack_tensor(tensor: np.ndarray):
     request_input = NumpyCodec.encode_input(name="foo", payload=tensor)
-    request_input.data = []
+    request_input.data = TensorData([])
     raw = tensor.tobytes()
 
     unpacked = _unpack_tensor(request_input, raw)
-    request_input.data = unpacked
+    request_input.data = TensorData(unpacked)
     decoded = NumpyCodec.decode_input(request_input)
 
     np.testing.assert_allclose(decoded, tensor)
@@ -156,9 +154,9 @@ def test_pack_tensor(tensor: np.ndarray):
     ],
 )
 def test_inject_raw(
-    inputs: List[RequestInput], raw_contents: List[bytes], expected: list
+    inputs: list[RequestInput], raw_contents: list[bytes], expected: list
 ):
-    with_unpacked_raw = inject_raw(inputs, raw_contents)
+    with_unpacked_raw = inject_raw(inputs, raw_contents)  # type: ignore[arg-type]
 
     assert len(with_unpacked_raw) == len(expected)
     for request_input, expected in zip(with_unpacked_raw, expected):

@@ -1,7 +1,5 @@
 import os
 
-from typing import Optional, List, Tuple, Union
-
 from mlserver.repository.factory import ModelRepositoryFactory
 
 from ..settings import Settings, ModelSettings
@@ -10,8 +8,8 @@ DEFAULT_SETTINGS_FILENAME = "settings.json"
 
 
 async def load_settings(
-    folder: Optional[str] = None,
-) -> Tuple[Settings, List[ModelSettings]]:
+    folder: str | None = None,
+) -> tuple[Settings, list[ModelSettings]]:
     """
     Load server and model settings.
     """
@@ -33,7 +31,7 @@ async def load_settings(
     return settings, models_settings
 
 
-def _path_exists(folder: Union[str, None], file: str) -> bool:
+def _path_exists(folder: str | None, file: str) -> bool:
     if folder is None:
         return False
 
