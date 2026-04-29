@@ -4,10 +4,9 @@ import json
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing_extensions import Self
 from tempfile import TemporaryDirectory
 from pathlib import Path
-from typing import Optional
-
 from ..logging import logger
 from ..settings import (
     ALLOWED_MODEL_IMPLEMENTATIONS,
@@ -68,10 +67,10 @@ def _validate_and_normalise_allow_runtime_import_paths(
 
 
 def _validate_and_normalise_runtime_source_paths(
-    runtime_source_paths: Optional[Sequence[str]],
+    runtime_source_paths: Sequence[str] | None,
     allow_runtime_import_paths: list[str],
     *,
-    build_folder: Optional[str] = None,
+    build_folder: str | None = None,
     runtime_paths_without_allowlist_message: str = (
         "Runtime source paths require matching custom runtime allowlist entries."
     ),
@@ -131,9 +130,9 @@ def _validate_and_normalise_runtime_source_paths(
 
 def generate_dockerfile(
     base_image: str = DefaultBaseImage,
-    custom_runtimes: Optional[list[str]] = None,
-    runtime_paths: Optional[list[str]] = None,
-    build_folder: Optional[str] = None,
+    custom_runtimes: list[str] | None = None,
+    runtime_paths: list[str] | None = None,
+    build_folder: str | None = None,
     dev: bool = False,
 ) -> str:
     """Generate a Dockerfile with trusted runtime allowlist and copy steps."""
@@ -198,7 +197,7 @@ class DockerBuildContext:
         allow_runtime_import_paths: tuple[str, ...],
         runtime_source_paths: tuple[str, ...],
         dev: bool = False,
-    ) -> "DockerBuildContext":
+    ) -> Self:
         """Validate and build context from CLI arguments."""
         if dev:
             # Development mode: skip validation, generate simple Dockerfile

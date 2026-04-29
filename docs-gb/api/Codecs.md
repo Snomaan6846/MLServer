@@ -17,7 +17,7 @@ Evaluate whether the codec can encode (decode) the payload.
 ### decode_input()
 
 ```python
-decode_input(request_input: RequestInput) -> List[bytes]
+decode_input(request_input: RequestInput) -> list[bytes]
 ```
 
 Decode a request input into a high-level Python type.
@@ -25,7 +25,7 @@ Decode a request input into a high-level Python type.
 ### decode_output()
 
 ```python
-decode_output(response_output: ResponseOutput) -> List[bytes]
+decode_output(response_output: ResponseOutput) -> list[bytes]
 ```
 
 Decode a response output into a high-level Python type.
@@ -33,7 +33,7 @@ Decode a response output into a high-level Python type.
 ### encode_input()
 
 ```python
-encode_input(name: str, payload: List[bytes], use_bytes: bool = True, kwargs) -> RequestInput
+encode_input(name: str, payload: list[bytes], use_bytes: bool = True, kwargs) -> RequestInput
 ```
 
 Encode the given payload into a ``RequestInput``.
@@ -41,7 +41,7 @@ Encode the given payload into a ``RequestInput``.
 ### encode_output()
 
 ```python
-encode_output(name: str, payload: List[bytes], use_bytes: bool = True, kwargs) -> ResponseOutput
+encode_output(name: str, payload: list[bytes], use_bytes: bool = True, kwargs) -> ResponseOutput
 ```
 
 Encode the given payload into a response output.
@@ -85,7 +85,7 @@ Evaluate whether the codec can encode (decode) the payload.
 ### decode_input()
 
 ```python
-decode_input(request_input: RequestInput) -> List[datetime]
+decode_input(request_input: RequestInput) -> list[datetime]
 ```
 
 Decode a request input into a high-level Python type.
@@ -93,7 +93,7 @@ Decode a request input into a high-level Python type.
 ### decode_output()
 
 ```python
-decode_output(response_output: ResponseOutput) -> List[datetime]
+decode_output(response_output: ResponseOutput) -> list[datetime]
 ```
 
 Decode a response output into a high-level Python type.
@@ -101,7 +101,7 @@ Decode a response output into a high-level Python type.
 ### encode_input()
 
 ```python
-encode_input(name: str, payload: List[Union[str, datetime]], use_bytes: bool = True, kwargs) -> RequestInput
+encode_input(name: str, payload: list[str | datetime], use_bytes: bool = True, kwargs) -> RequestInput
 ```
 
 Encode the given payload into a ``RequestInput``.
@@ -109,7 +109,7 @@ Encode the given payload into a ``RequestInput``.
 ### encode_output()
 
 ```python
-encode_output(name: str, payload: List[Union[str, datetime]], use_bytes: bool = True, kwargs) -> ResponseOutput
+encode_output(name: str, payload: list[str | datetime], use_bytes: bool = True, kwargs) -> ResponseOutput
 ```
 
 Encode the given payload into a response output.
@@ -254,7 +254,7 @@ Encode the given payload into an inference request.
 ### encode_response()
 
 ```python
-encode_response(model_name: str, payload: Any, model_version: Optional[str] = None, kwargs) -> InferenceResponse
+encode_response(model_name: str, payload: Any, model_version: str | None = None, kwargs) -> InferenceResponse
 ```
 
 Encode the given payload into an inference response.
@@ -293,7 +293,7 @@ Decode an inference response into a high-level Python object.
 ### encode_outputs()
 
 ```python
-encode_outputs(payload: DataFrame, use_bytes: bool = True) -> List[ResponseOutput]
+encode_outputs(payload: DataFrame, use_bytes: bool = True) -> list[ResponseOutput]
 ```
 
 ### encode_request()
@@ -307,7 +307,7 @@ Encode the given payload into an inference request.
 ### encode_response()
 
 ```python
-encode_response(model_name: str, payload: DataFrame, model_version: Optional[str] = None, use_bytes: bool = True, kwargs) -> InferenceResponse
+encode_response(model_name: str, payload: DataFrame, model_version: str | None = None, use_bytes: bool = True, kwargs) -> InferenceResponse
 ```
 
 Encode the given payload into an inference response.
@@ -360,7 +360,7 @@ Encode the given payload into an inference request.
 ### encode_response()
 
 ```python
-encode_response(model_name: str, payload: Any, model_version: Optional[str] = None, kwargs) -> InferenceResponse
+encode_response(model_name: str, payload: Any, model_version: str | None = None, kwargs) -> InferenceResponse
 ```
 
 Encode the given payload into an inference response.
@@ -382,7 +382,7 @@ Evaluate whether the codec can encode (decode) the payload.
 ### decode_input()
 
 ```python
-decode_input(request_input: RequestInput) -> List[str]
+decode_input(request_input: RequestInput) -> list[str]
 ```
 
 Decode a request input into a high-level Python type.
@@ -390,7 +390,7 @@ Decode a request input into a high-level Python type.
 ### decode_output()
 
 ```python
-decode_output(response_output: ResponseOutput) -> List[str]
+decode_output(response_output: ResponseOutput) -> list[str]
 ```
 
 Decode a response output into a high-level Python type.
@@ -398,7 +398,7 @@ Decode a response output into a high-level Python type.
 ### encode_input()
 
 ```python
-encode_input(name: str, payload: List[str], use_bytes: bool = True, kwargs) -> RequestInput
+encode_input(name: str, payload: list[str], use_bytes: bool = True, kwargs) -> RequestInput
 ```
 
 Encode the given payload into a ``RequestInput``.
@@ -406,7 +406,7 @@ Encode the given payload into a ``RequestInput``.
 ### encode_output()
 
 ```python
-encode_output(name: str, payload: List[str], use_bytes: bool = True, kwargs) -> ResponseOutput
+encode_output(name: str, payload: list[str], use_bytes: bool = True, kwargs) -> ResponseOutput
 ```
 
 Encode the given payload into a response output.
@@ -455,7 +455,7 @@ Encode the given payload into an inference request.
 ### encode_response()
 
 ```python
-encode_response(model_name: str, payload: Any, model_version: Optional[str] = None, kwargs) -> InferenceResponse
+encode_response(model_name: str, payload: Any, model_version: str | None = None, kwargs) -> InferenceResponse
 ```
 
 Encode the given payload into an inference response.
@@ -471,7 +471,7 @@ _No description available._
 ## decode_inference_request()
 
 ```python
-decode_inference_request(inference_request: InferenceRequest, model_settings: Optional[ModelSettings] = None, metadata_inputs: Dict[str, MetadataTensor] = {}) -> Optional[Any]
+decode_inference_request(inference_request: InferenceRequest, model_settings: ModelSettings | None = None, metadata_inputs: dict[str, MetadataTensor] = {}) -> Any | None
 ```
 
 _No description available._
@@ -479,7 +479,7 @@ _No description available._
 ## decode_request_input()
 
 ```python
-decode_request_input(request_input: RequestInput, metadata_inputs: Dict[str, MetadataTensor] = {}) -> Optional[Any]
+decode_request_input(request_input: RequestInput, metadata_inputs: dict[str, MetadataTensor] = {}) -> Any | None
 ```
 
 _No description available._
@@ -487,7 +487,7 @@ _No description available._
 ## encode_inference_response()
 
 ```python
-encode_inference_response(payload: Any, model_settings: ModelSettings) -> Optional[InferenceResponse]
+encode_inference_response(payload: Any, model_settings: ModelSettings) -> InferenceResponse | None
 ```
 
 _No description available._
@@ -495,7 +495,7 @@ _No description available._
 ## encode_response_output()
 
 ```python
-encode_response_output(payload: Any, request_output: RequestOutput, metadata_outputs: Dict[str, MetadataTensor] = {}) -> Optional[ResponseOutput]
+encode_response_output(payload: Any, request_output: RequestOutput, metadata_outputs: dict[str, MetadataTensor] = {}) -> ResponseOutput | None
 ```
 
 _No description available._
@@ -503,7 +503,7 @@ _No description available._
 ## get_decoded()
 
 ```python
-get_decoded(parametrised_obj: Union[InferenceRequest, RequestInput, RequestOutput, ResponseOutput, InferenceResponse]) -> Any
+get_decoded(parametrised_obj: InferenceRequest | RequestInput | RequestOutput | ResponseOutput | InferenceResponse) -> Any
 ```
 
 _No description available._
@@ -511,7 +511,7 @@ _No description available._
 ## get_decoded_or_raw()
 
 ```python
-get_decoded_or_raw(parametrised_obj: Union[InferenceRequest, RequestInput, RequestOutput, ResponseOutput, InferenceResponse]) -> Any
+get_decoded_or_raw(parametrised_obj: InferenceRequest | RequestInput | RequestOutput | ResponseOutput | InferenceResponse) -> Any
 ```
 
 _No description available._
@@ -519,7 +519,7 @@ _No description available._
 ## has_decoded()
 
 ```python
-has_decoded(parametrised_obj: Union[InferenceRequest, RequestInput, RequestOutput, ResponseOutput, InferenceResponse]) -> bool
+has_decoded(parametrised_obj: InferenceRequest | RequestInput | RequestOutput | ResponseOutput | InferenceResponse) -> bool
 ```
 
 _No description available._
@@ -527,7 +527,7 @@ _No description available._
 ## register_input_codec()
 
 ```python
-register_input_codec(CodecKlass: Union[type[InputCodec], InputCodec])
+register_input_codec(CodecKlass: type[InputCodec] | InputCodec)
 ```
 
 _No description available._
@@ -535,7 +535,7 @@ _No description available._
 ## register_request_codec()
 
 ```python
-register_request_codec(CodecKlass: Union[type[RequestCodec], RequestCodec])
+register_request_codec(CodecKlass: type[RequestCodec] | RequestCodec)
 ```
 
 _No description available._

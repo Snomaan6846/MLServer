@@ -3,13 +3,11 @@ import sys
 import os
 import shutil
 
-from typing import Tuple
-
 from mlserver.env import Environment, compute_hash_of_file
 
 
 @pytest.fixture
-def expected_python_folder(env_python_version: Tuple[int, int]) -> str:
+def expected_python_folder(env_python_version: tuple[int, int]) -> str:
     major, minor = env_python_version
     return f"python{major}.{minor}"
 
@@ -41,13 +39,13 @@ def test_sys_path(env: Environment, expected_python_folder: str):
 def test_sys_path_empty(env: Environment):
     # Force lib_path to be empty
     env.__dict__["_lib_path"] = ""
-    expected = []
+    expected: list[str] = []
     assert env._sys_path == expected
 
 
 @pytest.mark.parametrize(
     "folder_name",
-    ["python3.9", "python3.10", "python3.11", "python3.12", ""],
+    ["python3.10", "python3.11", "python3.12", ""],
 )
 def test_lib_path(env: Environment, folder_name: str, expected_python_folder: str):
     default_lib_path = env._lib_path

@@ -6,7 +6,7 @@ import os
 import json
 import numpy as np
 
-from typing import List
+
 from google.protobuf import json_format
 from google.protobuf.internal.encoder import _VarintBytes  # type: ignore
 from mlserver import types
@@ -17,7 +17,7 @@ MODEL_VERSION = "v1.2.3"
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "sum-model")
 
 
-def generate_test_requests() -> List[types.InferenceRequest]:
+def generate_test_requests() -> list[types.InferenceRequest]:
     contents_lens = np.power(2, np.arange(10, 16)).astype(int)
     max_value = 9999
 
@@ -40,7 +40,7 @@ def generate_test_requests() -> List[types.InferenceRequest]:
     return requests
 
 
-def save_grpc_requests(requests: List[types.InferenceRequest]):
+def save_grpc_requests(requests: list[types.InferenceRequest]):
     infer_requests = [
         converters.ModelInferRequestConverter.from_types(
             req, model_name=MODEL_NAME, model_version=MODEL_VERSION
@@ -68,7 +68,7 @@ def save_grpc_requests(requests: List[types.InferenceRequest]):
         json.dump(as_dict, json_file)
 
 
-def save_rest_requests(requests: List[types.InferenceRequest]):
+def save_rest_requests(requests: list[types.InferenceRequest]):
     # infer_requests_dict = [req.model_dump() for req in requests]
     # wrk doesn't work with multiple payloads, so take the smallest one.
     # We should consider moving to locust or vegeta.

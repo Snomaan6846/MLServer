@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Union, Dict
 
 
 @dataclass
@@ -35,7 +34,7 @@ _BLACKBOX_MODULE = "mlserver_alibi_explain.explainers.black_box_runtime"
 _INTEGRATED_GRADIENTS_MODULE = "mlserver_alibi_explain.explainers.integrated_gradients"
 _WHITEBOX_SKLEARN_MODULE = "mlserver_alibi_explain.explainers.sklearn_api_runtime"
 
-_TAG_TO_RT_IMPL: Dict[str, ExplainerDependencyReference] = {
+_TAG_TO_RT_IMPL: dict[str, ExplainerDependencyReference] = {
     _ANCHOR_IMAGE_TAG: ExplainerDependencyReference(
         explainer_name=_ANCHOR_IMAGE_TAG,
         runtime_class=f"{_BLACKBOX_MODULE}.AlibiExplainBlackBoxRuntime",
@@ -90,13 +89,13 @@ class ExplainerEnum(str, Enum):
     tree_partial_dependence_variance = _TREE_PARTIAL_DEPENDENCE_VARIANCE_TAG
 
 
-def get_mlmodel_class_as_str(tag: Union[ExplainerEnum, str]) -> str:
+def get_mlmodel_class_as_str(tag: ExplainerEnum | str) -> str:
     if isinstance(tag, ExplainerEnum):
         tag = tag.value
     return _TAG_TO_RT_IMPL[tag].runtime_class
 
 
-def get_alibi_class_as_str(tag: Union[ExplainerEnum, str]) -> str:
+def get_alibi_class_as_str(tag: ExplainerEnum | str) -> str:
     if isinstance(tag, ExplainerEnum):
         tag = tag.value
     return _TAG_TO_RT_IMPL[tag].alibi_class

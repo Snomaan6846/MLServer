@@ -1,13 +1,9 @@
-# Required to deal with annotations including `Queue`
-# https://mypy.readthedocs.io/en/latest/common_issues.html#issues-with-code-at-runtime
-from __future__ import annotations
-
 import time
 import asyncio
 
 from asyncio import Future, Queue, wait_for, Task
 from functools import partial
-from typing import AsyncIterator, Awaitable, Dict, Optional, Tuple
+from collections.abc import AsyncIterator, Awaitable
 
 from ..model import MLModel
 from ..types import (
@@ -29,8 +25,8 @@ class AdaptiveBatcher:
 
         # Save predict function before it gets decorated
         self._predict_fn = model.predict
-        self.__requests: Optional[Queue[Tuple[str, InferenceRequest]]] = None
-        self._async_responses: Dict[str, Future[InferenceResponse]] = {}
+        self.__requests: Queue[tuple[str, InferenceRequest]] | None = None
+        self._async_responses: dict[str, Future[InferenceResponse]] = {}
         self._batching_task = None
         metrics.register("batch_request_queue", "counter of request queue batch size")
 
@@ -40,7 +36,7 @@ class AdaptiveBatcher:
         return await self._wait_response(internal_id)
 
     @property
-    def _requests(self) -> Queue[Tuple[str, InferenceRequest]]:
+    def _requests(self) -> Queue[tuple[str, InferenceRequest]]:
         # NOTE: We need to create Queue within the async request path (and not
         # during __init__!!) to ensure that it shares the same AsyncIO loop.
         if self.__requests is None:
@@ -51,7 +47,7 @@ class AdaptiveBatcher:
     async def _queue_request(
         self,
         req: InferenceRequest,
-    ) -> Tuple[str, Awaitable[InferenceResponse]]:
+    ) -> tuple[str, Awaitable[InferenceResponse]]:
         internal_id = generate_uuid()
         self._batch_queue_monitor()
         await self._requests.put((internal_id, req))
@@ -123,7 +119,7 @@ class AdaptiveBatcher:
 
     async def _batch_requests(self) -> AsyncIterator[BatchedRequests]:
         while not self._requests.empty():
-            to_batch: Dict[str, InferenceRequest] = {}
+            to_batch: dict[str, InferenceRequest] = {}
             start = time.time()
             timeout = self._max_batch_time
 
@@ -143,7 +139,7 @@ class AdaptiveBatcher:
 
             yield BatchedRequests(to_batch)
 
-    async def _get_request(self, timeout: float) -> Tuple[str, InferenceRequest]:
+    async def _get_request(self, timeout: float) -> tuple[str, InferenceRequest]:
         if not self._requests.empty():
             return await self._requests.get()
 

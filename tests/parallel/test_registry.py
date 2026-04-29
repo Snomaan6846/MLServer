@@ -1,8 +1,8 @@
 import pytest
 import os
 import asyncio
+from collections.abc import AsyncGenerator
 from copy import deepcopy
-from typing import Optional
 from unittest.mock import patch
 
 from mlserver.env import Environment, compute_hash_of_file
@@ -25,7 +25,7 @@ from ..fixtures import SumModel, EnvModel
 @pytest.fixture
 async def env_model(
     inference_pool_registry: InferencePoolRegistry, env_model_settings: ModelSettings
-) -> MLModel:
+) -> AsyncGenerator[MLModel, None]:
     env_model = EnvModel(env_model_settings)
     model = await inference_pool_registry.load_model(env_model)
 
@@ -38,7 +38,7 @@ async def env_model(
 async def existing_env_model(
     inference_pool_registry: InferencePoolRegistry,
     existing_env_model_settings: ModelSettings,
-) -> MLModel:
+) -> AsyncGenerator[MLModel, None]:
     env_model = EnvModel(existing_env_model_settings)
     model = await inference_pool_registry.load_model(env_model)
 
@@ -59,7 +59,7 @@ def test_set_environment_hash(sum_model: MLModel):
     "env_hash",
     ["0e46fce1decb7a89a8b91c71d8b6975630a17224d4f00094e02e1a732f8e95f3", None],
 )
-def test_get_environment_hash(sum_model: MLModel, env_hash: str):
+def test_get_environment_hash(sum_model: MLModel, env_hash: str | None):
     if env_hash:
         _set_environment_hash(sum_model, env_hash)
 
@@ -84,6 +84,7 @@ async def test_load_model(
 ):
     sum_model_settings = deepcopy(sum_model_settings)
     sum_model_settings.name = "foo"
+    assert sum_model_settings.parameters is not None
     sum_model_settings.parameters.inference_pool_gid = inference_pool_gid
     sum_model = SumModel(sum_model_settings)
 
@@ -126,7 +127,7 @@ async def test_load_model_with_existing_env(
 
 async def test_load_creates_pool(
     inference_pool_registry: InferencePoolRegistry,
-    env_model_settings: MLModel,
+    env_model_settings: ModelSettings,
 ):
     assert len(inference_pool_registry._pools) == 0
     env_model = EnvModel(env_model_settings)
@@ -170,6 +171,7 @@ async def test_reload_model_with_env(
     env_model: MLModel,
     env_model_settings: ModelSettings,
 ):
+    assert env_model_settings.parameters is not None
     env_model_settings.parameters.version = "v2.0"
     new_model = EnvModel(env_model_settings)
 
@@ -181,7 +183,7 @@ async def test_reload_model_with_env(
 
 async def test_unload_model_removes_pool_if_empty(
     inference_pool_registry: InferencePoolRegistry,
-    env_model_settings: MLModel,
+    env_model_settings: ModelSettings,
 ):
     env_model = EnvModel(env_model_settings)
     assert len(inference_pool_registry._pools) == 0
@@ -192,6 +194,7 @@ async def test_unload_model_removes_pool_if_empty(
     await inference_pool_registry.unload_model(model)
 
     env_hash = _get_environment_hash(model)
+    assert env_hash is not None
     env_path = inference_pool_registry._get_env_path(env_hash)
     assert len(inference_pool_registry._pools) == 0
     assert not os.path.isdir(env_path)
@@ -238,7 +241,7 @@ async def test_worker_stop(
     ],
 )
 async def test__get_environment_hash_gid(
-    env_hash: str, inference_pool_gid: Optional[str], expected_env_hash: str
+    env_hash: str, inference_pool_gid: str | None, expected_env_hash: str
 ):
     _env_hash = _append_gid_environment_hash(env_hash, inference_pool_gid)
     assert _env_hash == expected_env_hash
@@ -249,7 +252,9 @@ async def test_default_and_default_gid(
     simple_model_settings: ModelSettings,
 ):
     simple_model_settings_gid = deepcopy(simple_model_settings)
-    simple_model_settings_gid.parameters.inference_pool_gid = "dummy_id"
+    params = simple_model_settings_gid.parameters
+    assert params is not None
+    params.inference_pool_gid = "dummy_id"
 
     simple_model = SumModel(simple_model_settings)
     simple_model_gid = SumModel(simple_model_settings_gid)
@@ -269,9 +274,11 @@ async def test_env_and_env_gid(
     env_tarball: str,
 ):
     env_model_settings = deepcopy(env_model_settings)
+    assert env_model_settings.parameters is not None
     env_model_settings.parameters.environment_tarball = env_tarball
 
     env_model_settings_gid = deepcopy(env_model_settings)
+    assert env_model_settings_gid.parameters is not None
     env_model_settings_gid.parameters.inference_pool_gid = "dummy_id"
 
     env_model = EnvModel(env_model_settings)
@@ -318,6 +325,7 @@ def test_autogenerate_inference_pool_gid(
         if not autogenerate_inference_pool_grid
         else (inference_pool_grid or patch_uuid)
     )
+    assert model_settings.parameters is not None
     assert model_settings.parameters.inference_pool_gid == expected_gid
 
 
@@ -331,10 +339,12 @@ async def test_same_gid_reuses_pool(
 
     settings_a = deepcopy(sum_model_settings)
     settings_a.name = "model-a"
+    assert settings_a.parameters is not None
     settings_a.parameters.inference_pool_gid = shared_gid
 
     settings_b = deepcopy(sum_model_settings)
     settings_b.name = "model-b"
+    assert settings_b.parameters is not None
     settings_b.parameters.inference_pool_gid = shared_gid
 
     loaded_a = await inference_pool_registry.load_model(SumModel(settings_a))
@@ -369,10 +379,12 @@ async def test_same_gid_no_redundant_pool_spawn(
 
     settings_a = deepcopy(simple_model_settings)
     settings_a.name = "model-a"
+    assert settings_a.parameters is not None
     settings_a.parameters.inference_pool_gid = shared_gid
 
     settings_b = deepcopy(simple_model_settings)
     settings_b.name = "model-b"
+    assert settings_b.parameters is not None
     settings_b.parameters.inference_pool_gid = shared_gid
 
     loaded_a = await inference_pool_registry.load_model(SumModel(settings_a))
@@ -401,6 +413,7 @@ async def test_same_gid_pool_cleanup(
     shared_gid = "cleanup-test-gid"
 
     settings = deepcopy(simple_model_settings)
+    assert settings.parameters is not None
     settings.parameters.inference_pool_gid = shared_gid
 
     # Load and verify pool exists
@@ -423,10 +436,12 @@ async def test_same_gid_pool_cleanup_multi_model(
 
     settings_a = deepcopy(simple_model_settings)
     settings_a.name = "model-a"
+    assert settings_a.parameters is not None
     settings_a.parameters.inference_pool_gid = shared_gid
 
     settings_b = deepcopy(simple_model_settings)
     settings_b.name = "model-b"
+    assert settings_b.parameters is not None
     settings_b.parameters.inference_pool_gid = shared_gid
 
     loaded_a = await inference_pool_registry.load_model(SumModel(settings_a))

@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from mlserver import MLModel
 from mlserver.types import InferenceRequest, InferenceResponse
 from mlserver.codecs import StringCodec

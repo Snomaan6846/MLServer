@@ -4,11 +4,11 @@ import logging
 import pytest
 import random
 
+from collections.abc import Generator
 from docker.client import DockerClient
 from docker.models.containers import Container
 from pytest_cases import fixture, parametrize_with_cases
 from pathlib import Path
-from typing import Tuple, Optional
 
 from mlserver.utils import get_normalized_version
 from mlserver.repository import DEFAULT_MODEL_SETTINGS_FILENAME
@@ -43,7 +43,7 @@ def _discover_runtime_paths(implementations, base_path: Path):
 @parametrize_with_cases("custom_runtime_path")
 def custom_image(
     docker_client: DockerClient, custom_runtime_path: str, current_cases
-) -> str:
+) -> Generator[str, None, None]:
     discovered_implementations = []
     settings_paths = sorted(
         Path(custom_runtime_path).rglob(DEFAULT_MODEL_SETTINGS_FILENAME)
@@ -88,9 +88,9 @@ def custom_runtime_server(
     docker_client: DockerClient,
     custom_image: str,
     settings: Settings,
-    free_ports: Tuple[int, int, int],
+    free_ports: tuple[int, int, int],
     random_user_id: int,
-) -> Tuple[str, str, Container]:
+) -> Generator[tuple[str, str, Container], None, None]:
     host_http_port, host_grpc_port, host_metrics_port = free_ports
 
     container = docker_client.containers.run(
@@ -139,7 +139,7 @@ def custom_runtime_model_settings(custom_image_custom_runtime_path: str):
         "customreg/custonimage:customtag",
     ],
 )
-def test_generate_dockerfile(base_image: Optional[str]):
+def test_generate_dockerfile(base_image: str | None):
     dockerfile = ""
     if base_image is None:
         dockerfile = generate_dockerfile()
@@ -275,7 +275,7 @@ def test_build(docker_client: DockerClient, custom_image: str):
 
 
 async def test_infer_custom_runtime(
-    custom_runtime_server: Tuple[str, str, Container],
+    custom_runtime_server: tuple[str, str, Container],
     custom_runtime_model_settings,
     inference_request: InferenceRequest,
 ):

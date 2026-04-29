@@ -4,7 +4,7 @@ import asyncio
 import urllib.parse
 
 from asyncio import Task
-from typing import Callable, Dict, Optional, List
+from collections.abc import Callable
 
 from .logging import logger
 from .types import InferenceRequest, InferenceResponse, Parameters
@@ -14,7 +14,7 @@ from .version import __version__
 
 
 async def get_model_uri(
-    settings: ModelSettings, wellknown_filenames: List[str] = []
+    settings: ModelSettings, wellknown_filenames: list[str] = []
 ) -> str:
     if not settings.parameters:
         raise InvalidModelURI(settings.name)
@@ -69,7 +69,7 @@ def generate_uuid() -> str:
 
 
 def insert_headers(
-    inference_request: InferenceRequest, headers: Dict[str, str]
+    inference_request: InferenceRequest, headers: dict[str, str]
 ) -> InferenceRequest:
     # Ensure parameters are present
     if inference_request.parameters is None:
@@ -92,7 +92,7 @@ def insert_headers(
     return inference_request
 
 
-def extract_headers(inference_response: InferenceResponse) -> Optional[Dict[str, str]]:
+def extract_headers(inference_response: InferenceResponse) -> dict[str, str] | None:
     if inference_response.parameters is None:
         return None
 
@@ -137,7 +137,7 @@ def schedule_with_callback(coro, cb) -> Task:
     return task
 
 
-def get_normalized_version(version: Optional[str] = None) -> str:
+def get_normalized_version(version: str | None = None) -> str:
     """
     Return a public version string without local build metadata.
 

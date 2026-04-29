@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
-from typing import Dict, Optional, Union
 from optimum.onnxruntime.modeling_decoder import ORTModelForCausalLM
 from transformers.models.gpt2 import GPT2ForQuestionAnswering
 
@@ -23,7 +22,7 @@ from mlserver_huggingface.common import load_pipeline_from_settings
         ),
     ],
 )
-def test_settings_task_name(envs: Dict[str, str], expected: str):
+def test_settings_task_name(envs: dict[str, str], expected: str):
     setting = HuggingFaceSettings.model_validate(envs)
     assert setting.task_name == expected
 
@@ -49,7 +48,7 @@ def test_load_pipeline(
     task: str,
     optimum_model: bool,
     model: str,
-    expected: Union[ORTModelForCausalLM, GPT2ForQuestionAnswering],
+    expected: ORTModelForCausalLM | GPT2ForQuestionAnswering,
 ):
     hf_settings = HuggingFaceSettings(
         task=task,
@@ -99,9 +98,9 @@ def test_load_pipeline(
 @patch("mlserver_huggingface.common._get_pipeline_class")
 def test_pipeline_is_initialised_with_correct_model_param(
     mock_pipeline_factory,
-    pretrained_model: Optional[str],
-    parameters_uri: Optional[str],
-    expected: Optional[str],
+    pretrained_model: str | None,
+    parameters_uri: str | None,
+    expected: str | None,
 ):
     mock_pipeline_factory.return_value = MagicMock()
 
@@ -135,8 +134,8 @@ def test_pipeline_is_initialised_with_correct_model_param(
 @patch("mlserver_huggingface.common._get_pipeline_class")
 def test_pipeline_is_initialised_with_correct_model_kwargs(
     mock_pipeline_factory,
-    model_kwargs: Optional[dict],
-    expected: Optional[str],
+    model_kwargs: dict | None,
+    expected: dict | None,
 ):
     mock_pipeline_factory.return_value = MagicMock()
 
@@ -170,7 +169,7 @@ def test_pipeline_is_initialised_with_correct_model_kwargs(
 )
 def test_pipeline_uses_model_kwargs(
     pretrained_model: str,
-    model_kwargs: Optional[dict],
+    model_kwargs: dict | None,
     expected: torch.dtype,
 ):
     hf_settings = HuggingFaceSettings(
@@ -209,7 +208,7 @@ def test_pipeline_uses_model_kwargs(
 )
 def test_pipeline_cpu_device_set(
     pretrained_model: str,
-    device: Optional[Union[str, int]],
+    device: str | int | None,
     expected: torch.device,
 ):
     hf_settings = HuggingFaceSettings(
@@ -249,9 +248,9 @@ def test_pipeline_cpu_device_set(
 )
 def test_pipeline_checks_for_eos_and_pad_token(
     pretrained_model: str,
-    task: Optional[str],
-    input_batch_size: Optional[int],
-    expected_batch_size: Optional[int],
+    task: str | None,
+    input_batch_size: int | None,
+    expected_batch_size: int | None,
 ):
     hf_settings = HuggingFaceSettings(pretrained_model=pretrained_model, task=task)
     model_params = ModelParameters()

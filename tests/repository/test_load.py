@@ -4,7 +4,6 @@ import pytest
 import shutil
 import sys
 
-from mlserver.model import MLModel
 from mlserver.repository.repository import DEFAULT_MODEL_SETTINGS_FILENAME
 from mlserver.repository.load import load_model_settings
 from mlserver.settings import ModelSettings
@@ -46,16 +45,15 @@ def untrusted_module_settings_path(
 
 
 async def test_load_model_settings(
-    sum_model_settings: MLModel, model_folder: ModelSettings
+    sum_model_settings: ModelSettings, model_folder: str
 ):
     model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
     model_settings = load_model_settings(model_settings_path)
 
     assert model_settings.name == sum_model_settings.name
-    assert (
-        model_settings.parameters.version  # type: ignore
-        == sum_model_settings.parameters.version  # type: ignore
-    )
+    assert model_settings.parameters is not None
+    assert sum_model_settings.parameters is not None
+    assert model_settings.parameters.version == sum_model_settings.parameters.version
     assert model_settings._source == model_settings_path
 
 

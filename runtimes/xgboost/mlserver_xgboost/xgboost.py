@@ -1,6 +1,5 @@
 import xgboost as xgb
 
-from typing import List
 from xgboost.sklearn import XGBModel
 
 from mlserver.errors import InferenceError
@@ -73,7 +72,7 @@ class XGBoostModel(MLModel):
 
         return payload
 
-    def _get_model_outputs(self, payload: InferenceRequest) -> List[ResponseOutput]:
+    def _get_model_outputs(self, payload: InferenceRequest) -> list[ResponseOutput]:
         decoded_request = self.decode_request(payload, default_codec=NumpyRequestCodec)
 
         outputs = []

@@ -3,7 +3,6 @@ import asyncio
 import json
 
 from asyncio import CancelledError
-from typing import List, Union
 
 from mlserver.model import MLModel
 from mlserver.errors import MLServerError, ModelNotFound
@@ -17,7 +16,7 @@ from .fixtures import ErrorModel, SlowModel
 async def model_registry(
     model_registry: MultiModelRegistry, mocker
 ) -> MultiModelRegistry:
-    async def _async_val(model: MLModel, new_model: MLModel = None) -> MLModel:
+    async def _async_val(model: MLModel, new_model: MLModel | None = None) -> MLModel:
         if new_model:
             return new_model
 
@@ -81,11 +80,11 @@ async def test_model_hooks(
     assert sum_model.ready
 
     for callback in model_registry._on_model_load:
-        callback.assert_called_once_with(sum_model)
+        callback.assert_called_once_with(sum_model)  # type: ignore[attr-defined]
 
     await model_registry.unload(sum_model.name)
     for callback in model_registry._on_model_unload:
-        callback.assert_called_once_with(sum_model)
+        callback.assert_called_once_with(sum_model)  # type: ignore[attr-defined]
 
 
 async def test_reload_model(
@@ -101,23 +100,27 @@ async def test_reload_model(
     assert not existing_model.ready
 
     for callback in model_registry._on_model_load:
-        callback.assert_not_called()
+        callback.assert_not_called()  # type: ignore[attr-defined]
 
-    for callback in model_registry._on_model_reload:
-        callback.assert_called_once_with(existing_model, new_model)
+    for callback in model_registry._on_model_reload:  # type: ignore[assignment]
+        callback.assert_called_once_with(  # type: ignore[attr-defined]
+            existing_model, new_model
+        )
 
     for callback in model_registry._on_model_unload:
-        callback.assert_not_called()
+        callback.assert_not_called()  # type: ignore[attr-defined]
 
 
 async def test_load_multi_version(
     model_registry: MultiModelRegistry, sum_model_settings: ModelSettings
 ):
     existing_model = await model_registry.get_model(sum_model_settings.name)
+    assert sum_model_settings.parameters is not None
     existing_version = sum_model_settings.parameters.version
 
     # Load new model
     new_model_settings = sum_model_settings.copy(deep=True)
+    assert new_model_settings.parameters is not None
     new_model_settings.parameters.version = "v2.0.0"
     new_model = await model_registry.load(new_model_settings)
     assert new_model.ready
@@ -128,7 +131,7 @@ async def test_load_multi_version(
     assert new_model == default_model
 
     for callback in model_registry._on_model_load:
-        callback.assert_called_once_with(new_model)
+        callback.assert_called_once_with(new_model)  # type: ignore[attr-defined]
 
     # Ensure old model is still reachable
     old_model = await model_registry.get_model(
@@ -137,7 +140,7 @@ async def test_load_multi_version(
     assert old_model == existing_model
 
     for callback in model_registry._on_model_unload:
-        callback.assert_not_called_with(existing_model)
+        callback.assert_not_called_with(existing_model)  # type: ignore[attr-defined]
 
 
 async def test_unload(model_registry: MultiModelRegistry, sum_model: MLModel, mocker):
@@ -161,7 +164,7 @@ async def test_unload(model_registry: MultiModelRegistry, sum_model: MLModel, mo
     ],
 )
 async def test_unload_version(
-    versions_to_unload: List[Union[str, None]],
+    versions_to_unload: list[str | None],
     model_registry: MultiModelRegistry,
     sum_model_settings: ModelSettings,
 ):
@@ -170,15 +173,17 @@ async def test_unload_version(
     sum_model_settings.name = "model-foo"
 
     sum_model_settings = sum_model_settings.copy(deep=True)
+    assert sum_model_settings.parameters is not None
     sum_model_settings.parameters.version = None
     default_model = await model_registry.load(sum_model_settings)
     for version in to_load:
         sum_model_settings = sum_model_settings.copy(deep=True)
+        assert sum_model_settings.parameters is not None
         sum_model_settings.parameters.version = version
         await model_registry.load(sum_model_settings)
 
     # Unload versions
-    for version in versions_to_unload:
+    for version in versions_to_unload:  # type: ignore[assignment]
         await model_registry.unload_version(sum_model_settings.name, version)
 
     if len(versions_to_unload) == len(to_load) + 1:
@@ -207,7 +212,7 @@ async def test_unload_version(
     ],
 )
 async def test_find_default(
-    versions: List[str],
+    versions: list[str],
     expected: str,
     sum_model_settings: ModelSettings,
 ):
@@ -218,11 +223,13 @@ async def test_find_default(
     # Load mock models
     for version in versions:
         model_settings = model_settings.copy(deep=True)
+        assert model_settings.parameters is not None
         model_settings.parameters.version = version
         await foo_registry.load(model_settings)
 
     foo_registry._clear_default()
     default_model = foo_registry._find_default()
+    assert default_model is not None
     assert default_model.version == expected
 
 

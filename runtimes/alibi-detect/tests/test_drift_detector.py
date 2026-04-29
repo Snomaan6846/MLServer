@@ -2,8 +2,6 @@ import numpy as np
 import pytest
 import mlserver
 
-from typing import List
-
 from alibi_detect.cd import TabularDrift, CVMDriftOnline
 
 from mlserver.types import InferenceRequest, Parameters, RequestInput
@@ -191,7 +189,7 @@ async def test_predict_metrics(
     ],
 )
 def test_log_metrics(
-    mocker, current_pred: dict, expected: List[dict], drift_detector: AlibiDetectRuntime
+    mocker, current_pred: dict, expected: list[dict], drift_detector: AlibiDetectRuntime
 ):
     mlserver_log = mocker.spy(mlserver, "log")
     drift_detector._log_metrics(current_pred)

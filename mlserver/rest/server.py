@@ -8,7 +8,6 @@ from ..model import MLModel
 from .utils import matches
 from .app import create_app
 from .logging import logger, disable_health_access_logs
-from typing import Optional
 
 
 class _NoSignalServer(uvicorn.Server):
@@ -96,7 +95,7 @@ class RESTServer:
 
         return uvicorn.Config(self._app, **kwargs)
 
-    async def stop(self, sig: Optional[int] = None):
+    async def stop(self, sig: int | None = None):
         if sig is None:
             # `sig` is no longer optional for `handle_exit` in
             # latest `uvicorn`

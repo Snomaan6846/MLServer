@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from typing import Any, List, Union
+from typing import Any
 
 from mlserver.types import RequestInput, ResponseOutput
 from mlserver.codecs.json import (
@@ -26,7 +26,7 @@ from mlserver.codecs.json import (
         ),
     ],
 )
-def test_decode_input(input: Union[str, bytes], expected: dict):
+def test_decode_input(input: str | bytes, expected: dict):
     assert expected == decode_from_bytelike_json_to_dict(input)
 
 
@@ -72,7 +72,7 @@ def test_encode_input(input: Any, expected: bytes):
         ),
     ],
 )
-def test_encode_to_json(payload: List[Any], expected: ResponseOutput):
+def test_encode_to_json(payload: list[Any], expected: ResponseOutput):
     response_output = [encode_to_json(elem) for elem in payload]
     assert response_output == expected
 
@@ -155,6 +155,6 @@ def test_encode_to_json(payload: List[Any], expected: ResponseOutput):
     ],
 )
 def test_decode_json_input_or_output(
-    input_or_output: Union[RequestInput, ResponseOutput], expected: Any
+    input_or_output: RequestInput | ResponseOutput, expected: Any
 ):
     assert expected == decode_json_input_or_output(input_or_output)

@@ -1,5 +1,7 @@
 import pytest
 
+from collections.abc import AsyncGenerator
+
 from mlserver.errors import MLServerError
 from mlserver.handlers.custom import get_custom_handlers
 from mlserver.types import InferenceRequest, MetadataModelResponse
@@ -11,7 +13,9 @@ from ..fixtures import ErrorModel
 
 
 @pytest.fixture
-async def sum_model(inference_pool: InferencePool, sum_model: MLModel) -> MLModel:
+async def sum_model(
+    inference_pool: InferencePool, sum_model: MLModel
+) -> AsyncGenerator[MLModel, None]:
     parallel_model = await inference_pool.load_model(sum_model)
 
     yield parallel_model
@@ -62,7 +66,7 @@ async def test_metadata_cached(
 
     send_stub = mocker.stub("_send")
     send_stub.side_effect = _send
-    sum_model._send = send_stub
+    sum_model._send = send_stub  # type: ignore[attr-defined]
 
     metadata_1 = await sum_model.metadata()
     metadata_2 = await sum_model.metadata()
@@ -76,5 +80,5 @@ async def test_custom_handlers(sum_model: MLModel):
     handlers = get_custom_handlers(sum_model)
     assert len(handlers) == 2
 
-    response = await sum_model.my_payload([1, 2, 3])
+    response = await sum_model.my_payload([1, 2, 3])  # type: ignore[attr-defined]
     assert response == 6

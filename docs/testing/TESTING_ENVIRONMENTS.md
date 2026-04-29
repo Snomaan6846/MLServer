@@ -28,7 +28,7 @@ Both approaches create compatible tarballs that work with MLServer's `Environmen
 ### Key Features
 
 - **Flexible environment creation**: Conda or venv, your choice
-- **Multiple Python versions**: Test across Python 3.9-3.12
+- **Multiple Python versions**: Test across Python 3.10-3.12
 - **Efficient caching**: Tarballs cached in `tests/testdata/.cache/`
 - **Compatible outputs**: Both methods produce identical results
 - **No code changes needed**: Same tests work in both modes
@@ -79,18 +79,18 @@ When `USE_CONDA=true` (or `1`, `yes`):
 
 2. **Python version injection**: The test infrastructure dynamically modifies the environment.yml to test multiple Python versions:
    - Reads the template environment.yml
-   - Replaces `python == 3.12` with requested version (e.g., `python == 3.9`)
-   - Saves as `environment-py39.yml`, `environment-py310.yml`, etc.
+   - Replaces `python == 3.12` with requested version (e.g., `python == 3.10`)
+   - Saves as `environment-py310.yml`, `environment-py311.yml`, etc.
 
 3. **Environment creation**: For each Python version:
    ```bash
-   conda env create -n mlserver-<uuid> -f environment-py39.yml
+   conda env create -n mlserver-<uuid> -f environment-py310.yml
    ```
 
 4. **Tarball packaging**:
    ```bash
    conda-pack --ignore-missing-files --exclude lib/python3.1 \
-     -n mlserver-<uuid> -o tests/testdata/.cache/environment-py39.tar.gz
+     -n mlserver-<uuid> -o tests/testdata/.cache/environment-py310.tar.gz
    ```
 
 5. **Cleanup**: Conda environment removed after packaging
@@ -98,7 +98,6 @@ When `USE_CONDA=true` (or `1`, `yes`):
 6. **Test execution**: All 17+ environment tests run against these tarballs
 
 7. **Multi-version testing**: Tests parameterized across Python versions:
-   - Python 3.9: `test_from_tarball[py39]`
    - Python 3.10: `test_from_tarball[py310]`
    - Python 3.11: `test_from_tarball[py311]`
    - Python 3.12: `test_from_tarball[py312]`
@@ -117,7 +116,7 @@ When `USE_CONDA=false` (default for ODH):
 
 2. **Environment creation**: For each Python version:
    ```bash
-   python3.9 -m venv --copies /tmp/mlserver-<uuid>
+   python3.10 -m venv --copies /tmp/mlserver-<uuid>
    ```
 
 3. **Dependency installation**:
@@ -149,7 +148,7 @@ The `USE_CONDA` environment variable controls which environment creation method 
 
 | Value | Conda Mode | Venv Mode | Notes |
 |-------|-----------|-----------|-------|
-| `true`, `1`, `yes` | ✅ | ❌ | Tests all Python versions (3.9-3.12) |
+| `true`, `1`, `yes` | ✅ | ❌ | Tests all Python versions (3.10-3.12) |
 | `false`, `0`, `no` | ❌ | ✅ | Tests current Python version only |
 | (unset) | ❌ | ✅ | Default: venv mode |
 
@@ -159,7 +158,7 @@ The `USE_CONDA` environment variable controls which environment creation method 
 def get_python_versions() -> list[tuple[int, int]]:
     use_conda = os.environ.get("USE_CONDA", "").lower() in ("1", "true", "yes")
     if use_conda:
-        return PYTHON_VERSIONS  # [(3,9), (3,10), (3,11), (3,12)]
+        return PYTHON_VERSIONS  # [(3,10), (3,11), (3,12)]
 
     return [(sys.version_info.major, sys.version_info.minor)]  # Current only
 ```
@@ -211,7 +210,7 @@ set_env =
 | Feature | Standard (`mlserver`) | ODH (`odh-mlserver`) |
 |---------|---------------------|---------------------|
 | Conda usage | Auto-detect | Disabled by default |
-| Python versions | All (3.9-3.12) | Current only |
+| Python versions | All (3.10-3.12) | Current only |
 | Build tests | Included | Excluded |
 | Runtimes tested | All | Subset (sklearn, xgboost, lightgbm) |
 
@@ -223,14 +222,14 @@ When conda is enabled, tests run against all supported Python versions:
 
 ```python
 # From tests/conftest.py
-MIN_PYTHON_VERSION = (3, 9)
+MIN_PYTHON_VERSION = (3, 10)
 MAX_PYTHON_VERSION = (3, 12)
 PYTHON_VERSIONS = [
     (major, minor)
     for major in range(MIN_PYTHON_VERSION[0], MAX_PYTHON_VERSION[0] + 1)
     for minor in range(MIN_PYTHON_VERSION[1], MAX_PYTHON_VERSION[1] + 1)
 ]
-# Result: [(3, 9), (3, 10), (3, 11), (3, 12)]
+# Result: [(3, 10), (3, 11), (3, 12)]
 ```
 
 Tests are parameterized using pytest:
@@ -240,13 +239,12 @@ Tests are parameterized using pytest:
     params=get_python_versions(),
     ids=[f"py{major}{minor}" for (major, minor) in get_python_versions()],
 )
-def env_python_version(request: pytest.FixtureRequest) -> Tuple[int, int]:
+def env_python_version(request: pytest.FixtureRequest) -> tuple[int, int]:
     return request.param
 ```
 
 **Example output**:
 ```
-tests/env/test_env.py::test_from_tarball[py39] PASSED
 tests/env/test_env.py::test_from_tarball[py310] PASSED
 tests/env/test_env.py::test_from_tarball[py311] PASSED
 tests/env/test_env.py::test_from_tarball[py312] PASSED
@@ -281,7 +279,7 @@ MLServer's test infrastructure provides **flexible environment management**:
 |--------|-----------|-----------|
 | **Default for** | mlserver | odh-mlserver |
 | **Requires** | conda, conda-pack | venv, pip (built-in) |
-| **Python versions** | All (3.9-3.12) | Current only |
+| **Python versions** | All (3.10-3.12) | Current only |
 | **Speed** | Slower (conda install) | Faster (pip install) |
 | **Tarball source** | environment.yml | environment.txt |
 | **Test coverage** | Identical | Identical |

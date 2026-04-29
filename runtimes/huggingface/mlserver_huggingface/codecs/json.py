@@ -1,4 +1,4 @@
-from typing import List, Any, Dict
+from typing import Any
 from mlserver.codecs.base import InputCodec, register_input_codec
 from mlserver.types import RequestInput, ResponseOutput, Parameters
 from .utils import json_decode, json_encode
@@ -18,7 +18,7 @@ class HuggingfaceSingleJSONCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: Dict[Any, Any], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: dict[Any, Any], use_bytes: bool = True, **kwargs
     ) -> ResponseOutput:
         encoded = json_encode(payload, use_bytes)
         return ResponseOutput(
@@ -32,13 +32,13 @@ class HuggingfaceSingleJSONCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> Dict[Any, Any]:
+    def decode_output(cls, response_output: ResponseOutput) -> dict[Any, Any]:
         packed = response_output.data
         return json_decode(packed[0])
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: Dict[Any, Any], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: dict[Any, Any], use_bytes: bool = True, **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name, payload, use_bytes)
         return RequestInput(
@@ -52,6 +52,6 @@ class HuggingfaceSingleJSONCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List[bytes]:
+    def decode_input(cls, request_input: RequestInput) -> list[bytes]:
         packed = request_input.data
         return json_decode(packed[0])

@@ -1,6 +1,6 @@
 from grpc import aio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Any, List, Tuple
+from typing import Any
 
 from ..handlers import DataPlane, ModelRepositoryHandlers
 from ..settings import Settings
@@ -87,7 +87,7 @@ class GRPCServer:
 
         return self._server
 
-    def _get_options(self) -> List[Tuple[str, Any]]:
+    def _get_options(self) -> list[tuple[str, Any]]:
         options_dict = {}
 
         if self._settings._custom_grpc_server_settings:
@@ -119,7 +119,7 @@ class GRPCServer:
         )
         await self._server.wait_for_termination()
 
-    async def stop(self, sig: Optional[int] = None):
+    async def stop(self, sig: int | None = None):
         logger.info("Waiting for gRPC server shutdown")
         # TODO: Read from config
         await self._server.stop(grace=5)

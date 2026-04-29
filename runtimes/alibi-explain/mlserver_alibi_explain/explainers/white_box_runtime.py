@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Type, Dict
+from typing import Any
 
 from alibi.api.interfaces import Explainer, Explanation
 
@@ -15,7 +15,7 @@ class AlibiExplainWhiteBoxRuntime(ABC, AlibiExplainRuntimeBase):
     domain as the explainer itself. e.g. `IntegratedGradients`
     """
 
-    def __init__(self, settings: ModelSettings, explainer_class: Type[Explainer]):
+    def __init__(self, settings: ModelSettings, explainer_class: type[Explainer]):
         self._inference_model = None
         self._explainer_class = explainer_class
 
@@ -44,7 +44,7 @@ class AlibiExplainWhiteBoxRuntime(ABC, AlibiExplainRuntimeBase):
 
         return True
 
-    def _explain_impl(self, input_data: Any, explain_parameters: Dict) -> Explanation:
+    def _explain_impl(self, input_data: Any, explain_parameters: dict) -> Explanation:
         # TODO: how are we going to deal with that?
         assert self._inference_model is not None, "Inference model is not set"
         return self._model.explain(input_data, **explain_parameters)

@@ -171,7 +171,7 @@ class MyKulModel(MLModel):
         self.model = spacy.load("en_core_web_lg")
 
     @decode_args
-    async def predict(self, docs: List[str]) -> np.ndarray:
+    async def predict(self, docs: list[str]) -> np.ndarray:
 
         doc1 = self.model(docs[0])
         doc2 = self.model(docs[1])

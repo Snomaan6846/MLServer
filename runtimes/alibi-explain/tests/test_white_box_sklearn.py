@@ -1,5 +1,4 @@
 import json
-from typing import Tuple, Union
 import os
 import joblib
 
@@ -34,7 +33,7 @@ async def test_case(
     explainer: Explainer,
     request: InferenceRequest,
     explain_kwargs: dict,
-) -> Tuple[AlibiExplainRuntime, Explainer, InferenceRequest, dict]:
+) -> tuple[AlibiExplainRuntime, Explainer, InferenceRequest, dict]:
     """
     Fixture that unpacks the test case into a tuple of the explainer runtime, explainer
     object, inference request and explain kwargs. The pytest-cases doesn't work too well
@@ -98,7 +97,7 @@ def mocked_sklearn_runtime(mocker):
 )
 def white_box_model(
     income_data, model_class, tmp_path
-) -> Tuple[Union[BaseEstimator, XGBModel, LGBMModel], str, np.ndarray]:
+) -> tuple[BaseEstimator | XGBModel | LGBMModel, str, np.ndarray]:
     """
     Fixture that returns a white box model (and it's uri) for testing.
     """

@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 from . import model_repository_pb2 as mr_pb
 from .converters import (

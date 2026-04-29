@@ -3,7 +3,7 @@ import json
 from asyncio import CancelledError
 from enum import IntEnum
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from ..utils import generate_uuid
 from ..settings import ModelSettings
@@ -24,10 +24,10 @@ class Message(BaseModel):
 
 class ModelRequestMessage(Message):
     model_name: str
-    model_version: Optional[str] = None
+    model_version: str | None = None
     method_name: str
-    method_args: List[Any] = []
-    method_kwargs: Dict[str, Any] = {}
+    method_args: list[Any] = []
+    method_kwargs: dict[str, Any] = {}
 
 
 class ModelResponseMessage(Message):
@@ -35,8 +35,8 @@ class ModelResponseMessage(Message):
         arbitrary_types_allowed=True,
     )
 
-    return_value: Optional[Any] = None
-    exception: Optional[Union[Exception, CancelledError]] = None
+    return_value: Any | None = None
+    exception: Exception | CancelledError | None = None
 
 
 class ModelUpdateMessage(Message):

@@ -1,7 +1,5 @@
 import pytest
 
-from typing import Dict, List
-
 from mlserver.types import (
     InferenceRequest,
     RequestInput,
@@ -167,9 +165,9 @@ from mlserver.batching.requests import BatchedRequests
     ],
 )
 def test_merge_request_inputs(
-    request_inputs: Dict[str, RequestInput],
+    request_inputs: dict[str, RequestInput],
     expected_request_input: RequestInput,
-    expected_minibatch_sizes: Dict[str, int],
+    expected_minibatch_sizes: dict[str, int],
 ):
     batched = BatchedRequests()
     merged = batched._merge_request_inputs(request_inputs)
@@ -255,7 +253,7 @@ def test_merge_request_inputs(
     ],
 )
 def test_merged_request(
-    inference_requests: Dict[str, InferenceRequest],
+    inference_requests: dict[str, InferenceRequest],
     expected: InferenceRequest,
 ):
     batched = BatchedRequests(inference_requests)
@@ -370,9 +368,9 @@ def test_merged_request(
     ],
 )
 def test_split_response_output(
-    minibatch_sizes: Dict[str, int],
+    minibatch_sizes: dict[str, int],
     response_output: ResponseOutput,
-    expected: List[ResponseOutput],
+    expected: list[ResponseOutput],
 ):
     batched = BatchedRequests()
     batched._minibatch_sizes = minibatch_sizes
@@ -465,9 +463,9 @@ def test_split_response_output(
     ],
 )
 def test_split_response(
-    inference_requests: Dict[str, InferenceRequest],
+    inference_requests: dict[str, InferenceRequest],
     inference_response: InferenceResponse,
-    expected: List[InferenceResponse],
+    expected: list[InferenceResponse],
 ):
     batched = BatchedRequests(inference_requests)
 

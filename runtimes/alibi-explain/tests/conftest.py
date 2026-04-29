@@ -6,9 +6,9 @@ import tensorflow as tf
 import functools
 
 from filelock import FileLock
-from typing import AsyncIterable, Dict, Any, Iterable
+from typing import Any
+from collections.abc import AsyncIterable, Iterable
 from unittest.mock import patch
-from typing import Type
 
 from httpx import AsyncClient
 from fastapi import FastAPI
@@ -306,7 +306,7 @@ async def integrated_gradients_runtime(tf_mnist_model_uri: str) -> AlibiExplainR
 @pytest.fixture
 def dummy_explainer_settings() -> Iterable[ModelSettings]:
     class _DummyExplainer(AlibiExplainRuntimeBase):
-        def __init__(self, settings: ModelSettings, explainer_class: Type[Explainer]):
+        def __init__(self, settings: ModelSettings, explainer_class: type[Explainer]):
             self._explainer_class = explainer_class
             self._model = None
             # if we are here we are sure that settings.parameters is set,
@@ -317,7 +317,7 @@ def dummy_explainer_settings() -> Iterable[ModelSettings]:
             super().__init__(settings, explainer_settings)
 
         def _explain_impl(
-            self, input_data: Any, explain_parameters: Dict
+            self, input_data: Any, explain_parameters: dict
         ) -> Explanation:
             return Explanation(meta={}, data={})
 

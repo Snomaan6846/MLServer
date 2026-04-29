@@ -1,6 +1,6 @@
 import json
 
-from typing import Dict, Any
+from typing import Any
 from mlserver import MLModel, types
 from mlserver.codecs import StringCodec
 
@@ -36,7 +36,7 @@ class JsonHelloWorldModel(MLModel):
             ],
         )
 
-    def _extract_json(self, payload: types.InferenceRequest) -> Dict[str, Any]:
+    def _extract_json(self, payload: types.InferenceRequest) -> dict[str, Any]:
         inputs = {}
         for inp in payload.inputs:
             inputs[inp.name] = json.loads(

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from typing import Optional, Any, List, Tuple
+from typing import Any
 
 from .base import RequestCodec, register_request_codec
 from .numpy import to_dtype, convert_nan, to_datatype
@@ -71,14 +71,14 @@ def _to_response_output(series: pd.Series, use_bytes: bool = True) -> ResponseOu
 
 
 def _process_bytes(
-    data: List[ListElement], use_bytes: bool = True
-) -> Tuple[List[ListElement], Optional[str]]:
+    data: list[ListElement], use_bytes: bool = True
+) -> tuple[list[ListElement], str | None]:
     # To ensure that "string" columns can be encoded in gRPC, we need to
     # encode them as bytes.
     # We'll also keep track of whether the list should be treated in the
     # future as a list of strings.
     processed = []
-    content_type: Optional[str] = StringCodec.ContentType
+    content_type: str | None = StringCodec.ContentType
     for elem in data:
         converted = elem
         if not isinstance(elem, (str, bytes)):
@@ -113,9 +113,9 @@ class PandasCodec(RequestCodec):
         cls,
         model_name: str,
         payload: pd.DataFrame,
-        model_version: Optional[str] = None,
+        model_version: str | None = None,
         use_bytes: bool = True,
-        **kwargs
+        **kwargs,
     ) -> InferenceResponse:
         outputs = cls.encode_outputs(payload, use_bytes=use_bytes)
 
@@ -138,7 +138,7 @@ class PandasCodec(RequestCodec):
     @classmethod
     def encode_outputs(
         cls, payload: pd.DataFrame, use_bytes: bool = True
-    ) -> List[ResponseOutput]:
+    ) -> list[ResponseOutput]:
         return [
             _to_response_output(payload[col], use_bytes=use_bytes) for col in payload
         ]

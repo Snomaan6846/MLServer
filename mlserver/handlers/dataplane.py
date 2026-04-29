@@ -3,7 +3,7 @@ from prometheus_client import (
     Counter,
     Summary,
 )
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from ..model import MLModel
 from ..errors import ModelNotReady
@@ -64,7 +64,7 @@ class DataPlane:
         models = await self._model_registry.get_models()
         return all([model.ready for model in models])
 
-    async def model_ready(self, name: str, version: Optional[str] = None) -> bool:
+    async def model_ready(self, name: str, version: str | None = None) -> bool:
         model = await self._model_registry.get_model(name, version)
         return model.ready
 
@@ -104,7 +104,7 @@ class DataPlane:
             )
 
     async def model_metadata(
-        self, name: str, version: Optional[str] = None
+        self, name: str, version: str | None = None
     ) -> MetadataModelResponse:
         model = await self._model_registry.get_model(name, version)
         # TODO: Make await optional for sync methods
@@ -115,7 +115,7 @@ class DataPlane:
         self,
         payload: InferenceRequest,
         name: str,
-        version: Optional[str] = None,
+        version: str | None = None,
     ) -> InferenceResponse:
         # need to cache the payload here since it
         # will be modified in the context manager
@@ -150,7 +150,7 @@ class DataPlane:
         self,
         payloads: AsyncIterator[InferenceRequest],
         name: str,
-        version: Optional[str] = None,
+        version: str | None = None,
     ) -> AsyncIterator[InferenceResponse]:
         # TODO: Implement cache for stream
 
@@ -203,7 +203,7 @@ class DataPlane:
     async def _infer_contextmanager(
         self,
         name: str,
-        version: Optional[str] = None,
+        version: str | None = None,
     ) -> AsyncIterator[MLModel]:
 
         infer_duration = self._ModelInferRequestDuration.labels(
@@ -226,5 +226,5 @@ class DataPlane:
     def _create_response_cache(self) -> ResponseCache:
         return LocalCache(size=self._settings.cache_size)
 
-    def _get_response_cache(self) -> Optional[ResponseCache]:
+    def _get_response_cache(self) -> ResponseCache | None:
         return self._response_cache

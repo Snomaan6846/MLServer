@@ -1,5 +1,3 @@
-from typing import List
-
 from mlserver.errors import MLServerError
 
 
@@ -9,13 +7,13 @@ class MissingHuggingFaceSettings(MLServerError):
 
 
 class InvalidTransformersTask(MLServerError):
-    def __init__(self, task: str, available_tasks: List[str]):
+    def __init__(self, task: str, available_tasks: list[str]):
         msg = f"Invalid transformer task: {task}. Available tasks: {available_tasks}."
         super().__init__(msg)
 
 
 class InvalidOptimumTask(MLServerError):
-    def __init__(self, task: str, available_tasks: List[str]):
+    def __init__(self, task: str, available_tasks: list[str]):
         msg = (
             "Invalid transformer task for Optimum model: {task}. "
             f"Available Optimum tasks: {available_tasks}."

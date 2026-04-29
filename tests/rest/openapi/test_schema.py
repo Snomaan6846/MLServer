@@ -1,7 +1,5 @@
 import pytest
 
-from typing import Optional
-
 from mlserver.rest.openapi.schema import (
     get_openapi_schema,
     get_model_schema,
@@ -23,7 +21,7 @@ def test_get_openapi_schema():
         ("sum-model", None),
     ],
 )
-def test_get_model_schema(model_name: str, model_version: Optional[str]):
+def test_get_model_schema(model_name: str, model_version: str | None):
     model_schema = get_model_schema(model_name, model_version)
 
     paths = model_schema["paths"]

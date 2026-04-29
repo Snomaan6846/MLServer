@@ -11,11 +11,6 @@ from functools import lru_cache
 
 from typing import (
     Any,
-    Dict,
-    List,
-    Optional,
-    Type,
-    Union,
     no_type_check,
     TYPE_CHECKING,
 )
@@ -201,7 +196,7 @@ def _reload_module(import_path: str):
     importlib.reload(module)
 
 
-def _get_import_path(klass: Type):
+def _get_import_path(klass: type[Any]):
     import_path = f"{klass.__module__}.{klass.__name__}"
     return canonicalize_runtime_import_path(import_path)
 
@@ -213,7 +208,7 @@ def _get_trusted_runtimes_artifact_path() -> str:
 @lru_cache(maxsize=32)
 def _load_image_baked_allowed_model_implementations(
     artifact_path: str,
-) -> Optional[frozenset[str]]:
+) -> frozenset[str] | None:
     if not os.path.lexists(artifact_path):
         return None
     if not os.path.isfile(artifact_path):
@@ -306,34 +301,34 @@ class CORSSettings(BaseSettings):
         extra="ignore",
     )
 
-    allow_origins: Optional[List[str]] = []
+    allow_origins: list[str] | None = []
     """
     A list of origins that should be permitted to make
     cross-origin requests. E.g. ['https://example.org', 'https://www.example.org'].
     You can use ['*'] to allow any origin
     """
 
-    allow_origin_regex: Optional[str] = None
+    allow_origin_regex: str | None = None
     """
     A regex string to match against origins that
     should be permitted to make cross-origin requests.
     e.g. 'https:\\/\\/.*\\.example\\.org'
     """
 
-    allow_credentials: Optional[bool] = False
+    allow_credentials: bool | None = False
     """Indicate that cookies should be supported for cross-origin requests"""
 
-    allow_methods: Optional[List[str]] = ["GET"]
+    allow_methods: list[str] | None = ["GET"]
     """A list of HTTP methods that should be allowed for cross-origin requests"""
 
-    allow_headers: Optional[List[str]] = []
+    allow_headers: list[str] | None = []
     """A list of HTTP request headers that should be supported for
     cross-origin requests"""
 
-    expose_headers: Optional[List[str]] = []
+    expose_headers: list[str] | None = []
     """Indicate any response headers that should be made accessible to the browser"""
 
-    max_age: Optional[int] = 600
+    max_age: int | None = 600
     """Sets a maximum time in seconds for browsers to cache CORS responses"""
 
 
@@ -366,7 +361,7 @@ class Settings(BaseSettings):
     """
 
     # Custom model repository class implementation
-    model_repository_implementation: Optional[ImportString] = None
+    model_repository_implementation: ImportString | None = None
     """*Python path* to the inference runtime to model repository (e.g.
     ``mlserver.repository.repository.SchemalessModelRepository``)."""
 
@@ -388,7 +383,7 @@ class Settings(BaseSettings):
     server_version: str = __version__
     """Version of the server."""
 
-    extensions: List[str] = []
+    extensions: list[str] = []
     """Server extensions loaded."""
 
     # HTTP Server settings
@@ -404,14 +399,14 @@ class Settings(BaseSettings):
     grpc_port: int = 8081
     """Port where to listen for gRPC connections."""
 
-    grpc_max_message_length: Optional[int] = None
+    grpc_max_message_length: int | None = None
     """Maximum length (i.e. size) of gRPC payloads."""
 
     # CORS settings
-    cors_settings: Optional[CORSSettings] = None
+    cors_settings: CORSSettings | None = None
 
     # Metrics settings
-    metrics_endpoint: Optional[str] = "/metrics"
+    metrics_endpoint: str | None = "/metrics"
     """
     Endpoint used to expose Prometheus metrics. Alternatively, can be set to
     `None` to disable it.
@@ -440,7 +435,7 @@ class Settings(BaseSettings):
     # Logging settings
     use_structured_logging: bool = False
     """Use JSON-formatted structured logging instead of default format."""
-    logging_settings: Optional[Union[str, Dict]] = None
+    logging_settings: str | dict | None = None
     """Path to logging config file or dictionary configuration."""
 
     # Kafka Server settings
@@ -450,13 +445,13 @@ class Settings(BaseSettings):
     kafka_topic_output: str = "mlserver-output"
 
     # OpenTelemetry Tracing settings
-    tracing_server: Optional[str] = None
+    tracing_server: str | None = None
     """Server name used to export OpenTelemetry tracing to collector service."""
 
     # Custom server settings
-    _custom_rest_server_settings: Optional[dict] = None
-    _custom_metrics_server_settings: Optional[dict] = None
-    _custom_grpc_server_settings: Optional[dict] = None
+    _custom_rest_server_settings: dict | None = None
+    _custom_metrics_server_settings: dict | None = None
+    _custom_grpc_server_settings: dict | None = None
 
     cache_enabled: bool = False
     """Enable caching for the model predictions."""
@@ -510,36 +505,36 @@ class ModelParameters(BaseSettings):
         extra="allow",
     )
 
-    uri: Optional[str] = None
+    uri: str | None = None
     """
     URI where the model artifacts can be found.
     This path must be either absolute or relative to where MLServer is running.
     """
 
-    version: Optional[str] = None
+    version: str | None = None
     """Version of the model."""
 
-    environment_path: Optional[str] = None
+    environment_path: str | None = None
     """Path to a directory that contains the python environment to be used
     to load this model."""
 
-    environment_tarball: Optional[str] = None
+    environment_tarball: str | None = None
     """Path to the environment tarball which should be used to load this
     model."""
 
-    inference_pool_gid: Optional[str] = None
+    inference_pool_gid: str | None = None
     """Inference pool group id to be used to serve this model."""
 
     autogenerate_inference_pool_gid: bool = False
     """Flag to autogenerate the inference pool group id for this model."""
 
-    format: Optional[str] = None
+    format: str | None = None
     """Format of the model (only available on certain runtimes)."""
 
-    content_type: Optional[str] = None
+    content_type: str | None = None
     """Default content type to use for requests and responses."""
 
-    extra: Optional[dict] = {}
+    extra: dict | None = {}
     """Arbitrary settings, dependent on the inference runtime
     implementation."""
 
@@ -593,7 +588,7 @@ class ModelSettings(BaseSettings):
     )
 
     # Source points to the file where model settings were loaded from
-    _source: Optional[str] = None
+    _source: str | None = None
 
     def __init__(self, *args, **kwargs):
         # Ensure we still support inline init, e.g.
@@ -605,14 +600,14 @@ class ModelSettings(BaseSettings):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def parse_file(cls, path: str) -> "ModelSettings":  # type: ignore
+    def parse_file(cls, path: str) -> Self:  # type: ignore
         with open(path, "r") as f:
             obj = json.load(f)
             obj["_source"] = path
             return cls.model_validate(obj)
 
     @classmethod
-    def model_validate(cls, obj: Any) -> "ModelSettings":  # type: ignore
+    def model_validate(cls, obj: Any) -> Self:  # type: ignore
         source = obj.pop("_source", None)
         model_settings = super().model_validate(obj)
         if source:
@@ -640,7 +635,7 @@ class ModelSettings(BaseSettings):
     # `implementation_` as a private attr.
 
     @property
-    def implementation(self) -> Type["MLModel"]:
+    def implementation(self) -> type["MLModel"]:
         # Step 2 (defense in depth): validate again at access time in case
         # implementation_ was mutated programmatically after model validation.
         implementation = self.implementation_
@@ -674,7 +669,7 @@ class ModelSettings(BaseSettings):
         return import_string(implementation)  # type: ignore
 
     @implementation.setter
-    def implementation(self, value: Type["MLModel"]):
+    def implementation(self, value: type["MLModel"]):
         import_path = _get_import_path(value)
         import_path = canonicalize_runtime_import_path(import_path)
         _assert_trusted_runtime_import_path(import_path)
@@ -688,7 +683,7 @@ class ModelSettings(BaseSettings):
     )
 
     @property
-    def version(self) -> Optional[str]:
+    def version(self) -> str | None:
         params = self.parameters
         if params is not None:
             return params.version
@@ -701,18 +696,18 @@ class ModelSettings(BaseSettings):
     platform: str = ""
     """Framework used to train and serialise the model (e.g. sklearn)."""
 
-    versions: List[str] = []
+    versions: list[str] = []
     """Versions of dependencies used to train the model (e.g.
     sklearn/0.20.1)."""
 
-    inputs: List[MetadataTensor] = []
+    inputs: list[MetadataTensor] = []
     """Metadata about the inputs accepted by the model."""
 
-    outputs: List[MetadataTensor] = []
+    outputs: list[MetadataTensor] = []
     """Metadata about the outputs returned by the model."""
 
     # Parallel settings
-    parallel_workers: Optional[int] = Field(
+    parallel_workers: int | None = Field(
         None,
         deprecated=True,
         description=(
@@ -740,7 +735,7 @@ class ModelSettings(BaseSettings):
 
     # Model parameters are meant to be set directly by the MLServer runtime.
     # However, it's also possible to override them manually.
-    parameters: Optional[ModelParameters] = None
+    parameters: ModelParameters | None = None
     """Extra parameters for each instance of this model."""
 
     cache_enabled: bool = False

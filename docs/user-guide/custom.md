@@ -102,7 +102,7 @@ class MyCustomRuntime(MLModel):
     return True
 
   @decode_args
-  async def predict(self, questions: List[str], context: List[str]) -> np.ndarray:
+  async def predict(self, questions: list[str], context: list[str]) -> np.ndarray:
     # TODO: Replace for custom logic to run inference
     return self._model.predict(questions, context)
 ```
@@ -111,7 +111,7 @@ Note that, the method signature of our `predict` method now specifies:
 
 - The input names that we should be looking for in the request
   payload (i.e. `questions` and `context`).
-- The expected content type for each of the request inputs (i.e. `List[str]` on
+- The expected content type for each of the request inputs (i.e. `list[str]` on
   both cases).
 - The expected content type of the response outputs (i.e. `np.ndarray`).
 
@@ -322,11 +322,11 @@ as the main process. Consult the tables below for environment compatibility.
 | 🟢     | Supported    |
 | 🔵     | Untested     |
 
-| Worker Python \ Server Python | 3.9 | 3.10 | 3.11 |
-| ----------------------------- | --- | ---- | ---- |
-| 3.9                           | 🟢  | 🟢   | 🔵   |
-| 3.10                          | 🟢  | 🟢   | 🔵   |
-| 3.11                          | 🔵  | 🔵   | 🔵   |
+| Worker Python \ Server Python | 3.10 | 3.11 | 3.12 |
+| ----------------------------- | ---- | ---- | ---- |
+| 3.10                          | 🟢   | 🟢   | 🟢   |
+| 3.11                          | 🟢   | 🟢   | 🟢   |
+| 3.12                          | 🟢   | 🟢   | 🟢   |
 
 If we take the [previous example](#loading-a-custom-mlserver-runtime) above as
 a reference, we could extend it to include our custom environment as:
