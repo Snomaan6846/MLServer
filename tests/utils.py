@@ -1,15 +1,13 @@
 import asyncio
 import aiohttp
 import socket
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 import os
 
 from itertools import filterfalse
 from string import Template
 from asyncio import subprocess
-from typing import List, Tuple
-
 from aiohttp.client_exceptions import (
     ClientConnectorError,
     ClientConnectionResetError,
@@ -25,8 +23,8 @@ from mlserver.types import RepositoryIndexResponse, InferenceRequest, InferenceR
 TEST_TRUSTED_RUNTIMES_ARTIFACT_ENV = "MLSERVER_TEST_TRUSTED_RUNTIMES_ARTIFACT_PATH"
 
 
-def get_available_ports(n: int = 1) -> List[int]:
-    ports = set()
+def get_available_ports(n: int = 1) -> list[int]:
+    ports: set[int] = set()
 
     while len(ports) < n:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -75,7 +73,7 @@ def _is_python(dep: str) -> bool:
 
 
 def _inject_python_version(
-    version: Tuple[int, int],
+    version: tuple[int, int],
     env_yml: str,
     tarball_path: str,
 ) -> str:
@@ -95,7 +93,7 @@ def _inject_python_version(
     return new_env_yml
 
 
-async def _pack_with_venv(version: Tuple[int, int], req_txt: str, tarball_path: str):
+async def _pack_with_venv(version: tuple[int, int], req_txt: str, tarball_path: str):
     """
     Create a tarball of a Python environment using venv, pip, and tarfile.
     """
@@ -134,7 +132,7 @@ async def _pack_with_venv(version: Tuple[int, int], req_txt: str, tarball_path: 
             tar.add(venv_path, arcname=".")
 
 
-async def _pack_with_conda(version: Tuple[int, int], env_yml: str, tarball_path: str):
+async def _pack_with_conda(version: tuple[int, int], env_yml: str, tarball_path: str):
     """
     Create a tarball of a Python environment using conda and conda-pack.
     """
@@ -157,7 +155,7 @@ async def _pack_with_conda(version: Tuple[int, int], env_yml: str, tarball_path:
 
 
 async def _pack(
-    use_conda: bool, version: Tuple[int, int], source_file: str, tarball_path: str
+    use_conda: bool, version: tuple[int, int], source_file: str, tarball_path: str
 ):
     """
     Create an environment tarball.
@@ -171,7 +169,7 @@ async def _pack(
         await _pack_with_venv(version, source_file, tarball_path)
 
 
-def _get_tarball_name(version: Tuple[int, int]) -> str:
+def _get_tarball_name(version: tuple[int, int]) -> str:
     major, minor = version
     return f"environment-py{major}{minor}.tar.gz"
 
@@ -188,7 +186,7 @@ class RESTClient:
         retry_options = ExponentialRetry(
             attempts=10,
             start_timeout=0.5,
-            statuses=[400],
+            statuses={400},
             exceptions={
                 ClientConnectorError,
                 ClientConnectionResetError,

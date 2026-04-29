@@ -1,7 +1,7 @@
 import json
 import numpy as np
 
-from typing import Callable
+from collections.abc import Callable
 from functools import partial
 from mlserver.logging import logger
 from mlserver.settings import ModelSettings

@@ -2,7 +2,7 @@ import os
 import pytest
 
 from grpc import aio
-from typing import AsyncGenerator, Dict
+from collections.abc import AsyncGenerator
 from google.protobuf import json_format
 
 from mlserver.parallel import InferencePoolRegistry
@@ -32,7 +32,7 @@ def _read_testdata_pb(payload_path: str, pb_klass):
 @pytest.fixture
 async def model_registry(
     sum_model_settings: ModelSettings, inference_pool_registry: InferencePoolRegistry
-) -> MultiModelRegistry:
+) -> AsyncGenerator[MultiModelRegistry, None]:
     model_registry = MultiModelRegistry(
         on_model_load=[inference_pool_registry.load_model, load_batching],
         on_model_reload=[inference_pool_registry.reload_model],
@@ -73,7 +73,7 @@ def model_infer_request_invalid_datatype() -> pb.ModelInferRequest:
 
 
 @pytest.fixture
-def grpc_parameters() -> Dict[str, pb.InferParameter]:
+def grpc_parameters() -> dict[str, pb.InferParameter]:
     return {
         "content_type": pb.InferParameter(string_param="np"),
         "foo": pb.InferParameter(bool_param=True),
@@ -83,7 +83,7 @@ def grpc_parameters() -> Dict[str, pb.InferParameter]:
 
 @pytest.fixture
 def grpc_repository_index_request() -> pb.RepositoryIndexRequest:
-    return pb.RepositoryIndexRequest(ready=None)
+    return pb.RepositoryIndexRequest(ready=False)
 
 
 @pytest.fixture

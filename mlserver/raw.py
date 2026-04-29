@@ -2,7 +2,6 @@ import struct
 
 from functools import reduce
 from operator import mul
-from typing import List, Tuple
 from .types import Datatype, TensorData
 
 from .codecs.string import encode_str
@@ -27,7 +26,7 @@ _DatatypeToCtype = {
 _SizeFormat = "<I"
 
 
-def _tensor_length(shape: List[int]) -> int:
+def _tensor_length(shape: list[int]) -> int:
     return reduce(mul, shape, 1)
 
 
@@ -37,7 +36,7 @@ def _tensor_format(elem: InputOrOutput) -> str:
     return f"{size}{ctype}"
 
 
-def _unpack_bytes(raw: bytes) -> List[bytes]:
+def _unpack_bytes(raw: bytes) -> list[bytes]:
     """
     From Triton's implementation:
         https://github.com/triton-inference-server/client/blob/6cc412c50ca4282cec6e9f62b3c2781be433dcc6/src/python/library/tritonclient/utils/__init__.py#L246-L273
@@ -56,7 +55,7 @@ def _unpack_bytes(raw: bytes) -> List[bytes]:
     return elems
 
 
-def _pack_bytes(unpacked: List[ListElement]) -> bytes:
+def _pack_bytes(unpacked: list[ListElement]) -> bytes:
     packed = []
     for elem in unpacked:
         as_bytes = _ensure_bytes(elem)
@@ -103,8 +102,8 @@ def pack(elem: InputOrOutput) -> bytes:
 
 
 def inject_raw(
-    elems: List[InputOrOutput], raw_contents: List[bytes]
-) -> List[InputOrOutput]:
+    elems: list[InputOrOutput], raw_contents: list[bytes]
+) -> list[InputOrOutput]:
     raw_idx = 0
     for elem in elems:
         if not elem.data:
@@ -118,7 +117,7 @@ def inject_raw(
     return elems
 
 
-def extract_raw(elems: List[InputOrOutput]) -> Tuple[List[InputOrOutput], List[bytes]]:
+def extract_raw(elems: list[InputOrOutput]) -> tuple[list[InputOrOutput], list[bytes]]:
     raw_contents = []
     for elem in elems:
         raw = pack(elem)

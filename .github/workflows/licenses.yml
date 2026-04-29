@@ -22,7 +22,7 @@ jobs:
           virtualenvs-create: false
       - name: Install Dependencies
         run: |
-          poetry install --sync --only dev
+          poetry sync --only dev
       - name: Generate Licenses
         run: |
           make licenses

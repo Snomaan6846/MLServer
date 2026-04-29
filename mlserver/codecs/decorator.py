@@ -1,14 +1,9 @@
+import types
+from collections.abc import Callable, Coroutine
 from functools import wraps, partial
 from typing import (
     Any,
-    Callable,
-    Coroutine,
-    Dict,
-    List,
-    Optional,
     Union,
-    Type,
-    Tuple,
     get_origin,
     get_args,
     get_type_hints,
@@ -30,7 +25,7 @@ PredictFunc = Callable[
 ]
 
 
-def _as_list(a: Optional[Union[Any, Tuple[Any]]]) -> List[Any]:
+def _as_list(a: Any | tuple[Any] | None) -> list[Any]:
     if a is None:
         return []
 
@@ -46,7 +41,7 @@ def _as_list(a: Optional[Union[Any, Tuple[Any]]]) -> List[Any]:
     return [a]
 
 
-def _is_codec_type(c: Codec, t: Type) -> bool:
+def _is_codec_type(c: Codec, t: type) -> bool:
     if issubclass(c, t):  # type: ignore
         return True
 
@@ -60,13 +55,9 @@ _is_input_codec = partial(_is_codec_type, t=InputCodec)
 _is_request_codec = partial(_is_codec_type, t=RequestCodec)
 
 
-def _is_optional(t: Type) -> bool:
+def _is_optional(t: type[Any]) -> bool:
     origin = get_origin(t)
-    if origin == Optional:
-        return True
-
-    if origin == Union:
-        # Cover case where Optional[a] is reported as Union[a, None]
+    if origin in (Union, types.UnionType):
         args = get_args(t)
         if len(args) == 2 and type(None) in args:
             return True
@@ -74,7 +65,7 @@ def _is_optional(t: Type) -> bool:
     return False
 
 
-def _unwrap_optional(t: Type) -> Type:
+def _unwrap_optional(t: type[Any]) -> type[Any]:
     args = get_args(t)
     for arg in args:
         if not isinstance(arg, type(None)):
@@ -93,7 +84,7 @@ class SignatureCodec(RequestCodec):
         self._predict = predict
         self._input_codecs, self._output_codecs = self._get_codecs(predict)
 
-    def _get_codecs(self, pred: Callable) -> Tuple[Dict[str, Codec], List[Codec]]:
+    def _get_codecs(self, pred: Callable) -> tuple[dict[str, Codec], list[Codec]]:
         self._input_hints = self._get_type_hints(pred)
         self._output_hints = _as_list(self._input_hints.pop("return", None))
 
@@ -111,7 +102,7 @@ class SignatureCodec(RequestCodec):
 
         return input_codecs, output_codecs
 
-    def _get_type_hints(self, pred: Callable) -> Dict[str, Type]:
+    def _get_type_hints(self, pred: Callable) -> dict[str, type[Any]]:
         type_hints = get_type_hints(pred)
         # For us, `typing.Optional` is just syntactic sugar, so let's ensure we
         # unwrap it
@@ -122,7 +113,7 @@ class SignatureCodec(RequestCodec):
         return type_hints
 
     def _find_codec(
-        self, name: Optional[str], type_hint: Type, is_input: bool = False
+        self, name: str | None, type_hint: type[Any], is_input: bool = False
     ) -> Codec:
         codec = find_input_codec(type_hint=type_hint)
         if codec is not None:
@@ -136,7 +127,7 @@ class SignatureCodec(RequestCodec):
 
     def decode_request(  # type: ignore
         self, request: InferenceRequest
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         inputs = {}
         extra_request_inputs = []
         for request_input in request.inputs:
@@ -168,7 +159,7 @@ class SignatureCodec(RequestCodec):
 
         return inputs
 
-    def _get_request_codec(self) -> Optional[Tuple[str, RequestCodec]]:
+    def _get_request_codec(self) -> tuple[str, RequestCodec] | None:
         for name, codec in self._input_codecs.items():
             if _is_request_codec(codec):
                 return name, codec  # type: ignore
@@ -176,7 +167,7 @@ class SignatureCodec(RequestCodec):
         return None
 
     def encode_response(  # type: ignore
-        self, model_name: str, payload: Any, model_version: Optional[str] = None
+        self, model_name: str, payload: Any, model_version: str | None = None
     ) -> InferenceResponse:
         payloads = _as_list(payload)
         outputs = []
@@ -187,7 +178,7 @@ class SignatureCodec(RequestCodec):
             model_name=model_name, model_version=model_version, outputs=outputs
         )
 
-    def _encode_outputs(self, idx: int, payload: Any) -> List[ResponseOutput]:
+    def _encode_outputs(self, idx: int, payload: Any) -> list[ResponseOutput]:
         output_type = type(payload)
         if idx >= len(self._output_codecs):
             raise OutputNotFound(idx, output_type, self._output_hints)

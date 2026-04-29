@@ -1,4 +1,5 @@
-from typing import Optional, Type, Any, Dict, List, Union, Sequence
+from typing import Any
+from collections.abc import Sequence
 from mlserver.codecs.utils import (
     has_decoded,
     _save_decoded,
@@ -42,15 +43,15 @@ class MultiInputRequestCodec(RequestCodec):
     Huggingface codecs is prefered, then mlserver's
     """
 
-    DefaultCodec: Type["InputCodecTy"] = StringCodec
-    InputCodecsWithPriority: List[Type[InputCodecTy]] = []
+    DefaultCodec: type[InputCodecTy] = StringCodec
+    InputCodecsWithPriority: list[type[InputCodecTy]] = []
     ContentType = ""
 
     @classmethod
     def _find_encode_codecs(
-        cls, payload: Dict[str, Any]
-    ) -> Dict[str, Union[Type["InputCodecTy"], "InputCodecTy", None]]:
-        field_codec: Dict[str, Union[Type["InputCodecTy"], "InputCodecTy", None]] = {}
+        cls, payload: dict[str, Any]
+    ) -> dict[str, type[InputCodecTy] | InputCodecTy | None]:
+        field_codec: dict[str, type[InputCodecTy] | InputCodecTy | None] = {}
         for field, value in payload.items():
             for codec in cls.InputCodecsWithPriority:
                 if codec.can_encode(value):
@@ -63,11 +64,11 @@ class MultiInputRequestCodec(RequestCodec):
 
     @classmethod
     def _find_decode_codecs(
-        cls, data: Union[InferenceResponse, InferenceRequest]
-    ) -> Dict[str, Union[Type[InputCodecTy], InputCodecTy, None]]:
-        field_codec: Dict[str, Union[Type[InputCodecTy], InputCodecTy, None]] = {}
-        default_codec: Union[Type[InputCodecTy], InputCodecTy, None] = None
-        fields: Sequence[Union[RequestInput, ResponseOutput]] = []
+        cls, data: InferenceResponse | InferenceRequest
+    ) -> dict[str, type[InputCodecTy] | InputCodecTy | None]:
+        field_codec: dict[str, type[InputCodecTy] | InputCodecTy | None] = {}
+        default_codec: type[InputCodecTy] | InputCodecTy | None = None
+        fields: Sequence[RequestInput | ResponseOutput] = []
         if data.parameters and data.parameters.content_type:
             default_codec = find_input_codec(data.parameters.content_type)
         if default_codec is None:
@@ -91,12 +92,12 @@ class MultiInputRequestCodec(RequestCodec):
         return field_codec
 
     @classmethod
-    def _can_encode_request(cls, payload: Dict[str, Any]) -> bool:
+    def _can_encode_request(cls, payload: dict[str, Any]) -> bool:
         field_codecs = cls._find_encode_codecs(payload)
         return bool(all(field_codecs.values()))
 
     @classmethod
-    def can_encode(cls, payload: Dict[str, Any]) -> bool:
+    def can_encode(cls, payload: dict[str, Any]) -> bool:
         """
         Inputs always is Dict, Outputs always is list
         """
@@ -111,8 +112,8 @@ class MultiInputRequestCodec(RequestCodec):
     def encode_response(
         cls,
         model_name: str,
-        payload: List[Any],
-        model_version: Optional[str] = None,
+        payload: list[Any],
+        model_version: str | None = None,
         **kwargs,
     ) -> InferenceResponse:
         """
@@ -127,9 +128,7 @@ class MultiInputRequestCodec(RequestCodec):
         )
 
     @classmethod
-    def decode_response(
-        cls, response: InferenceResponse
-    ) -> Union[List[Any], Dict[Any, Any]]:
+    def decode_response(cls, response: InferenceResponse) -> list[Any] | dict[Any, Any]:
         data = {}
         is_list = True
         field_codecs = cls._find_decode_codecs(response)
@@ -149,7 +148,7 @@ class MultiInputRequestCodec(RequestCodec):
         return [data[key] for key in sorted(data)]
 
     @classmethod
-    def encode_request(cls, payload: Dict[str, Any], **kwargs) -> InferenceRequest:
+    def encode_request(cls, payload: dict[str, Any], **kwargs) -> InferenceRequest:
         field_codecs = cls._find_encode_codecs(payload)
         inputs = []
         for key, value in payload.items():
@@ -169,7 +168,7 @@ class MultiInputRequestCodec(RequestCodec):
         )
 
     @classmethod
-    def decode_request(cls, request: InferenceRequest) -> Dict[str, Any]:
+    def decode_request(cls, request: InferenceRequest) -> dict[str, Any]:
         values = {}
         field_codecs = cls._find_decode_codecs(request)
         for item in request.inputs:

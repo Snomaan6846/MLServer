@@ -4,7 +4,6 @@ import sys
 
 from logging import StreamHandler
 from pathlib import Path
-from typing import Optional, Dict, Union
 import logging.config
 
 from .context import model_name_var, model_version_var
@@ -21,7 +20,7 @@ def get_logger():
     return logger
 
 
-def apply_logging_file(logging_settings: Union[str, Dict]):
+def apply_logging_file(logging_settings: str | dict):
     if isinstance(logging_settings, str) and Path(logging_settings).is_file():
         if "json" in Path(logging_settings).suffix:
             with open(logging_settings) as settings_file:
@@ -31,7 +30,7 @@ def apply_logging_file(logging_settings: Union[str, Dict]):
             logging.config.fileConfig(
                 fname=logging_settings, disable_existing_loggers=False
             )
-    elif isinstance(logging_settings, Dict):
+    elif isinstance(logging_settings, dict):
         logging.config.dictConfig(logging_settings)
     else:
         logger.warning("Unable to parse logging_settings.")
@@ -46,7 +45,7 @@ class ModelLoggerFormatter(logging.Formatter):
         '"message": "%(message)s" %(model)s}'
     )
 
-    def __init__(self, settings: Optional[Settings]):
+    def __init__(self, settings: Settings | None):
         self.use_structured_logging = (
             settings is not None and settings.use_structured_logging
         )
@@ -87,16 +86,14 @@ class ModelLoggerFormatter(logging.Formatter):
         return super().format(record)
 
 
-def _find_handler(
-    logger: logging.Logger, handler_name: str
-) -> Optional[logging.Handler]:
+def _find_handler(logger: logging.Logger, handler_name: str) -> logging.Handler | None:
     for h in logger.handlers:
         if h.get_name() == handler_name:
             return h
     return None
 
 
-def configure_logger(settings: Optional[Settings] = None):
+def configure_logger(settings: Settings | None = None):
     logger = get_logger()
 
     # Don't add handler twice

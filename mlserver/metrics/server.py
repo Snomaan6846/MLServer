@@ -2,7 +2,7 @@ import uvicorn
 import os
 import signal
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
@@ -72,7 +72,7 @@ class MetricsServer:
 
         return uvicorn.Config(self._app, **kwargs)
 
-    async def stop(self, sig: Optional[int] = None):
+    async def stop(self, sig: int | None = None):
         if sig is None:
             # `sig` is no longer optional for `handle_exit` in
             # latest `uvicorn`

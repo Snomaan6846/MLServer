@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 from ..utils import insert_headers, extract_headers
 from ..types import InferenceRequest
 from ..handlers import DataPlane
@@ -34,7 +32,7 @@ class KafkaHandlers:
             inference_response.id, inference_response, response_headers
         )
 
-    def _get_model_details(self, request: KafkaMessage) -> Tuple[str, Optional[str]]:
+    def _get_model_details(self, request: KafkaMessage) -> tuple[str, str | None]:
         headers = request.headers
 
         # TODO: Update header with consistency with other headeres

@@ -1,7 +1,5 @@
 import pytest
 
-from typing import Optional
-
 from mlserver.settings import ModelSettings, ModelParameters
 from mlserver.context import model_context, model_name_var, model_version_var
 from .fixtures import SumModel
@@ -23,7 +21,7 @@ from .fixtures import SumModel
         ("foo", None, ""),
     ],
 )
-def test_model_context(name: str, version: Optional[str], expected_version: str):
+def test_model_context(name: str, version: str | None, expected_version: str):
     model_settings = ModelSettings(
         name=name, implementation=SumModel, parameters=ModelParameters(version=version)
     )

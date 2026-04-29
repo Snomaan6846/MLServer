@@ -1,7 +1,7 @@
-from typing import Union, Literal, Optional, Tuple, Dict, Any
 from pathlib import Path
 import joblib
 import numpy as np
+from typing import Any, Literal
 
 from alibi.api.interfaces import Explainer
 
@@ -15,10 +15,10 @@ from mlserver_alibi_explain.alibi_dependency_reference import get_alibi_class_as
 
 def train_explainer(
     explainer_tag: str,
-    save_dir: Optional[Path],
+    save_dir: Path | None,
     init_args: tuple,
     init_kwargs: dict,
-    fit: Union[np.ndarray, Literal[False, "no-data"]] = False,
+    fit: np.ndarray | Literal[False, "no-data"] = False,
 ) -> Explainer:
     """
     Train and save an explainer.
@@ -63,11 +63,11 @@ def build_test_case(
     explainer_type: str,
     init_kwargs: dict,
     explain_kwargs: dict,
-    fit: Union[np.ndarray, Literal[False, "no-data"]],
-    save_dir: Optional[Path],
+    fit: np.ndarray | Literal[False, "no-data"],
+    save_dir: Path | None,
     payload: np.ndarray,
     model_uri: str,
-) -> Tuple[ModelSettings, Explainer, InferenceRequest, dict]:
+) -> tuple[ModelSettings, Explainer, InferenceRequest, dict]:
     """
     Function to build a test case for a given explainer type. The function returns a
     model settings object, an explainer object, an inference request object and a
@@ -101,8 +101,8 @@ def build_test_case(
     )
 
     # Explainer model settings
-    model_params: Dict[str, Any] = {}
-    alibi_explain_settings: Dict[str, Any] = {
+    model_params: dict[str, Any] = {}
+    alibi_explain_settings: dict[str, Any] = {
         "explainer_type": explainer_type,
         "infer_uri": model_uri,
     }

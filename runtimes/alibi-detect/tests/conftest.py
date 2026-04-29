@@ -4,7 +4,7 @@ import asyncio
 import numpy as np
 import tensorflow as tf
 
-from typing import Iterable
+from collections.abc import Iterable
 from tensorflow.keras.layers import Dense, InputLayer
 from alibi_detect.cd import TabularDrift, CVMDriftOnline
 from alibi_detect.od import OutlierVAE

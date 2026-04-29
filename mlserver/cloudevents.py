@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Dict, Optional, Union
 
 from .settings import Settings, ModelSettings
 from .types import InferenceRequest, InferenceResponse, Parameters
@@ -23,7 +22,7 @@ class CloudEventsTypes(Enum):
     Response = "io.seldon.serving.inference.response"
 
 
-def get_namespace() -> Optional[str]:
+def get_namespace() -> str | None:
     try:
         # Namespace can be fetched from loaded file vars from k8s 1.15.3+
         with open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r") as f:
@@ -33,7 +32,7 @@ def get_namespace() -> Optional[str]:
 
 
 def _update_headers(
-    payload: Union[InferenceRequest, InferenceResponse], headers: Dict[str, str]
+    payload: InferenceRequest | InferenceResponse, headers: dict[str, str]
 ):
     if payload.parameters is None:
         payload.parameters = Parameters(headers=headers)
@@ -55,8 +54,8 @@ class CloudEventsMiddleware(InferenceMiddleware):
         self,
         ce_type: CloudEventsTypes,
         model_settings: ModelSettings,
-        ce_id: Optional[str],
-    ) -> Dict[str, str]:
+        ce_id: str | None,
+    ) -> dict[str, str]:
         source = f"io.seldon.serving.deployment.{self._settings.server_name}"
         if self._namespace:
             source = f"{source}.{self._namespace}"

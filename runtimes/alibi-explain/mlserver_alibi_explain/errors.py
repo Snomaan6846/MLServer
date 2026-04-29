@@ -1,7 +1,5 @@
 from mlserver.errors import MLServerError
 
-from typing import List, Union
-
 
 class RemoteInferenceError(MLServerError):
     def __init__(self, code: int, reason: str):
@@ -9,7 +7,7 @@ class RemoteInferenceError(MLServerError):
 
 
 class InvalidExplanationShape(MLServerError):
-    def __init__(self, shape: Union[List[int], int]):
+    def __init__(self, shape: list[int] | int):
         super().__init__(
             f"Expected a single element, but multiple were returned {shape}"
         )

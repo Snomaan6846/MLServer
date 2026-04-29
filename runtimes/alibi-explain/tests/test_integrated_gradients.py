@@ -1,6 +1,4 @@
 import json
-from typing import Tuple
-
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -32,7 +30,7 @@ def payload() -> InferenceRequest:
 
 
 @pytest.fixture()
-def alibi_integrated_gradients_model(tf_mnist_model_uri: str) -> Tuple:
+def alibi_integrated_gradients_model(tf_mnist_model_uri: str) -> tuple:
     inference_model = tf.keras.models.load_model(tf_mnist_model_uri)
     ig_model = IntegratedGradients(model=inference_model)
     return inference_model, ig_model

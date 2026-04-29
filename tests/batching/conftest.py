@@ -2,7 +2,7 @@ import os
 import pytest
 import random
 
-from typing import Callable, Tuple, Awaitable
+from collections.abc import Awaitable, Callable, Generator
 
 from mlserver.utils import generate_uuid
 from mlserver.types import InferenceRequest, TensorData
@@ -13,11 +13,13 @@ from mlserver.settings import ModelSettings
 
 from ..conftest import TESTDATA_PATH
 
-TestRequestSender = Callable[[], Awaitable[Tuple[str, InferenceRequest]]]
+RequestSender = Callable[[], Awaitable[tuple[str, InferenceRequest]]]
 
 
 @pytest.fixture(autouse=True)
-def sum_model_context(sum_model_settings: ModelSettings) -> ModelSettings:
+def sum_model_context(
+    sum_model_settings: ModelSettings,
+) -> Generator[ModelSettings, None, None]:
     with model_context(sum_model_settings):
         yield sum_model_settings
 
@@ -36,7 +38,7 @@ def adaptive_batcher(sum_model: MLModel) -> AdaptiveBatcher:
 @pytest.fixture
 def send_request(
     adaptive_batcher: AdaptiveBatcher, inference_request: InferenceRequest
-) -> TestRequestSender:
+) -> RequestSender:
     async def _send_request():
         # Change the UUID so that it's a new one
         pred_id = generate_uuid()

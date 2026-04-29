@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "mlserver_alibi_explain"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 mlserver = "*"
 mlserver_sklearn = "*"
 mlserver_xgboost = "*"

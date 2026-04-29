@@ -1,6 +1,6 @@
 import io
 import base64
-from typing import List, Any, Union
+from typing import Any
 from PIL import Image
 from mlserver.codecs.base import InputCodec, register_input_codec
 from mlserver.codecs.lists import as_list, is_list_of
@@ -8,7 +8,7 @@ from mlserver.types import RequestInput, ResponseOutput, Parameters
 from functools import partial
 
 
-def _pil_base64encode(img: "Image.Image", use_bytes: bool = False) -> Union[bytes, str]:
+def _pil_base64encode(img: "Image.Image", use_bytes: bool = False) -> bytes | str:
     buf = io.BytesIO()
     img.save(buf, format=img.format)
     if use_bytes:
@@ -16,7 +16,7 @@ def _pil_base64encode(img: "Image.Image", use_bytes: bool = False) -> Union[byte
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def _pil_base64decode(imgbytes: Union[bytes, str]) -> "Image.Image":
+def _pil_base64decode(imgbytes: bytes | str) -> "Image.Image":
     if isinstance(imgbytes, bytes):
         imgbytes = imgbytes.decode()
     buf = io.BytesIO(base64.b64decode(imgbytes))
@@ -30,7 +30,7 @@ class PILImageCodec(InputCodec):
     """
 
     ContentType = "pillow_image"
-    TypeHint = List[bytes]
+    TypeHint = list[bytes]
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -38,7 +38,7 @@ class PILImageCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: List[Image.Image], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[Image.Image], use_bytes: bool = True, **kwargs
     ) -> ResponseOutput:
         packed = map(partial(_pil_base64encode, use_bytes=use_bytes), payload)
         shape = [len(payload), 1]
@@ -53,13 +53,13 @@ class PILImageCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> List["Image.Image"]:
+    def decode_output(cls, response_output: ResponseOutput) -> list["Image.Image"]:
         packed = response_output.data.root
         return list(map(_pil_base64decode, as_list(packed)))
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: List[Image.Image], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[Image.Image], use_bytes: bool = True, **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name, payload, use_bytes)
         return RequestInput(
@@ -73,6 +73,6 @@ class PILImageCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List["Image.Image"]:
+    def decode_input(cls, request_input: RequestInput) -> list["Image.Image"]:
         packed = request_input.data.root
         return list(map(_pil_base64decode, as_list(packed)))

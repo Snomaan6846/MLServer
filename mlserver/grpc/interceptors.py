@@ -1,4 +1,4 @@
-from typing import Awaitable, AsyncIterator, Callable, Tuple, Optional
+from collections.abc import AsyncIterator, Awaitable, Callable
 from functools import partial
 from timeit import default_timer
 
@@ -55,7 +55,7 @@ class PromServerInterceptor(ServerInterceptor):
 
     def _metrics_wrapper(
         self,
-        method_call: Tuple[str, str, str],
+        method_call: tuple[str, str, str],
         behavior: RpcMethodHandler,
         request_streaming: bool,
         response_streaming: bool,
@@ -71,7 +71,7 @@ class PromServerInterceptor(ServerInterceptor):
 
         async def new_behavior(
             request: pb.ModelMetadataRequest, servicer_context: ServicerContext
-        ) -> Optional[pb.ModelMetadataRequest]:
+        ) -> pb.ModelMetadataRequest | None:
             response = None
             try:
                 start = default_timer()

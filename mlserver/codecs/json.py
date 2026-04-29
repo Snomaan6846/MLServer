@@ -2,7 +2,7 @@
 
 import json
 import numpy as np
-from typing import Any, List, Union
+from typing import Any
 
 try:
     import orjson
@@ -57,7 +57,7 @@ def encode_to_json_bytes(v: Any) -> bytes:
     return orjson.dumps(v, default=_encode_object_to_bytes)
 
 
-def decode_from_bytelike_json_to_dict(v: Union[bytes, str]) -> dict:
+def decode_from_bytelike_json_to_dict(v: bytes | str) -> dict:
     if orjson is None:
         return json.loads(v)
     return orjson.loads(v)
@@ -75,7 +75,7 @@ class JSONEncoderWithArray(json.JSONEncoder):
             return json.JSONEncoder.default(self, obj)
 
 
-def encode_to_json(v: Any, use_bytes: bool = True) -> Union[str, bytes]:
+def encode_to_json(v: Any, use_bytes: bool = True) -> str | bytes:
     enc_v = json.dumps(
         v,
         ensure_ascii=False,
@@ -89,7 +89,7 @@ def encode_to_json(v: Any, use_bytes: bool = True) -> Union[str, bytes]:
     return enc_v
 
 
-def decode_json_input_or_output(input_or_output: InputOrOutput) -> List[Any]:
+def decode_json_input_or_output(input_or_output: InputOrOutput) -> list[Any]:
     packed = input_or_output.data.root
     unpacked = map(json.loads, as_list(packed))
     return list(unpacked)

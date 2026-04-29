@@ -21,7 +21,7 @@ from .utils import (
 from ..utils import insert_headers, extract_headers
 from ..handlers import DataPlane, ModelRepositoryHandlers
 from ..types import InferenceResponse, InferenceRequest
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 
 class InferenceServicer(GRPCInferenceServiceServicer):

@@ -2,7 +2,7 @@ import asyncio
 
 from contextlib import nullcontext
 from multiprocessing import Queue
-from typing import Awaitable, Callable, Dict, Optional, List, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 
 from ..model import MLModel
 from ..types import InferenceRequest, InferenceResponse
@@ -28,7 +28,7 @@ InferencePoolHook = Callable[[Worker], Awaitable[None]]
 def _spawn_worker(
     settings: Settings,
     responses: Queue,
-    env: Optional[Environment],
+    env: Environment | None,
 ) -> Worker:
     with env or nullcontext():
         worker = Worker(settings, responses, env)
@@ -44,7 +44,7 @@ class WorkerRegistry:
     """
 
     def __init__(self) -> None:
-        self._models: Dict[str, ModelSettings] = {}
+        self._models: dict[str, ModelSettings] = {}
 
     def _key(self, model_settings: ModelSettings) -> str:
         return f"{model_settings.name}-{model_settings.version}"
@@ -80,14 +80,14 @@ class InferencePool:
     def __init__(
         self,
         settings: Settings,
-        env: Optional[Environment] = None,
-        on_worker_stop: List[InferencePoolHook] = [],
+        env: Environment | None = None,
+        on_worker_stop: list[InferencePoolHook] = [],
     ):
         configure_inference_pool(settings)
 
         self._on_worker_stop = on_worker_stop
         self._env = env
-        self._workers: Dict[int, Worker] = {}
+        self._workers: dict[int, Worker] = {}
         self._worker_registry = WorkerRegistry()
         self._settings = settings
         self._responses: Queue[ModelResponseMessage] = Queue()
@@ -99,7 +99,7 @@ class InferencePool:
         self._dispatcher.start()
 
     @property
-    def env_hash(self) -> Optional[str]:
+    def env_hash(self) -> str | None:
         if not self._env:
             return None
 

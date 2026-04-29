@@ -2,7 +2,7 @@ import asyncio
 import functools
 import json
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Optional, Dict
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -102,7 +102,7 @@ class AlibiExplainRuntimeBase(MLModel):
         return module.split(".")[-1]
 
     async def _async_explain_impl(
-        self, input_data: Any, settings: Optional[Parameters]
+        self, input_data: Any, settings: Parameters | None
     ) -> ResponseOutput:
         explain_parameters = dict()
         if settings is not None:
@@ -124,7 +124,7 @@ class AlibiExplainRuntimeBase(MLModel):
 
     async def _load_from_uri(self, predictor: Any) -> Explainer:
         """Load the explainer from disk, and pass the predictor"""
-        model_parameters: Optional[ModelParameters] = self.settings.parameters
+        model_parameters: ModelParameters | None = self.settings.parameters
         if model_parameters is None:
             raise ModelParametersMissing(self.name)
         absolute_uri = await get_model_uri(self.settings)
@@ -135,7 +135,7 @@ class AlibiExplainRuntimeBase(MLModel):
         load_call = functools.partial(load_explainer, path=path, predictor=predictor)
         return await loop.run_in_executor(self._executor, load_call)
 
-    def _explain_impl(self, input_data: Any, explain_parameters: Dict) -> Explanation:
+    def _explain_impl(self, input_data: Any, explain_parameters: dict) -> Explanation:
         """Actual explain to be implemented by subclasses"""
         raise NotImplementedError
 

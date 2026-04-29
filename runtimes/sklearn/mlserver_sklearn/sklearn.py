@@ -1,6 +1,5 @@
 import joblib
 
-from typing import List
 from sklearn.pipeline import Pipeline
 
 from mlserver.codecs import NumpyCodec, NumpyRequestCodec, PandasCodec
@@ -90,7 +89,7 @@ class SKLearnModel(MLModel):
 
         return payload
 
-    def _get_model_outputs(self, payload: InferenceRequest) -> List[ResponseOutput]:
+    def _get_model_outputs(self, payload: InferenceRequest) -> list[ResponseOutput]:
         decoded_request = self.decode_request(payload, default_codec=NumpyRequestCodec)
 
         outputs = []

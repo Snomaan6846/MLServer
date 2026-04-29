@@ -1,7 +1,5 @@
 from pytest_cases import fixture, parametrize_with_cases
 
-from typing import Tuple
-
 from transformers.pipelines.text_generation import TextGenerationPipeline
 from transformers.pipelines.question_answering import QuestionAnsweringPipeline
 from transformers.pipelines import Pipeline
@@ -17,7 +15,7 @@ from mlserver.types import (
 )
 from mlserver_huggingface import HuggingFaceRuntime
 
-test_inputs_outputs = Tuple[
+test_inputs_outputs = tuple[
     HuggingFaceRuntime,
     InferenceRequest,
     InferenceResponse,

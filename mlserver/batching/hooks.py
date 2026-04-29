@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Awaitable, Callable, Optional, AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 from ..errors import MLServerError
 from ..model import MLModel
@@ -12,7 +12,7 @@ _AdaptiveBatchingAttr = "__adaptive_batching__"
 
 
 class InvalidBatchingMethod(MLServerError):
-    def __init__(self, method_name: str, reason: Optional[str] = None):
+    def __init__(self, method_name: str, reason: str | None = None):
         msg = f"Method {method_name} can't be used for adaptive batching"
         if reason:
             msg += f": {reason}"

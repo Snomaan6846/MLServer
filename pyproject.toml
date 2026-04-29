@@ -43,7 +43,7 @@ asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 click = "*"
 fastapi = ">=0.88.0,!=0.89.0,<0.116.0"
 python-dotenv = "*"
@@ -67,10 +67,6 @@ pydantic = "^2.7.1"
 pydantic-settings = "^2.3.0"
 python-multipart = "*"
 
-## The importlib-resources backport is required to use some
-## functionality added in Python 3.10
-## https://setuptools.pypa.io/en/latest/userguide/datafiles.html#accessing-data-files-at-runtime
-importlib-resources = ">=5.12,<7.0"
 opentelemetry-sdk = "^1.22.0"
 opentelemetry-instrumentation-fastapi = ">=0.43b0"
 opentelemetry-instrumentation-grpc = ">=0.43b0"
@@ -80,7 +76,7 @@ opentelemetry-exporter-otlp-proto-grpc = "^1.22.0"
 tox = "4.16.0"
 
 [tool.poetry.group.dev.dependencies]
-datamodel-code-generator = "0.26.0"
+datamodel-code-generator = "0.56.0"
 grpcio-tools = ">=1.67.1"
 pytest = "7.4.4"
 pytest-asyncio = "0.21.1"
@@ -100,7 +96,7 @@ conda-pack = "0.7.1"
 flake8 = "7.0.0"
 flake8-black = "0.3.6"
 mypy = "1.11.2"
-mypy-protobuf = "3.1.0"
+mypy-protobuf = "3.6.0"
 types-protobuf = "5.26.0.20240422"
 types-orjson = "3.6.2"
 types-aiofiles = "24.1.0.20250516"

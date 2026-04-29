@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import alibi.explainers.anchors.anchor_tabular
@@ -147,7 +147,7 @@ async def test_explain_parameters_pass_through():
 
     class _DummyExplainer(AlibiExplainRuntimeBase):
         def _explain_impl(
-            self, input_data: Any, explain_parameters: Dict
+            self, input_data: Any, explain_parameters: dict
         ) -> Explanation:
             assert explain_parameters == params
             assert_array_equal(input_data, data_np)

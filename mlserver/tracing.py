@@ -1,5 +1,3 @@
-from typing import Optional
-
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
 from opentelemetry.sdk.trace import TracerProvider
@@ -8,7 +6,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from mlserver.settings import Settings
 
 
-_TRACER_PROVIDER: Optional[TracerProvider] = None
+_TRACER_PROVIDER: TracerProvider | None = None
 
 
 def _create_resource(settings: Settings) -> Resource:

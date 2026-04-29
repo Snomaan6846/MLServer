@@ -1,7 +1,7 @@
 import asyncio
 
 from collections import defaultdict
-from typing import Dict, List, Tuple, Set, Iterator
+from collections.abc import Iterator
 from itertools import cycle
 from multiprocessing import Queue
 from concurrent.futures import ThreadPoolExecutor
@@ -27,14 +27,14 @@ QUEUE_METRIC_NAME = "parallel_request_queue"
 
 class AsyncResponses:
     def __init__(self) -> None:
-        self._futures: Dict[str, Future[ModelResponseMessage]] = {}
+        self._futures: dict[str, Future[ModelResponseMessage]] = {}
 
         # _workers_map keeps track of which in-flight requests are being served
         # by each worker
-        self._workers_map: Dict[int, Set[str]] = defaultdict(set)
+        self._workers_map: dict[int, set[str]] = defaultdict(set)
         # _futures_map keeps track of which worker is serving each in-flight
         # request
-        self._futures_map: Dict[str, int] = {}
+        self._futures_map: dict[str, int] = {}
 
         self.parallel_request_queue_size = self._get_or_create_metric()
 
@@ -130,7 +130,7 @@ class AsyncResponses:
 
 
 class Dispatcher:
-    def __init__(self, workers: Dict[int, Worker], responses: Queue):
+    def __init__(self, workers: dict[int, Worker], responses: Queue):
         self._responses = responses
         self._workers = workers
         self._workers_round_robin = self._reset_round_robin()
@@ -214,7 +214,7 @@ class Dispatcher:
 
         return await self._async_responses.schedule_and_wait(request_message, worker)
 
-    def _get_worker(self) -> Tuple[Worker, int]:
+    def _get_worker(self) -> tuple[Worker, int]:
         """
         Get next available worker.
         By default, this is just a round-robin through all the workers.
@@ -224,7 +224,7 @@ class Dispatcher:
 
     async def dispatch_update(
         self, model_update: ModelUpdateMessage
-    ) -> List[ModelResponseMessage]:
+    ) -> list[ModelResponseMessage]:
         async with self._worker_starting_lock:
             return await asyncio.gather(
                 *[

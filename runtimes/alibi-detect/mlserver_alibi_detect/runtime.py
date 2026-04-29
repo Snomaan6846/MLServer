@@ -2,7 +2,6 @@ import os
 import numpy as np
 
 from pydantic import ValidationError
-from typing import Optional, List, Dict
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import cached_property
@@ -38,7 +37,7 @@ class AlibiDetectSettings(BaseSettings):
     Keyword parameters to pass to the detector's `predict` method.
     """
 
-    batch_size: Optional[int] = None
+    batch_size: int | None = None
     """
     Run the detector after accumulating a batch of size `batch_size`.
     Note that this is different to MLServer's adaptive batching, since the rest
@@ -46,7 +45,7 @@ class AlibiDetectSettings(BaseSettings):
     inference runs for all of them).
     """
 
-    state_save_freq: Optional[int] = Field(100, gt=0)
+    state_save_freq: int | None = Field(100, gt=0)
     """
     Save the detector state after every `state_save_freq` predictions.
     Only applicable to detectors with a `save_state` method.
@@ -65,7 +64,7 @@ class AlibiDetectRuntime(MLModel):
             extra = settings.parameters.extra
             self._ad_settings = AlibiDetectSettings(**extra)  # type: ignore
 
-        self._batch: List[InferenceRequest] = []
+        self._batch: list[InferenceRequest] = []
         super().__init__(settings)
 
     async def load(self) -> bool:
@@ -178,7 +177,7 @@ class AlibiDetectRuntime(MLModel):
         )
 
     @staticmethod
-    def _postproc_pred(pred: List[dict]) -> dict:
+    def _postproc_pred(pred: list[dict]) -> dict:
         """
         Postprocess the detector's prediction(s) to return a single results dictionary.
 
@@ -188,7 +187,7 @@ class AlibiDetectRuntime(MLModel):
         length N list of results dictionaries, which are merged into a single
         dictionary containing data lists of length N.
         """
-        data: Dict[str, list] = {key: [] for key in pred[0]["data"].keys()}
+        data: dict[str, list] = {key: [] for key in pred[0]["data"].keys()}
         for i, pred_i in enumerate(pred):
             for key in data:
                 data[key].append(pred_i["data"][key])

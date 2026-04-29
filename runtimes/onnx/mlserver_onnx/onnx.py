@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-
 import onnx
 import numpy as np
 import onnxruntime as ort
@@ -38,7 +36,7 @@ class OnnxModel(MLModel):
     inputs by name.
     """
 
-    _onnx_settings: Optional[OnnxSettings] = None
+    _onnx_settings: OnnxSettings | None = None
 
     def __init__(self, settings: ModelSettings):
         super().__init__(settings)
@@ -141,7 +139,7 @@ class OnnxModel(MLModel):
 
         return payload
 
-    def _prepare_inputs(self, payload: InferenceRequest) -> Dict[str, np.ndarray]:
+    def _prepare_inputs(self, payload: InferenceRequest) -> dict[str, np.ndarray]:
         """
         Decode request inputs and map them to ONNX model input names.
 
@@ -176,7 +174,7 @@ class OnnxModel(MLModel):
 
         return input_dict
 
-    def _get_model_outputs(self, payload: InferenceRequest) -> List[ResponseOutput]:
+    def _get_model_outputs(self, payload: InferenceRequest) -> list[ResponseOutput]:
         """
         Run ONNX inference and return encoded response outputs.
 
@@ -193,7 +191,7 @@ class OnnxModel(MLModel):
             raise InferenceError("ONNX model has no outputs")
 
         input_dict = self._prepare_inputs(payload)
-        requested_output_names: List[str] = []
+        requested_output_names: list[str] = []
         output_name_map = {}
 
         for request_output in payload.outputs:  # type: ignore

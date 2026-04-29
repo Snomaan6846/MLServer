@@ -1,7 +1,7 @@
 import base64
 import binascii
 
-from typing import Any, List, Union
+from typing import Any
 from functools import partial
 
 from ..types import RequestInput, ResponseOutput, Parameters
@@ -19,7 +19,7 @@ def _ensure_bytes(elem: ListElement) -> bytes:
     return elem
 
 
-def _encode_base64(elem: ListElement, use_bytes: bool) -> Union[bytes, str]:
+def _encode_base64(elem: ListElement, use_bytes: bool) -> bytes | str:
     as_bytes = _ensure_bytes(elem)
     b64_encoded = base64.b64encode(as_bytes)
     if use_bytes:
@@ -46,7 +46,7 @@ class Base64Codec(InputCodec):
     """
 
     ContentType = "base64"
-    TypeHint = List[bytes]
+    TypeHint = list[bytes]
 
     @classmethod
     def can_encode(cls, payload: Any) -> bool:
@@ -54,7 +54,7 @@ class Base64Codec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: List[bytes], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[bytes], use_bytes: bool = True, **kwargs
     ) -> ResponseOutput:
         # Assume that payload is already in b64, so we only need to pack it
         packed = map(partial(_encode_base64, use_bytes=use_bytes), payload)
@@ -68,14 +68,14 @@ class Base64Codec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> List[bytes]:
+    def decode_output(cls, response_output: ResponseOutput) -> list[bytes]:
         packed = response_output.data.root
 
         return list(map(_decode_base64, as_list(packed)))
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: List[bytes], use_bytes: bool = True, **kwargs
+        cls, name: str, payload: list[bytes], use_bytes: bool = True, **kwargs
     ) -> RequestInput:
         # Assume that payload is already in b64, so we only need to pack it
         output = cls.encode_output(name, payload, use_bytes)
@@ -88,7 +88,7 @@ class Base64Codec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> List[bytes]:
+    def decode_input(cls, request_input: RequestInput) -> list[bytes]:
         packed = request_input.data.root
 
         return list(map(_decode_base64, as_list(packed)))

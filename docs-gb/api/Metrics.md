@@ -19,7 +19,7 @@ start()
 ### stop()
 
 ```python
-stop(sig: Optional[int] = None)
+stop(sig: int | None = None)
 ```
 
 ## configure_metrics()

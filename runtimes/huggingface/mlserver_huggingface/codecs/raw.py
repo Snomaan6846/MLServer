@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 from mlserver.types import RequestInput, ResponseOutput, Parameters
 from mlserver.codecs.base import InputCodec, register_input_codec
 
@@ -21,7 +21,7 @@ class RawCodec(InputCodec):
 
     @classmethod
     def encode_output(
-        cls, name: str, payload: Union[int, str, float], **kwargs
+        cls, name: str, payload: int | str | float, **kwargs
     ) -> ResponseOutput:
         return ResponseOutput(
             name=name,
@@ -32,12 +32,12 @@ class RawCodec(InputCodec):
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> Union[int, str, float]:
+    def decode_output(cls, response_output: ResponseOutput) -> int | str | float:
         return cls.decode_input(response_output)  # type: ignore
 
     @classmethod
     def encode_input(
-        cls, name: str, payload: Union[int, str, float], **kwargs
+        cls, name: str, payload: int | str | float, **kwargs
     ) -> RequestInput:
         output = cls.encode_output(name=name, payload=payload)
 
@@ -50,5 +50,5 @@ class RawCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> Union[int, str, float]:
+    def decode_input(cls, request_input: RequestInput) -> int | str | float:
         return request_input.data[0]

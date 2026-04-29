@@ -7,7 +7,6 @@ from tenacity import (
     wait_fixed,
     retry_if_result,
 )
-from typing import List
 from aiokafka import AIOKafkaClient
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
@@ -33,12 +32,12 @@ def _is_false(v: bool) -> bool:
 @retry(
     stop=stop_after_attempt(5), wait=wait_fixed(0.5), retry=retry_if_result(_is_false)
 )
-async def _check_topics(admin_client: KafkaAdminClient, topics: List[str]) -> bool:
+async def _check_topics(admin_client: KafkaAdminClient, topics: list[str]) -> bool:
     existing_topics = admin_client.list_topics()
     return all([topic in existing_topics for topic in topics])
 
 
-async def create_test_topics(admin_client: KafkaAdminClient, topics: List[str]):
+async def create_test_topics(admin_client: KafkaAdminClient, topics: list[str]):
     logger.debug(f"Creating topics {topics} ...")
 
     new_topics = [

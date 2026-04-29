@@ -43,6 +43,7 @@ async def test_on_worker_stop(
     prev_workers = list(inference_pool._workers.values())
     stopped_worker = prev_workers[0]
 
+    assert stopped_worker.pid is not None
     await inference_pool.on_worker_stop(stopped_worker.pid, 23)
     await stopped_worker.stop()
 

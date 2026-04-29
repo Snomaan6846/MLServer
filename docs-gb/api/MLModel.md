@@ -8,7 +8,7 @@ with ML models.
 ### decode()
 
 ```python
-decode(request_input: RequestInput, default_codec: Union[type[ForwardRef('InputCodec')], ForwardRef('InputCodec'), None] = None) -> Any
+decode(request_input: RequestInput, default_codec: type[ForwardRef('InputCodec')] | ForwardRef('InputCodec') | None = None) -> Any
 ```
 
 Helper to decode a **request input** into its corresponding high-level
@@ -22,7 +22,7 @@ Otherwise, it will fall back to the codec specified in the
 ### decode_request()
 
 ```python
-decode_request(inference_request: InferenceRequest, default_codec: Union[type[ForwardRef('RequestCodec')], ForwardRef('RequestCodec'), None] = None) -> Any
+decode_request(inference_request: InferenceRequest, default_codec: type[ForwardRef('RequestCodec')] | ForwardRef('RequestCodec') | None = None) -> Any
 ```
 
 Helper to decode an **inference request** into its corresponding
@@ -36,7 +36,7 @@ Otherwise, it will fall back to the codec specified in the
 ### encode()
 
 ```python
-encode(payload: Any, request_output: RequestOutput, default_codec: Union[type[ForwardRef('InputCodec')], ForwardRef('InputCodec'), None] = None) -> ResponseOutput
+encode(payload: Any, request_output: RequestOutput, default_codec: type[ForwardRef('InputCodec')] | ForwardRef('InputCodec') | None = None) -> ResponseOutput
 ```
 
 Helper to encode a high-level Python object into its corresponding
@@ -50,7 +50,7 @@ Otherwise, it will fall back to the codec specified in the
 ### encode_response()
 
 ```python
-encode_response(payload: Any, default_codec: Union[type[ForwardRef('RequestCodec')], ForwardRef('RequestCodec'), None] = None) -> InferenceResponse
+encode_response(payload: Any, default_codec: type[ForwardRef('RequestCodec')] | ForwardRef('RequestCodec') | None = None) -> InferenceResponse
 ```
 
 Helper to encode a high-level Python object into its corresponding
