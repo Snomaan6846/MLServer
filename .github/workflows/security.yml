@@ -71,7 +71,7 @@ jobs:
         run: |
           DOCKER_BUILDKIT=1 docker build . \
             --build-arg RUNTIMES=all \
-            -t $MLSERVER_IMAGE
+            -t "$MLSERVER_IMAGE"
         env:
           MLSERVER_IMAGE: quay.io/opendatahub/mlserver:${{ github.sha }}
       - name: Scan Docker Image

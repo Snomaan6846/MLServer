@@ -37,12 +37,12 @@ jobs:
             echo "Error: tag name and next tag name must be different (both are: $TAG_NAME)"
             exit 1
           fi
-          if [[ ! "$TAG_NAME" =~ ^odh-v[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: tag name format invalid: $TAG_NAME (expected format: odh-vX.Y, e.g., odh-v2.35)"
+          if [[ ! "$TAG_NAME" =~ ^odh-v[0-9]+\.[0-9]+(-EA[0-9]+)?$ ]]; then
+            echo "Error: tag name format invalid: $TAG_NAME (expected format: odh-vX.Y or odh-vX.Y-EAN, e.g., odh-v2.35 or odh-v3.5-EA1)"
             exit 1
           fi
-          if [[ ! "$NEXT_TAG_NAME" =~ ^odh-v[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: next tag name format invalid: $NEXT_TAG_NAME (expected format: odh-vX.Y, e.g., odh-v2.36)"
+          if [[ ! "$NEXT_TAG_NAME" =~ ^odh-v[0-9]+\.[0-9]+(-EA[0-9]+)?$ ]]; then
+            echo "Error: next tag name format invalid: $NEXT_TAG_NAME (expected format: odh-vX.Y or odh-vX.Y-EAN, e.g., odh-v2.36 or odh-v3.6-EA1)"
             exit 1
           fi   
       - name: Checkout code
@@ -107,8 +107,8 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "Release Bot"
-          git tag -a $TAG_NAME -m "Release $TAG_NAME"
-          git push origin $TAG_NAME
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
   
   bump-tag: 
     runs-on: ubuntu-latest
@@ -122,7 +122,10 @@ jobs:
         run: |
           echo "Updating mlserver image tag from $TAG_NAME to $NEXT_TAG_NAME in .tekton/mlserver-push.yaml..."
 
-          sed -i "s|mlserver:$TAG_NAME|mlserver:$NEXT_TAG_NAME|g" .tekton/mlserver-push.yaml
+          # Escape special characters for sed
+          TAG_NAME_ESCAPED=$(printf '%s\n' "$TAG_NAME" | sed 's:[][\/.^$*]:\\&:g')
+          NEXT_TAG_NAME_ESCAPED=$(printf '%s\n' "$NEXT_TAG_NAME" | sed 's:[][\/.^$*]:\\&:g')
+          sed -i "s|mlserver:${TAG_NAME_ESCAPED}|mlserver:${NEXT_TAG_NAME_ESCAPED}|g" .tekton/mlserver-push.yaml
 
           echo "Update complete."
       - name: Create Pull Request

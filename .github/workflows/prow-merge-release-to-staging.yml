@@ -54,7 +54,7 @@ jobs:
 
           # Fetch both branch tips used throughout validation and merge.
           git fetch origin "$TARGET_BRANCH"
-          git fetch origin $RELEASE_BRANCH
+          git fetch origin "$RELEASE_BRANCH"
 
           # Fail early with clear logs if expected refs are missing.
           if ! git rev-parse --verify "origin/$TARGET_BRANCH" >/dev/null 2>&1; then
