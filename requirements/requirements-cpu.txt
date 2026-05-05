@@ -1,4 +1,4 @@
---index-url=https://packages.redhat.com/api/pypi/public-rhai/rhoai/3.5-EA1/cpu-ubi9-test/simple/
+--index-url=https://packages.redhat.com/api/pypi/public-rhai/rhoai/3.5-EA1/cpu-ubi9/simple/
 
 mlserver==1.7.1+rhaiv.8 \
     --hash=sha256:771680dcfc3efe4c735ddff1428507c6bcee1fc55e3065705184312036c72d9f
