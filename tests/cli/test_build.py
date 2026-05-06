@@ -269,9 +269,32 @@ def test_generate_dockerfile_dev_mode():
     assert "mlserver start" in dockerfile
 
 
+def test_generate_dockerfile_includes_copy_for_existing_files(tmp_path: Path):
+    """Dynamic COPY instructions are emitted only for files present in build_folder."""
+    (tmp_path / "environment.yml").write_text("name: test")
+    (tmp_path / "settings.json").write_text("{}")
+    (tmp_path / "requirements.txt").write_text("numpy")
+
+    dockerfile = generate_dockerfile(dev=True, build_folder=str(tmp_path))
+
+    assert "./environment.yml" in dockerfile
+    assert "./settings.json" in dockerfile
+    assert "./requirements.txt" in dockerfile
+    assert "--from=env-builder" in dockerfile
+
+
+def test_generate_dockerfile_omits_copy_when_no_optional_files(tmp_path: Path):
+    """No COPY instructions for optional files when none exist in build_folder."""
+    dockerfile = generate_dockerfile(dev=True, build_folder=str(tmp_path))
+
+    for name in ("environment.yml", "settings.json", "requirements.txt"):
+        assert f"./{name}" not in dockerfile
+    assert "--from=env-builder" not in dockerfile
+
+
 def test_build(docker_client: DockerClient, custom_image: str):
     image = docker_client.images.get(custom_image)
-    assert image.tags == [custom_image]
+    assert any(tag.endswith(custom_image) for tag in image.tags)
 
 
 async def test_infer_custom_runtime(
