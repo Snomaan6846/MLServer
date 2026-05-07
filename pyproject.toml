@@ -110,6 +110,15 @@ httpx-sse = ">=0.3.1,<0.5.0"
 [tool.poetry.group.docker.dependencies]
 tensorflow = "^2.16"
 
+[tool.poetry.group.odh-runtimes]
+optional = true
+
+[tool.poetry.group.odh-runtimes.dependencies]
+mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
+mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
+mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+
 [tool.poetry.group.all-runtimes]
 optional = true
 

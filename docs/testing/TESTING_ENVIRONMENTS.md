@@ -152,6 +152,16 @@ MLServer provides four tox environments:
 | Environment variable | `USE_CONDA=false` | `USE_CONDA=true` | `USE_CONDA=false` | `USE_CONDA=true` |
 | Tox command | `poetry run tox -e mlserver-venv` | `poetry run tox -e mlserver-conda` | `poetry run tox -e all-runtimes-venv` | `poetry run tox -e all-runtimes-conda` |
 
+### Dependency Groups
+
+The project defines separate Poetry dependency groups for runtime packages:
+
+| Group | Runtimes | Purpose |
+|-------|----------|---------|
+| `odh-runtimes` | sklearn, xgboost, lightgbm, onnx | ODH-shipped runtimes used for production builds and constraints |
+| `all-runtimes` | All of the above + mlflow, huggingface, alibi-explain, alibi-detect, catboost | Full upstream set used for testing |
+| `all-runtimes-dev` | torch, mlflow, transformers, etc. | Dev dependencies required by upstream runtimes |
+
 ---
 
 ## How It Works

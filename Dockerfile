@@ -35,7 +35,7 @@ RUN microdnf update -y && \
 RUN pip install poetry==$POETRY_VERSION && \
     pip install poetry-plugin-export && \
     ./hack/build-wheels.sh /opt/mlserver/dist "$RUNTIMES" && \
-    poetry export --with all-runtimes \
+    poetry export --with odh-runtimes \
         --without-hashes \
         --format constraints.txt \
         -o /opt/mlserver/dist/constraints.txt
