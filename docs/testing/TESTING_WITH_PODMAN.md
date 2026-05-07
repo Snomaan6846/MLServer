@@ -1,6 +1,6 @@
 # Testing with Podman Instead of Docker
 
-This guide explains how to run MLServer's Docker-dependent tests for ODH supported functionality using Podman as a Docker replacement.
+This guide explains how to run MLServer's Docker-dependent tests using Podman as a Docker replacement.
 
 ## Prerequisites
 
@@ -59,17 +59,31 @@ source ~/.bashrc
 
 Once the setup is complete, you can run Docker-dependent tests normally:
 
-### Kafka Tests
+### Individual Test Suites
 
 ```bash
-poetry run python -m pytest tests/kafka/
+# Kafka tests only
+poetry run pytest tests/kafka/
 ```
 
-### All Tests
+### With Venv (default)
 
 ```bash
-poetry run tox -e odh-mlserver
-poetry run tox -e odh-all-runtimes
+# Core tests
+poetry run tox -e mlserver-venv
+
+# All runtimes
+poetry run tox -e all-runtimes-venv
+```
+
+### With Conda
+
+```bash
+# Core tests (requires conda installed)
+poetry run tox -e mlserver-conda
+
+# All runtimes (requires conda installed)
+poetry run tox -e all-runtimes-conda
 ```
 
 ## Troubleshooting

@@ -22,7 +22,7 @@ Installation for Contributing
 
 Running Tests
 ------------
-Use `make test` or `tox -e mlserver` to run the test suite. These commands handle test isolation and execution order correctly. See `tox.ini` for details on how different test suites are run.
+Use `make test` or `poetry run tox -e mlserver-venv` (venv) / `poetry run tox -e mlserver-conda` (conda) to run the test suite. These commands handle test isolation and execution order correctly. See `tox.ini` for details on how different test suites are run.
 
 Raising a PR
 ------------

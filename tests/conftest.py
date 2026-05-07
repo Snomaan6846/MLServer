@@ -98,20 +98,13 @@ async def env_tarball(
             return tarball_path
 
         use_conda = os.environ.get("USE_CONDA", "").lower() in ("1", "true", "yes")
-        if use_conda:
-            await _pack(
-                use_conda,
-                env_python_version,
-                os.path.join(TESTDATA_PATH, "environment.yml"),
-                tarball_path,
-            )
-        else:
-            await _pack(
-                use_conda,
-                env_python_version,
-                os.path.join(TESTDATA_PATH, "environment.txt"),
-                tarball_path,
-            )
+        env_file = "environment.yml" if use_conda else "environment.txt"
+        await _pack(
+            use_conda,
+            env_python_version,
+            os.path.join(TESTDATA_PATH, env_file),
+            tarball_path,
+        )
 
     return tarball_path
 
