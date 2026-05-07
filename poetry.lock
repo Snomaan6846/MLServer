@@ -1142,7 +1142,7 @@ version = "15.0.1"
 description = "Colored terminal output for Python's logging module"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = [
     {file = "coloredlogs-15.0.1-py2.py3-none-any.whl", hash = "sha256:612ee75c546f53e92e70049c9dbfcc18c935a2b9a53b66085ce9ef6a6e5c0934"},
     {file = "coloredlogs-15.0.1.tar.gz", hash = "sha256:7c991aa71a4577af2f82600d8f8f3a89f936baeaf9b50a9c197da014e5bf16b0"},
@@ -1914,7 +1914,7 @@ version = "24.3.25"
 description = "The FlatBuffers serialization format for Python"
 optional = false
 python-versions = "*"
-groups = ["all-runtimes", "docker"]
+groups = ["all-runtimes", "docker", "odh-runtimes"]
 files = [
     {file = "flatbuffers-24.3.25-py2.py3-none-any.whl", hash = "sha256:8dbdec58f935f3765e4f7f3cf635ac3a77f83568138d6a2311f524ec96364812"},
     {file = "flatbuffers-24.3.25.tar.gz", hash = "sha256:de2ec5b203f21441716617f38443e0a8ebf3d25bf0d9c0bb0ce68fa00ad546a4"},
@@ -2920,7 +2920,7 @@ version = "10.0"
 description = "Human friendly output for text interfaces using Python"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = [
     {file = "humanfriendly-10.0-py2.py3-none-any.whl", hash = "sha256:1697e1a8a8f550fd43c2865cd84542fc175a61dcb779b6fee18cf6b6ccba1477"},
     {file = "humanfriendly-10.0.tar.gz", hash = "sha256:6b0b831ce8f15f7300721aa49829fc4e83921a9a301cc7f606be6686a2288ddc"},
@@ -3093,7 +3093,7 @@ version = "1.4.2"
 description = "Lightweight pipelining with Python functions"
 optional = false
 python-versions = ">=3.8"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "joblib-1.4.2-py3-none-any.whl", hash = "sha256:06d478d5674cbc267e7496a410ee875abd68e4340feff4490bcb7afb88060ae6"},
     {file = "joblib-1.4.2.tar.gz", hash = "sha256:2382c5816b2636fbd20a09e0f4e9dad4736765fdfb7dca582943b9c1366b3f0e"},
@@ -3339,7 +3339,7 @@ version = "4.6.0"
 description = "LightGBM Python-package"
 optional = false
 python-versions = ">=3.7"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = [
     {file = "lightgbm-4.6.0-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:b7a393de8a334d5c8e490df91270f0763f83f959574d504c7ccb9eee4aef70ed"},
     {file = "lightgbm-4.6.0-py3-none-macosx_12_0_arm64.whl", hash = "sha256:2dafd98d4e02b844ceb0b61450a660681076b1ea6c7adb8c566dfd66832aafad"},
@@ -4066,7 +4066,7 @@ version = "1.7.1+rhaiv.8"
 description = "LightGBM runtime for MLServer"
 optional = false
 python-versions = ">=3.10,<3.13"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = []
 develop = true
 
@@ -4103,7 +4103,7 @@ version = "1.7.1+rhaiv.8"
 description = "ONNX runtime for MLServer"
 optional = false
 python-versions = ">=3.10,<3.13"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = []
 develop = true
 
@@ -4125,7 +4125,7 @@ version = "1.7.1+rhaiv.8"
 description = "Scikit-Learn runtime for MLServer"
 optional = false
 python-versions = ">=3.10,<3.13"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = []
 develop = true
 
@@ -4144,7 +4144,7 @@ version = "1.7.1+rhaiv.8"
 description = "XGBoost runtime for MLServer"
 optional = false
 python-versions = ">=3.10,<3.13"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = []
 develop = true
 
@@ -4162,7 +4162,7 @@ version = "1.3.0"
 description = "Python library for arbitrary-precision floating-point arithmetic"
 optional = false
 python-versions = "*"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"},
     {file = "mpmath-1.3.0.tar.gz", hash = "sha256:7a28eb2a9774d00c7bc92411c19a89209d5da7c4c9a9e227be8330a23a25b91f"},
@@ -4580,7 +4580,7 @@ version = "1.26.4"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "all-runtimes", "all-runtimes-dev", "docker"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "docker", "odh-runtimes"]
 files = [
     {file = "numpy-1.26.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9ff0f4f29c51e2803569d7a51c2304de5554655a60c5d776e35b4a41413830d0"},
     {file = "numpy-1.26.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2e4ee3380d6de9c9ec04745830fd9e2eccb3e6cf790d39d7b98ffd19b0dd754a"},
@@ -4754,12 +4754,12 @@ version = "2.20.5"
 description = "NVIDIA Collective Communication Library (NCCL) Runtime"
 optional = false
 python-versions = ">=3"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "nvidia_nccl_cu12-2.20.5-py3-none-manylinux2014_aarch64.whl", hash = "sha256:1fc150d5c3250b170b29410ba682384b14581db722b2531b0d8d33c595f33d01"},
     {file = "nvidia_nccl_cu12-2.20.5-py3-none-manylinux2014_x86_64.whl", hash = "sha256:057f6bf9685f75215d0c53bf3ac4a10b3e6578351de307abad9e18a99182af56"},
 ]
-markers = {all-runtimes = "platform_system == \"Linux\" and platform_machine != \"aarch64\"", all-runtimes-dev = "platform_system == \"Linux\" and platform_machine == \"x86_64\""}
+markers = {all-runtimes = "platform_system == \"Linux\" and platform_machine != \"aarch64\"", all-runtimes-dev = "platform_system == \"Linux\" and platform_machine == \"x86_64\"", odh-runtimes = "platform_system == \"Linux\" and platform_machine != \"aarch64\""}
 
 [[package]]
 name = "nvidia-nvjitlink-cu12"
@@ -4794,7 +4794,7 @@ version = "1.17.0"
 description = "Open Neural Network Exchange"
 optional = false
 python-versions = ">=3.8"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = [
     {file = "onnx-1.17.0-cp310-cp310-macosx_12_0_universal2.whl", hash = "sha256:38b5df0eb22012198cdcee527cc5f917f09cce1f88a69248aaca22bd78a7f023"},
     {file = "onnx-1.17.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d545335cb49d4d8c47cc803d3a805deb7ad5d9094dc67657d66e568610a36d7d"},
@@ -4837,7 +4837,7 @@ version = "1.23.2"
 description = "ONNX Runtime is a runtime accelerator for Machine Learning models"
 optional = false
 python-versions = ">=3.10"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = [
     {file = "onnxruntime-1.23.2-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:a7730122afe186a784660f6ec5807138bf9d792fa1df76556b27307ea9ebcbe3"},
     {file = "onnxruntime-1.23.2-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:b28740f4ecef1738ea8f807461dd541b8287d5650b5be33bca7b474e3cbd1f36"},
@@ -5337,7 +5337,7 @@ version = "24.1"
 description = "Core utilities for Python packages"
 optional = false
 python-versions = ">=3.8"
-groups = ["main", "all-runtimes", "all-runtimes-dev", "dev", "docker", "docs", "test"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "dev", "docker", "docs", "odh-runtimes", "test"]
 files = [
     {file = "packaging-24.1-py3-none-any.whl", hash = "sha256:5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124"},
     {file = "packaging-24.1.tar.gz", hash = "sha256:026ed72c8ed3fcce5bf8950572258698927fd1dbda10a5e981cdf0ac37f4f002"},
@@ -5349,7 +5349,7 @@ version = "2.2.3"
 description = "Powerful data structures for data analysis, time series, and statistics"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "all-runtimes", "all-runtimes-dev"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "pandas-2.2.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:1948ddde24197a0f7add2bdc4ca83bf2b1ef84a1bc8ccffd95eda17fd836ecb5"},
     {file = "pandas-2.2.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:381175499d3802cde0eabbaf6324cce0c4f5d52ca6f8c377c29ad442f50f6348"},
@@ -5833,7 +5833,7 @@ version = "5.28.3"
 description = ""
 optional = false
 python-versions = ">=3.8"
-groups = ["main", "all-runtimes", "all-runtimes-dev", "dev", "docker"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "dev", "docker", "odh-runtimes"]
 files = [
     {file = "protobuf-5.28.3-cp310-abi3-win32.whl", hash = "sha256:0c4eec6f987338617072592b97943fdbe30d019c56126493111cf24344c1cc24"},
     {file = "protobuf-5.28.3-cp310-abi3-win_amd64.whl", hash = "sha256:91fba8f445723fcf400fdbe9ca796b19d3b1242cd873907979b9ed71e4afe868"},
@@ -6217,7 +6217,7 @@ version = "3.5.4"
 description = "A python implementation of GNU readline."
 optional = false
 python-versions = ">=3.8"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 markers = "sys_platform == \"win32\""
 files = [
     {file = "pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6"},
@@ -6346,7 +6346,7 @@ version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
-groups = ["main", "all-runtimes", "all-runtimes-dev"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3"},
     {file = "python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"},
@@ -6521,7 +6521,7 @@ version = "2024.2"
 description = "World timezone definitions, modern and historical"
 optional = false
 python-versions = "*"
-groups = ["main", "all-runtimes", "all-runtimes-dev"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "pytz-2024.2-py2.py3-none-any.whl", hash = "sha256:31c7c1817eb7fae7ca4b8c7ee50c72f93aa2dd863de768e1ef4245d426aa0725"},
     {file = "pytz-2024.2.tar.gz", hash = "sha256:2aa355083c50a0f93fa581709deac0c9ad65cca8a9e9beac660adcbd493c798a"},
@@ -6998,7 +6998,7 @@ version = "1.5.2"
 description = "A set of python modules for machine learning and data mining"
 optional = false
 python-versions = ">=3.9"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "scikit_learn-1.5.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:299406827fb9a4f862626d0fe6c122f5f87f8910b86fe5daa4c32dcd742139b6"},
     {file = "scikit_learn-1.5.2-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:2d4cad1119c77930b235579ad0dc25e65c917e756fe80cab96aa3b9428bd3fb0"},
@@ -7049,7 +7049,7 @@ version = "1.13.1"
 description = "Fundamental algorithms for scientific computing in Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "scipy-1.13.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:20335853b85e9a49ff7572ab453794298bcf0354d8068c5f6775a0eabf350aca"},
     {file = "scipy-1.13.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:d605e9c23906d1994f55ace80e0125c587f96c020037ea6aa98d01b4bd2e222f"},
@@ -7177,7 +7177,7 @@ version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
-groups = ["main", "all-runtimes", "all-runtimes-dev", "docker", "docs"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "docker", "docs", "odh-runtimes"]
 files = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
@@ -7899,7 +7899,7 @@ version = "1.13.1"
 description = "Computer algebra system (CAS) in Python"
 optional = false
 python-versions = ">=3.8"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "sympy-1.13.1-py3-none-any.whl", hash = "sha256:db36cdc64bf61b9b24578b6f7bab1ecdd2452cf008f34faa33776680c26d66f8"},
     {file = "sympy-1.13.1.tar.gz", hash = "sha256:9cebf7e04ff162015ce31c9c6c9144daa34a93bd082f54fd8f12deca4f47515f"},
@@ -8193,7 +8193,7 @@ version = "3.5.0"
 description = "threadpoolctl"
 optional = false
 python-versions = ">=3.8"
-groups = ["all-runtimes", "all-runtimes-dev"]
+groups = ["all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "threadpoolctl-3.5.0-py3-none-any.whl", hash = "sha256:56c1e26c150397e58c4926da8eeee87533b1e32bef131bd4bf6a2f45f3185467"},
     {file = "threadpoolctl-3.5.0.tar.gz", hash = "sha256:082433502dd922bf738de0d8bcc4fdcbf0979ff44c42bd40f5af8a282f6fa107"},
@@ -8828,7 +8828,7 @@ version = "2024.2"
 description = "Provider of IANA time zone data"
 optional = false
 python-versions = ">=2"
-groups = ["main", "all-runtimes", "all-runtimes-dev"]
+groups = ["main", "all-runtimes", "all-runtimes-dev", "odh-runtimes"]
 files = [
     {file = "tzdata-2024.2-py2.py3-none-any.whl", hash = "sha256:a48093786cdcde33cad18c2555e8532f34422074448fbc874186f0abd79565cd"},
     {file = "tzdata-2024.2.tar.gz", hash = "sha256:7d85cc416e9382e69095b7bdf4afd9e3880418a2413feec7069d533d6b4e31cc"},
@@ -9336,7 +9336,7 @@ version = "2.1.2"
 description = "XGBoost Python Package"
 optional = false
 python-versions = ">=3.8"
-groups = ["all-runtimes"]
+groups = ["all-runtimes", "odh-runtimes"]
 files = [
     {file = "xgboost-2.1.2-py3-none-macosx_10_15_x86_64.macosx_11_0_x86_64.macosx_12_0_x86_64.whl", hash = "sha256:9efbdb262cce5e6d71123748ee8c0c4e6cf66d9c9207dae71f645116717c1f00"},
     {file = "xgboost-2.1.2-py3-none-macosx_12_0_arm64.whl", hash = "sha256:ec49df8017e729244e08ffb4904659f3f0b6f3c8ca11c90a5ca501ab9cc8c8ce"},
@@ -9753,4 +9753,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "621124ff583fe696d34b2d910d8c5c1e1e302ec26c123c5c6e2d40266e8241be"
+content-hash = "e35d47fb5123b5a21ac80341ce56f532fb99a21a0b59c65714feb460a829a26f"
