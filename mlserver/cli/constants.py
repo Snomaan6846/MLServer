@@ -1,5 +1,10 @@
 DefaultBaseImage = "seldonio/mlserver:{version}-slim"
 
+# Optional files checked in the build context to dynamically generate COPY
+# instructions, ensuring compatibility with both Docker and Podman/Buildah.
+CONDA_ENV_FILES = ("environment.yml", "environment.yaml", "conda.yml", "conda.yaml")
+CONFIG_FILES = ("settings.json", "model-settings.json", "requirements.txt")
+
 DockerfileName = "Dockerfile"
 DockerfileTemplateDevelopment = """
 FROM continuumio/miniconda3:24.4.0-0 AS env-builder
@@ -12,19 +17,11 @@ RUN conda config --add channels conda-forge && \\
     conda install conda-libmamba-solver==23.7.0 && \\
     conda config --set solver libmamba && \\
     conda install conda-pack
-
-# The `[]` character range will ensure that Docker doesn't complain if the
-# files don't exist:
-# https://stackoverflow.com/a/65138098/5015573
-COPY \\
-    ./environment.ym[l] \\
-    ./environment.yam[l] \\
-    ./conda.ym[l] \\
-    ./conda.yam[l] \\
-    .
+# Dynamically generated: COPY conda env files (e.g. environment.yml) if present
+{conda_env_copy_instruction}
 RUN mkdir $(dirname $MLSERVER_ENV_TARBALL); \\
     for envFile in environment.yml environment.yaml conda.yml conda.yaml; do \\
-        if [[ -f $envFile ]]; then \\
+        if [ -f "$envFile" ]; then \\
             conda env create \
                 --name $MLSERVER_ENV_NAME \\
                 --file $envFile; \\
@@ -37,18 +34,10 @@ RUN mkdir $(dirname $MLSERVER_ENV_TARBALL); \\
 
 FROM {base_image}
 SHELL ["/bin/bash", "-c"]
-
-# Copy all potential sources for custom environments
-COPY \\
-    --chown=1000 \\
-    --from=env-builder \\
-    /envs/base.tar.g[z] \\
-    ./envs/base.tar.gz
-COPY \\
-    ./settings.jso[n] \\
-    ./model-settings.jso[n] \\
-    ./requirements.tx[t] \\
-    .
+# Dynamically generated: COPY conda tarball from env-builder stage if produced
+{env_tarball_copy_instruction}
+# Dynamically generated: COPY config files if present
+{config_copy_instruction}
 
 USER root
 # Install dependencies system-wide, to ensure that they are available for every
@@ -80,19 +69,11 @@ RUN conda config --add channels conda-forge && \\
     conda install conda-libmamba-solver==23.7.0 && \\
     conda config --set solver libmamba && \\
     conda install conda-pack
-
-# The `[]` character range will ensure that Docker doesn't complain if the
-# files don't exist:
-# https://stackoverflow.com/a/65138098/5015573
-COPY \\
-    ./environment.ym[l] \\
-    ./environment.yam[l] \\
-    ./conda.ym[l] \\
-    ./conda.yam[l] \\
-    .
+# Dynamically generated: COPY conda env files (e.g. environment.yml) if present
+{conda_env_copy_instruction}
 RUN mkdir $(dirname $MLSERVER_ENV_TARBALL); \\
     for envFile in environment.yml environment.yaml conda.yml conda.yaml; do \\
-        if [[ -f $envFile ]]; then \\
+        if [ -f "$envFile" ]; then \\
             conda env create \
                 --name $MLSERVER_ENV_NAME \\
                 --file $envFile; \\
@@ -105,18 +86,10 @@ RUN mkdir $(dirname $MLSERVER_ENV_TARBALL); \\
 
 FROM {base_image}
 SHELL ["/bin/bash", "-c"]
-
-# Copy all potential sources for custom environments
-COPY \\
-    --chown=1000 \\
-    --from=env-builder \\
-    /envs/base.tar.g[z] \\
-    ./envs/base.tar.gz
-COPY \\
-    ./settings.jso[n] \\
-    ./model-settings.jso[n] \\
-    ./requirements.tx[t] \\
-    .
+# Dynamically generated: COPY conda tarball from env-builder stage if produced
+{env_tarball_copy_instruction}
+# Dynamically generated: COPY config files if present
+{config_copy_instruction}
 
 USER root
 # Install dependencies system-wide, to ensure that they are available for every

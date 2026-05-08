@@ -24,13 +24,16 @@ jobs:
         target: ["dataplane", "model-repository"]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      # Pinned from actions/checkout v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        # Pinned from snok/install-poetry v1.4.1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: false
@@ -47,13 +50,16 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      # Pinned from actions/checkout v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        # Pinned from snok/install-poetry v1.4.1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: false
@@ -70,6 +76,9 @@ jobs:
           - ubuntu-24.04
           # - macos-13
         python-version: ["3.10", "3.11", "3.12"]
+        tox-env:
+          - mlserver-conda
+          - mlserver-venv
         is-pr:
           - ${{ github.event_name == 'pull_request' }}
         exclude:
@@ -79,7 +88,8 @@ jobs:
             os: macos-13
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      # Pinned from actions/checkout v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Setup Docker (missing on MacOS)
         if: runner.os == 'macos'
         run: ./hack/install-docker-macos.sh
@@ -87,11 +97,20 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install libomp
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Setup Miniconda
+        if: contains(matrix.tox-env, 'conda')
+        # Pinned from conda-incubator/setup-miniconda v3.3.0
+        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167
+        with:
+          auto-update-conda: true
+          auto-activate-base: false
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        # Pinned from snok/install-poetry v1.4.1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: false
@@ -102,7 +121,7 @@ jobs:
           if [[ ${{ runner.os == 'macOS' }} ]]; then
             source ./hack/activate-libomp-macos.sh
           fi
-          poetry run tox -e odh-mlserver
+          poetry run tox -e ${{ matrix.tox-env }}
 
   test-runtimes:
     strategy:
@@ -117,6 +136,11 @@ jobs:
           - xgboost
           - lightgbm
           - onnx
+          - mlflow
+          - huggingface
+          - alibi-explain
+          - alibi-detect
+          - catboost
         is-pr:
           - ${{ github.event_name == 'pull_request' }}
         exclude:
@@ -126,16 +150,19 @@ jobs:
             os: macos-13
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      # Pinned from actions/checkout v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Install OpenMP (in MacOS)
         if: runner.os == 'macOS'
         run: brew install libomp
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        # Pinned from snok/install-poetry v1.4.1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: false
@@ -158,11 +185,15 @@ jobs:
           - ubuntu-24.04
           # - macos-12
         python-version: ["3.10", "3.11", "3.12"]
+        tox-env:
+          - all-runtimes-conda
+          - all-runtimes-venv
     runs-on: ${{ matrix.os }}
     steps:
       - name: Maximize build space
         if: runner.os == 'Linux'
-        uses: easimon/maximize-build-space@master
+        # Pinned from easimon/maximize-build-space v10
+        uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c
         with:
           remove-dotnet: 'true'
           remove-haskell: 'true'
@@ -171,7 +202,8 @@ jobs:
           remove-docker-images: 'true'
           overprovision-lvm: 'true'
           swap-size-mb: 1024
-      - uses: actions/checkout@v4
+      # Pinned from actions/checkout v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Setup Docker (missing on MacOS)
         if: runner.os == 'macOS'
         run: ./hack/install-docker-macos.sh
@@ -187,11 +219,20 @@ jobs:
           brew install --build-from-source ./libomp.rb
           brew list --version libomp
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Setup Miniconda
+        if: contains(matrix.tox-env, 'conda')
+        # Pinned from conda-incubator/setup-miniconda v3.3.0
+        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167
+        with:
+          auto-update-conda: true
+          auto-activate-base: false
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        # Pinned from snok/install-poetry v1.4.1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
         with:
           version: ${{ env.POETRY_VERSION }}
           virtualenvs-create: false
@@ -202,4 +243,4 @@ jobs:
           if [[ ${{ runner.os == 'macOS' }} ]]; then
             source ./hack/activate-libomp-macos.sh
           fi
-          poetry run tox -e odh-all-runtimes
+          poetry run tox -e ${{ matrix.tox-env }}

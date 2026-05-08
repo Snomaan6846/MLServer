@@ -26,6 +26,8 @@ from ._runtime_utils import (
 )
 
 from .constants import (
+    CONDA_ENV_FILES,
+    CONFIG_FILES,
     DockerfileName,
     DockerfileTemplateDevelopment,
     DockerfileTemplateProduction,
@@ -128,6 +130,49 @@ def _validate_and_normalise_runtime_source_paths(
         raise
 
 
+def _format_copy_instruction(files: list[str]) -> str:
+    """Format a Dockerfile COPY instruction for the given files."""
+    if not files:
+        return ""
+    lines = " \\\n    ".join(f"./{f}" for f in files)
+    return f"\nCOPY \\\n    {lines} \\\n    ."
+
+
+def _build_copy_instructions(build_folder: str | None) -> dict[str, str]:
+    """Build COPY instruction strings based on which optional files exist.
+
+    Returns template variables: conda_env_copy_instruction,
+    env_tarball_copy_instruction, and config_copy_instruction.
+    """
+    if build_folder:
+        conda_files = [
+            f for f in CONDA_ENV_FILES if os.path.isfile(os.path.join(build_folder, f))
+        ]
+        config_files = [
+            f for f in CONFIG_FILES if os.path.isfile(os.path.join(build_folder, f))
+        ]
+    else:
+        conda_files = []
+        config_files = []
+
+    env_tarball_copy = ""
+    if conda_files:
+        env_tarball_copy = (
+            "\n# Copy conda environment tarball from builder stage\n"
+            "COPY \\\n"
+            "    --chown=1000 \\\n"
+            "    --from=env-builder \\\n"
+            "    /envs/base.tar.gz \\\n"
+            "    ./envs/base.tar.gz"
+        )
+
+    return {
+        "conda_env_copy_instruction": _format_copy_instruction(conda_files),
+        "env_tarball_copy_instruction": env_tarball_copy,
+        "config_copy_instruction": _format_copy_instruction(config_files),
+    }
+
+
 def generate_dockerfile(
     base_image: str = DefaultBaseImage,
     custom_runtimes: list[str] | None = None,
@@ -137,10 +182,14 @@ def generate_dockerfile(
 ) -> str:
     """Generate a Dockerfile with trusted runtime allowlist and copy steps."""
     base_image = base_image.format(version=get_normalized_version())
+    copy_instructions = _build_copy_instructions(build_folder)
 
     if dev:
         # Development mode: no trusted runtimes allowlist file, no custom runtime paths
-        return DockerfileTemplateDevelopment.format(base_image=base_image)
+        return DockerfileTemplateDevelopment.format(
+            base_image=base_image,
+            **copy_instructions,
+        )
 
     # Production mode: create trusted runtimes allowlist file and handle custom paths
     allow_runtime_import_paths = (
@@ -177,6 +226,7 @@ def generate_dockerfile(
         trusted_runtime_allowlist_json=trusted_runtime_allowlist_json,
         custom_runtime_copy_instructions=custom_runtime_copy_instructions,
         custom_runtime_pythonpath_env=custom_runtime_pythonpath_env,
+        **copy_instructions,
     )
 
 
@@ -201,7 +251,7 @@ class DockerBuildContext:
         """Validate and build context from CLI arguments."""
         if dev:
             # Development mode: skip validation, generate simple Dockerfile
-            dockerfile = generate_dockerfile(dev=True)
+            dockerfile = generate_dockerfile(build_folder=folder, dev=True)
             return cls(
                 folder=folder,
                 allow_runtime_import_paths=[],

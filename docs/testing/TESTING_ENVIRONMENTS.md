@@ -1,18 +1,18 @@
-# Testing with Conda and Non-Conda Environments
+# Testing with Venv and Conda Environments
 
-This guide provides an overview of how MLServer tests support both conda and non-conda environments, how to configure tests for each scenario, and the underlying mechanisms.
+This guide provides an overview of how MLServer tests support both venv and conda environments, how to configure tests for each scenario, and the underlying mechanisms.
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Quick Start](#quick-start)
-- [How It Works](#how-it-works)
-  - [With Conda](#with-conda)
-  - [Without Conda](#without-conda)
 - [Configuration](#configuration)
   - [Environment Variable: USE_CONDA](#environment-variable-use_conda)
   - [Tox Environments](#tox-environments)
-  - [Python Version Testing](#python-version-testing)
+- [How It Works](#how-it-works)
+  - [With Venv](#with-venv)
+  - [With Conda](#with-conda)
+- [Python Version Testing](#python-version-testing)
 
 ---
 
@@ -20,14 +20,14 @@ This guide provides an overview of how MLServer tests support both conda and non
 
 MLServer's test suite supports testing custom Python environments in **two modes**:
 
-1. **Conda mode** (default): Uses `conda` and `conda-pack` to create environment tarballs
-2. **Non-conda mode** (ODH): Uses Python `venv` and `pip` to create environment tarballs
+1. **Venv mode** (default): Uses Python `venv` and `pip` to create environment tarballs
+2. **Conda mode**: Uses `conda` and `conda-pack` to create environment tarballs
 
 Both approaches create compatible tarballs that work with MLServer's `Environment` class, which is **environment-manager agnostic**.
 
 ### Key Features
 
-- **Flexible environment creation**: Conda or venv, your choice
+- **Flexible environment creation**: Venv or conda, your choice
 - **Multiple Python versions**: Test across Python 3.10-3.12
 - **Efficient caching**: Tarballs cached in `tests/testdata/.cache/`
 - **Compatible outputs**: Both methods produce identical results
@@ -37,35 +37,176 @@ Both approaches create compatible tarballs that work with MLServer's `Environmen
 
 ## Quick Start
 
-### Run tests WITHOUT conda (venv mode):
+### With Venv (default)
 
 ```bash
-# Default for odh-mlserver - uses venv/pip
-tox -e odh-mlserver
+# Core tests
+poetry run tox -e mlserver-venv
 
-# Or set explicitly
-USE_CONDA=false pytest tests/
+# All runtimes
+poetry run tox -e all-runtimes-venv
 ```
 
-### Run tests WITH conda:
+### With Conda
 
 ```bash
-# Default for mlserver - uses conda-pack
-tox -e mlserver
+# Core tests (requires conda installed)
+poetry run tox -e mlserver-conda
 
-# Or set explicitly
-USE_CONDA=true pytest tests/
+# All runtimes (requires conda installed)
+poetry run tox -e all-runtimes-conda
 ```
+
+### Manual Invocation
+
+When running pytest directly (without tox), set the required environment variables and activate the virtual environment first:
+
+```bash
+# Required by tests/cli (environment.yml template rendering)
+export GITHUB_SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
+export GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-opendatahub-io/MLServer}"
+export GITHUB_REF="${GITHUB_REF:-refs/heads/master}"
+
+# Required for all-runtimes only (alibi-explain, alibi-detect)
+export TF_USE_LEGACY_KERAS=1
+```
+
+Then run the tests in two steps. Some test directories (`metrics`, `kafka`, `parallel`, `grpc`, `env`, `cli`) are flaky when running in parallel, so they run sequentially in a separate step.
+
+**Core tests:**
+
+```bash
+# Install dependencies and the project itself, then activate
+poetry sync
+source .venv/bin/activate
+
+# Step 1: Run most tests in parallel
+USE_CONDA=false python -m pytest -n auto tests/ \
+    --ignore=tests/metrics --ignore=tests/kafka --ignore=tests/parallel \
+    --ignore=tests/grpc --ignore=tests/env --ignore=tests/cli
+
+# Step 2: Run flaky-in-parallel tests sequentially
+USE_CONDA=false python -m pytest \
+    tests/metrics tests/kafka tests/parallel tests/grpc tests/env tests/cli
+```
+
+**All runtimes:**
+
+```bash
+# Install dependencies (including all runtimes) and the project itself, then activate
+poetry sync --with all-runtimes --with all-runtimes-dev
+source .venv/bin/activate
+
+# Step 1: Run most tests in parallel
+USE_CONDA=false python -m pytest -n auto tests/ \
+    runtimes/alibi-explain/ runtimes/alibi-detect/ \
+    runtimes/sklearn/ runtimes/xgboost/ runtimes/mllib/ runtimes/lightgbm/ \
+    runtimes/onnx/ runtimes/mlflow/ runtimes/huggingface/ runtimes/catboost/ \
+    --ignore=tests/metrics --ignore=tests/kafka --ignore=tests/parallel \
+    --ignore=tests/grpc --ignore=tests/env --ignore=tests/cli
+
+# Step 2: Run flaky-in-parallel tests sequentially
+USE_CONDA=false python -m pytest \
+    tests/metrics tests/kafka tests/parallel tests/grpc tests/env tests/cli
+```
+
+> **Note:** Replace `USE_CONDA=false` with `USE_CONDA=true` to use conda mode instead of venv.
+
+---
+
+## Configuration
+
+### Environment Variable: USE_CONDA
+
+The `USE_CONDA` environment variable controls which environment creation method to use:
+
+| Value | Venv Mode | Conda Mode | Notes |
+|-------|-----------|-----------|-------|
+| (unset) | ✅ | ❌ | Default: venv mode |
+| `false`, `0`, `no` | ✅ | ❌ | Tests current Python version only |
+| `true`, `1`, `yes` | ❌ | ✅ | Tests all Python versions (3.10-3.12) |
+
+**Implementation**: See [tests/conftest.py:47-52](../../tests/conftest.py#L47-L52)
+
+```python
+def get_python_versions() -> list[tuple[int, int]]:
+    use_conda = os.environ.get("USE_CONDA", "").lower() in ("1", "true", "yes")
+    if use_conda:
+        return PYTHON_VERSIONS  # [(3,10), (3,11), (3,12)]
+
+    return [(sys.version_info.major, sys.version_info.minor)]  # Current only
+```
+
+### Tox Environments
+
+MLServer provides four tox environments:
+
+| Feature | `mlserver-venv` | `mlserver-conda` | `all-runtimes-venv` | `all-runtimes-conda` |
+|---------|-----------------|-------------------|---------------------|----------------------|
+| Conda usage | Disabled | Enabled | Disabled | Enabled |
+| Python versions | Current only | All (3.10-3.12) | Current only | All (3.10-3.12) |
+| Runtimes tested | Core only | Core only | All | All |
+| Requires | venv, pip (built-in) | conda, conda-pack | venv, pip (built-in) | conda, conda-pack |
+| Speed | Faster (pip install) | Slower (conda install) | Faster (pip install) | Slower (conda install) |
+| Tarball source | environment.txt | environment.yml | environment.txt | environment.yml |
+| Environment variable | `USE_CONDA=false` | `USE_CONDA=true` | `USE_CONDA=false` | `USE_CONDA=true` |
+| Tox command | `poetry run tox -e mlserver-venv` | `poetry run tox -e mlserver-conda` | `poetry run tox -e all-runtimes-venv` | `poetry run tox -e all-runtimes-conda` |
+
+### Dependency Groups
+
+The project defines separate Poetry dependency groups for runtime packages:
+
+| Group | Runtimes | Purpose |
+|-------|----------|---------|
+| `odh-runtimes` | sklearn, xgboost, lightgbm, onnx | ODH-shipped runtimes used for production builds and constraints |
+| `all-runtimes` | All of the above + mlflow, huggingface, alibi-explain, alibi-detect, catboost | Full upstream set used for testing |
+| `all-runtimes-dev` | torch, mlflow, transformers, etc. | Dev dependencies required by upstream runtimes |
 
 ---
 
 ## How It Works
 
+### With Venv
+
+When `USE_CONDA=false` (venv mode, default):
+
+1. **Test fixture reads**: [tests/testdata/environment.txt](../../tests/testdata/environment.txt)
+   ```
+   scikit-learn==1.6.1
+   ../../.
+   ```
+
+   Note: `../../.` installs the local MLServer package
+
+2. **Environment creation**: For each Python version:
+   ```bash
+   python3.10 -m venv --copies /tmp/mlserver-<uuid>
+   ```
+
+3. **Dependency installation**:
+   ```bash
+   /tmp/mlserver-<uuid>/bin/pip install --upgrade pip
+   /tmp/mlserver-<uuid>/bin/pip install -r tests/testdata/environment.txt
+   ```
+
+4. **Tarball packaging**: Creates `.tar.gz` with identical structure to conda-pack:
+   ```python
+   import tarfile
+   with tarfile.open(tarball_path, "w:gz") as tar:
+       tar.add(venv_path, arcname=".")
+   ```
+
+5. **Test execution**: Same tests, same assertions, same results
+
+6. **Single-version testing**: Only tests against current Python interpreter:
+   - If running on Python 3.11: `test_from_tarball[py311]`
+   - Avoids requiring multiple Python versions installed
+
 ### With Conda
 
 When `USE_CONDA=true` (or `1`, `yes`):
 
-1. **Test fixture reads**: [tests/testdata/environment.yml](tests/testdata/environment.yml)
+1. **Test fixture reads**: [tests/testdata/environment.yml](../../tests/testdata/environment.yml)
    ```yaml
    name: custom-runtime-environment
    channels:
@@ -102,126 +243,24 @@ When `USE_CONDA=true` (or `1`, `yes`):
    - Python 3.11: `test_from_tarball[py311]`
    - Python 3.12: `test_from_tarball[py312]`
 
-### Without Conda
-
-When `USE_CONDA=false` (default for ODH):
-
-1. **Test fixture reads**: [tests/testdata/environment.txt](tests/testdata/environment.txt)
-   ```
-   scikit-learn==1.6.1
-   ../../.
-   ```
-
-   Note: `../../.` installs the local MLServer package
-
-2. **Environment creation**: For each Python version:
-   ```bash
-   python3.10 -m venv --copies /tmp/mlserver-<uuid>
-   ```
-
-3. **Dependency installation**:
-   ```bash
-   /tmp/mlserver-<uuid>/bin/pip install --upgrade pip
-   /tmp/mlserver-<uuid>/bin/pip install -r tests/testdata/environment.txt
-   ```
-
-4. **Tarball packaging**: Creates `.tar.gz` with identical structure to conda-pack:
-   ```python
-   import tarfile
-   with tarfile.open(tarball_path, "w:gz") as tar:
-       tar.add(venv_path, arcname=".")
-   ```
-
-5. **Test execution**: Same tests, same assertions, same results
-
-6. **Single-version testing**: Only tests against current Python interpreter:
-   - If running on Python 3.11: `test_from_tarball[py311]`
-   - Avoids requiring multiple Python versions installed
-
 ---
 
-## Configuration
+## Python Version Testing
 
-### Environment Variable: USE_CONDA
+### Venv Mode (Single-version)
 
-The `USE_CONDA` environment variable controls which environment creation method to use:
+With venv, only the current Python version is tested.
 
-| Value | Conda Mode | Venv Mode | Notes |
-|-------|-----------|-----------|-------|
-| `true`, `1`, `yes` | ✅ | ❌ | Tests all Python versions (3.10-3.12) |
-| `false`, `0`, `no` | ❌ | ✅ | Tests current Python version only |
-| (unset) | ❌ | ✅ | Default: venv mode |
-
-**Implementation**: See [tests/conftest.py:46-50](tests/conftest.py#L46-L50)
-
-```python
-def get_python_versions() -> list[tuple[int, int]]:
-    use_conda = os.environ.get("USE_CONDA", "").lower() in ("1", "true", "yes")
-    if use_conda:
-        return PYTHON_VERSIONS  # [(3,10), (3,11), (3,12)]
-
-    return [(sys.version_info.major, sys.version_info.minor)]  # Current only
+**Example output** (running on Python 3.11):
+```text
+tests/env/test_env.py::test_from_tarball[py311] PASSED
 ```
 
-### Tox Environments
-
-MLServer provides multiple tox environments with different conda/venv configurations:
-
-#### Standard Environments (Conda-enabled)
-
-```ini
-[testenv:mlserver]
-# mlserver default - tests against all Python versions
-commands = python -m pytest tests/ ...
-set_env =
-    USE_CONDA = {env:USE_CONDA:true}  # Explicitly enabled conda
-```
-
-```ini
-[testenv:all-runtimes]
-# Tests all ML runtimes with conda
-commands = python -m pytest tests/ runtimes/ ...
-set_env =
-    USE_CONDA = {env:USE_CONDA:true}  # Explicitly enabled conda
-```
-
-#### ODH Environments (Venv-only)
-
-```ini
-[testenv:odh-mlserver]
-# OpenDataHub variant - uses venv, current Python only
-commands = python -m pytest tests/ ...
-    --ignore={toxinidir}/tests/cli/test_build.py  # Skips conda-dependent build tests
-set_env =
-    USE_CONDA = {env:USE_CONDA:false}  # Explicitly disable conda
-```
-
-```ini
-[testenv:odh-all-runtimes]
-# ODH with limited runtime testing (sklearn, xgboost, lightgbm only)
-commands = python -m pytest tests/ runtimes/sklearn/ runtimes/xgboost/ runtimes/lightgbm/ ...
-    --ignore={toxinidir}/tests/cli/test_build.py
-set_env =
-    USE_CONDA = {env:USE_CONDA:false}
-```
-
-**Key differences**:
-
-| Feature | Standard (`mlserver`) | ODH (`odh-mlserver`) |
-|---------|---------------------|---------------------|
-| Conda usage | Auto-detect | Disabled by default |
-| Python versions | All (3.10-3.12) | Current only |
-| Build tests | Included | Excluded |
-| Runtimes tested | All | Subset (sklearn, xgboost, lightgbm) |
-
-### Python Version Testing
-
-#### Conda Mode (Multi-version)
+### Conda Mode (Multi-version)
 
 When conda is enabled, tests run against all supported Python versions:
 
 ```python
-# From tests/conftest.py
 MIN_PYTHON_VERSION = (3, 10)
 MAX_PYTHON_VERSION = (3, 12)
 PYTHON_VERSIONS = [
@@ -250,41 +289,8 @@ tests/env/test_env.py::test_from_tarball[py311] PASSED
 tests/env/test_env.py::test_from_tarball[py312] PASSED
 ```
 
-#### Venv Mode (Single-version)
-
-Without conda, only the current Python version is tested:
-
-```python
-def get_python_versions() -> list[tuple[int, int]]:
-    use_conda = os.environ.get("USE_CONDA", "").lower() in ("1", "true", "yes")
-    if use_conda:
-        return PYTHON_VERSIONS
-
-    # Return only current Python version
-    return [(sys.version_info.major, sys.version_info.minor)]
-```
-
-**Example output** (running on Python 3.11):
-```
-tests/env/test_env.py::test_from_tarball[py311] PASSED
-```
-
 ---
 
 ## Summary
 
-MLServer's test infrastructure provides **flexible environment management**:
-
-| Aspect | Conda Mode | Venv Mode |
-|--------|-----------|-----------|
-| **Default for** | mlserver | odh-mlserver |
-| **Requires** | conda, conda-pack | venv, pip (built-in) |
-| **Python versions** | All (3.10-3.12) | Current only |
-| **Speed** | Slower (conda install) | Faster (pip install) |
-| **Tarball source** | environment.yml | environment.txt |
-| **Test coverage** | Identical | Identical |
-| **Environment activation** | Same (manager-agnostic) | Same (manager-agnostic) |
-| **Tox command** | `tox -e mlserver` | `tox -e odh-mlserver` |
-| **Environment variable** | `USE_CONDA=true` | `USE_CONDA=false` |
-
-**Bottom line**: Choose the mode that fits your development environment. Both produce identical test results and compatible MLServer environments.
+Choose the mode that fits your development environment. Both venv and conda produce identical test results and compatible MLServer environments. See the [Tox Environments](#tox-environments) table for a full comparison.

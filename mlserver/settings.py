@@ -40,8 +40,11 @@ TRUSTED_RUNTIMES_ARTIFACT_PATH = "/etc/mlserver/trusted-runtimes.json"
 # Canonical runtime import-path regex used by runtime and CLI validation.
 # Require explicit dotted paths (`module.ClassName`) and disallow leading
 # underscores on each segment to keep runtime declarations explicit.
+# Hyphens are allowed in module segments (filesystem directories like
+# "alibi-explain" and "alibi-detect" surface as hyphens in __module__)
+# but NOT in the final class-name segment (valid Python identifier).
 RUNTIME_IMPORT_PATH_PATTERN = re.compile(
-    r"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$"
+    r"^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z][A-Za-z0-9_-]*)*\.[A-Za-z][A-Za-z0-9_]*$"
 )
 
 logger = logging.getLogger(__name__)

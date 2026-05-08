@@ -110,6 +110,15 @@ httpx-sse = ">=0.3.1,<0.5.0"
 [tool.poetry.group.docker.dependencies]
 tensorflow = "^2.16"
 
+[tool.poetry.group.odh-runtimes]
+optional = true
+
+[tool.poetry.group.odh-runtimes.dependencies]
+mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
+mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
+mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+
 [tool.poetry.group.all-runtimes]
 optional = true
 
@@ -118,6 +127,11 @@ mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
 mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+mlserver-mlflow = {path = "./runtimes/mlflow", develop = true}
+mlserver-huggingface = {path = "./runtimes/huggingface", develop = true}
+mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}
+mlserver-alibi-detect = {path = "./runtimes/alibi-detect", develop = true}
+mlserver-catboost = {path = "./runtimes/catboost", develop = true}
 
 [tool.poetry.group.all-runtimes-dev]
 optional = true
@@ -132,7 +146,7 @@ torch = "^2.4"
 pytorch-lightning = "^2.4"
 torchmetrics = "1.6.0"
 torchvision = "0.19.1"
-mlflow = "2.19.0"
+mlflow = ">=3.0.0"
 
 ## Dev dependencies from HuggingFace
 # TODO: Relax when we deprecate Conversation pipeline
