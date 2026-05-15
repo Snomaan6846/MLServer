@@ -1,0 +1,54 @@
+# Notify Slack channel when pull requests are opened or merged.
+name: Slack PR Notifications
+
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.ALERTS_MLSERVER_CHANNEL_SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Set notification details
+        id: details
+        run: |
+          if [[ "${{ github.event.action }}" == "closed" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+            echo "emoji=:merged:" >> "$GITHUB_OUTPUT"
+            echo "status=merged" >> "$GITHUB_OUTPUT"
+            echo "color=#6f42c1" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.action }}" == "closed" ]]; then
+            echo "emoji=:no_entry_sign:" >> "$GITHUB_OUTPUT"
+            echo "status=closed" >> "$GITHUB_OUTPUT"
+            echo "color=#cb2431" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.action }}" == "reopened" ]]; then
+            echo "emoji=:recycle:" >> "$GITHUB_OUTPUT"
+            echo "status=reopened" >> "$GITHUB_OUTPUT"
+            echo "color=#2cbe4e" >> "$GITHUB_OUTPUT"
+          else
+            echo "emoji=:pull-request:" >> "$GITHUB_OUTPUT"
+            echo "status=opened" >> "$GITHUB_OUTPUT"
+            echo "color=#2cbe4e" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        # Pinned from slackapi/slack-github-action v3.0.3
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+        with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "PR ${{ steps.details.outputs.status }}: #${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ steps.details.outputs.emoji }} *PR ${{ steps.details.outputs.status }}*: <${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}>\n*Author:* ${{ github.event.pull_request.user.login }}\n*Branch:* `${{ github.event.pull_request.head.ref }}` → `${{ github.event.pull_request.base.ref }}`"
+                  }
+                }
+              ]
+            }
