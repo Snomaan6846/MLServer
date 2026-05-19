@@ -379,6 +379,27 @@ class Settings(BaseSettings):
     load_models_at_startup: bool = True
     """Flag to load all available models automatically at startup."""
 
+    empty_registry_readiness: bool = True
+    """
+    Flag to control readiness check behavior when no models are loaded.
+    If True (default), the server reports ready when the model registry is empty.
+    If False, the server reports not ready when the model registry is empty.
+
+    Note: This flag only applies AFTER server startup completes. During startup,
+    an empty registry always reports not ready to prevent race conditions.
+    """
+
+    strict_readiness: bool = True
+    """
+    Flag to control readiness check behavior for loaded models.
+    If True (default), ALL models must be ready for health check to pass.
+    If False, AT LEAST ONE model must be ready for health check to pass.
+
+    Note: During server startup, readiness is always strict (all models must be ready)
+    regardless of this setting. This prevents race conditions during startup failures.
+    After startup completes, this setting takes effect.
+    """
+
     # Server metadata
     server_name: str = "mlserver"
     """Name of the server."""

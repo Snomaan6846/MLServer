@@ -178,7 +178,7 @@ class SingleModelRegistry:
 
             logger.info(f"Loaded model '{model.name}' successfully.")
         except Exception:
-            logger.info(
+            logger.error(
                 f"Couldn't load model '{model.name}'. "
                 "Model will be removed from registry."
             )
@@ -295,6 +295,17 @@ class MultiModelRegistry:
         self._on_model_reload = on_model_reload
         self._on_model_unload = on_model_unload
         self._model_initialiser = model_initialiser
+        self._startup_complete = False
+
+    def is_startup_complete(self) -> bool:
+        """
+        Check if startup load phase has completed.
+
+        Returns False until _startup_complete is set to True,
+        regardless of model states. This prevents race conditions
+        where the registry is empty during initial startup.
+        """
+        return self._startup_complete
 
     async def load(self, model_settings: ModelSettings) -> MLModel:
         if model_settings.name not in self._models:

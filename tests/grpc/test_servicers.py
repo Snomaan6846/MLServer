@@ -39,6 +39,15 @@ async def test_model_ready(inference_service_stub, sum_model):
     assert response.ready
 
 
+async def test_model_ready_not_found(inference_service_stub):
+    with pytest.raises(grpc.RpcError) as err:
+        req = pb.ModelReadyRequest(name="my-model", version="v1.2.3")
+        await inference_service_stub.ModelReady(req)
+
+    assert err.value.code() == grpc.StatusCode.NOT_FOUND
+    assert err.value.details() == "Model my-model with version v1.2.3 not found"
+
+
 async def test_server_metadata(inference_service_stub):
     req = pb.ServerMetadataRequest()
     response = await inference_service_stub.ServerMetadata(req)
