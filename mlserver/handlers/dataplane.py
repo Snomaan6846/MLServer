@@ -61,8 +61,24 @@ class DataPlane:
         return True
 
     async def ready(self) -> bool:
-        models = await self._model_registry.get_models()
-        return all([model.ready for model in models])
+        # Return false if startup has not completed
+        if not self._model_registry.is_startup_complete():
+            return False
+
+        # Fetch models from the registry
+        models = list(await self._model_registry.get_models())
+
+        # Apply empty readiness mode based on setting
+        if not models:
+            return self._settings.empty_registry_readiness
+
+        # Apply strict or lenient readiness mode based on setting
+        if self._settings.strict_readiness:
+            # Strict mode: ALL models must be ready
+            return all(model.ready for model in models)
+        else:
+            # Lenient mode: AT LEAST ONE model must be ready
+            return any(model.ready for model in models)
 
     async def model_ready(self, name: str, version: str | None = None) -> bool:
         model = await self._model_registry.get_model(name, version)

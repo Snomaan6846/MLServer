@@ -44,6 +44,7 @@ class InferenceServicer(GRPCInferenceServiceServicer):
         is_ready = await self._data_plane.ready()
         return pb.ServerReadyResponse(ready=is_ready)
 
+    @handle_mlserver_error
     async def ModelReady(
         self, request: pb.ModelReadyRequest, context
     ) -> pb.ModelReadyResponse:
