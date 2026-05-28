@@ -62,7 +62,7 @@ class DataPlane:
 
     async def ready(self) -> bool:
         # Return false if startup has not completed
-        if not self._model_registry.is_startup_complete():
+        if not self._model_registry.is_startup_complete:
             return False
 
         # Fetch models from the registry

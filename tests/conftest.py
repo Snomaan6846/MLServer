@@ -325,7 +325,26 @@ async def model_registry(sum_model_settings: ModelSettings) -> MultiModelRegistr
     model_registry = MultiModelRegistry()
     await model_registry.load(sum_model_settings)
     # Simulate that startup phase has completed
-    model_registry._startup_complete = True
+    model_registry.startup_complete()
+    return model_registry
+
+
+@pytest.fixture
+async def model_registry_during_startup(
+    sum_model_settings: ModelSettings, simple_model_settings: ModelSettings
+) -> MultiModelRegistry:
+    """Model registry during startup phase (startup not yet complete)."""
+    model_registry = MultiModelRegistry()
+
+    # Load a model in ready state
+    ready_model = await model_registry.load(sum_model_settings)
+    ready_model.ready = True
+
+    # Load a model in not ready state
+    not_ready_model = await model_registry.load(simple_model_settings)
+    not_ready_model.ready = False
+
+    # Don't call startup_complete() - simulate during-startup state
     return model_registry
 
 
@@ -348,6 +367,16 @@ def data_plane(
     prometheus_registry: CollectorRegistry,
 ) -> DataPlane:
     return DataPlane(settings=settings, model_registry=model_registry)
+
+
+@pytest.fixture
+def data_plane_during_startup(
+    settings: Settings,
+    model_registry_during_startup: MultiModelRegistry,
+    prometheus_registry: CollectorRegistry,
+) -> DataPlane:
+    """DataPlane with a model registry during startup (startup not yet complete)."""
+    return DataPlane(settings=settings, model_registry=model_registry_during_startup)
 
 
 @pytest.fixture

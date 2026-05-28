@@ -297,6 +297,7 @@ class MultiModelRegistry:
         self._model_initialiser = model_initialiser
         self._startup_complete = False
 
+    @property
     def is_startup_complete(self) -> bool:
         """
         Check if startup load phase has completed.
@@ -306,6 +307,16 @@ class MultiModelRegistry:
         where the registry is empty during initial startup.
         """
         return self._startup_complete
+
+    def startup_complete(self) -> None:
+        """
+        Mark that the initial server startup phase has completed.
+
+        This should only be called by the server's main startup process
+        after all initial models have been loaded. Once called, the registry
+        will report as startup-complete for readiness checks.
+        """
+        self._startup_complete = True
 
     async def load(self, model_settings: ModelSettings) -> MLModel:
         if model_settings.name not in self._models:
