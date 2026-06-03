@@ -138,7 +138,7 @@ class MLServer:
                 ]
             )
             # Mark startup complete only if all models loaded successfully
-            self._model_registry._startup_complete = True
+            self._model_registry.startup_complete()
         except Exception:
             # If one of the models failed to load during startup, shutdown the
             # server gracefully

@@ -24,18 +24,15 @@ async def test_ready(data_plane, model_registry, ready):
     assert all_ready == ready
 
 
-async def test_ready_returns_false_when_startup_not_complete(
-    data_plane, model_registry
-):
+async def test_ready_returns_false_when_startup_not_complete(data_plane_during_startup):
     """
     Health check returns False when startup hasn't completed.
     This is true even in lenient mode - strict_readiness is ignored during startup.
     """
-    model_registry._startup_complete = False
     # Set lenient mode to prove it's ignored during startup
-    data_plane._settings.strict_readiness = False
+    data_plane_during_startup._settings.strict_readiness = False
 
-    assert not await data_plane.ready()
+    assert not await data_plane_during_startup.ready()
 
 
 async def test_ready_with_failed_dynamic_model(
