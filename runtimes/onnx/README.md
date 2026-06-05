@@ -71,6 +71,24 @@ emphasize-lines: 3-5
 }
 ```
 
+### External Data Files
+
+Large ONNX models often store weights in separate `.data` files alongside the
+`.onnx` protobuf (saved with `save_as_external_data=True`). The runtime handles
+this automatically -- place the `.onnx` and all `.data` files in the same
+directory and point `parameters.uri` at the `.onnx` file.
+
+```
+my-model/
+  model.onnx
+  model.onnx.data        # or multiple: weights_0.data, weights_1.data, ...
+  model-settings.json
+```
+
+The runtime uses a symlink-safe loader that follows symlinked directories and
+files transparently, including KServe modelcar deployments where models are
+accessed through `/proc/<pid>/root/`.
+
 ## Content Types
 
 If no [content type](../../docs/user-guide/content-type) is present on the

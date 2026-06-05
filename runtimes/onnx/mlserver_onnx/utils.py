@@ -1,8 +1,11 @@
+import os
+import pathlib
+import logging
 from typing import Any
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 import onnx
-from onnx import helper
+from onnx import ModelProto, TensorProto, helper
 import onnxruntime as ort
 
 from mlserver.codecs.numpy import to_datatype
@@ -10,6 +13,8 @@ from mlserver.errors import ModelValidationError
 from mlserver.types import Datatype, MetadataTensor
 
 from .settings import OnnxSettings
+
+logger = logging.getLogger(__name__)
 
 PREDICT_OUTPUT = "predict"
 VALID_OUTPUTS = [PREDICT_OUTPUT]
@@ -265,6 +270,131 @@ def _value_info_to_metadata(value_info: onnx.ValueInfoProto) -> MetadataTensor:
     )
 
 
+def _get_all_tensors(model: ModelProto) -> Iterable[TensorProto]:
+    """Yield every TensorProto in the model, including nested subgraphs.
+
+    Mirrors onnx.external_data_helper._get_all_tensors so that attribute
+    tensors (e.g. Constant nodes) and tensors inside If/Loop/Scan
+    subgraphs are not missed.
+    """
+
+    def _from_graph(graph):  # type: ignore[no-untyped-def]
+        yield from graph.initializer
+        for node in graph.node:
+            for attr in node.attribute:
+                if attr.HasField("t"):
+                    yield attr.t
+                yield from attr.tensors
+                if attr.HasField("g"):
+                    yield from _from_graph(attr.g)
+                for sub_g in attr.graphs:
+                    yield from _from_graph(sub_g)
+
+    yield from _from_graph(model.graph)
+    for func in model.functions:
+        for node in func.node:
+            for attr in node.attribute:
+                if attr.HasField("t"):
+                    yield attr.t
+                yield from attr.tensors
+                if attr.HasField("g"):
+                    yield from _from_graph(attr.g)
+                for sub_g in attr.graphs:
+                    yield from _from_graph(sub_g)
+
+
+def load_external_tensor_data(model: ModelProto, base_dir: str) -> None:
+    """Load external tensor data using pure-Python I/O.
+
+    ONNX >= 1.17 rejects symlinks in external data paths as a security
+    measure (GHSA-538c-55jv-c5g9).  In KServe modelcar deployments the
+    model directory is a symlink through /proc/<pid>/root/, so the
+    built-in loader fails.
+
+    This reads the data files with Python open(), which follows symlinks
+    transparently, and attaches the raw bytes to each tensor.  The
+    implementation mirrors onnx.external_data_helper.load_external_data_for_model
+    but without the C++ symlink/hardlink checker.
+
+    Note: unlike the native ONNX loader this does not validate the
+    optional ``checksum`` field.  Data integrity should be ensured by
+    the model distribution mechanism (e.g. container image layers).
+    """
+    loaded_count = 0
+    for tensor in _get_all_tensors(model):
+        if tensor.data_location != TensorProto.EXTERNAL:
+            continue
+
+        info = {entry.key: entry.value for entry in tensor.external_data}
+        location = info.get("location")
+        if not location:
+            raise ValueError(
+                f"Tensor {tensor.name!r} has data_location=EXTERNAL "
+                f"but no 'location' key in external_data"
+            )
+
+        parts = pathlib.PurePosixPath(location).parts
+        if os.path.isabs(location) or ".." in parts:
+            raise ValueError(
+                f"Unsafe external data location for tensor "
+                f"{tensor.name!r}: {location!r}"
+            )
+
+        data_path = os.path.join(base_dir, location)
+        offset = int(info["offset"]) if "offset" in info else None
+        length = int(info["length"]) if "length" in info else None
+
+        with open(data_path, "rb") as f:
+            file_size = os.fstat(f.fileno()).st_size
+
+            if offset is not None:
+                if offset > file_size:
+                    raise ValueError(
+                        f"External data offset ({offset}) exceeds file size "
+                        f"({file_size}) for tensor {tensor.name!r}"
+                    )
+                f.seek(offset)
+
+            if length is not None:
+                read_start = offset if offset is not None else 0
+                available = file_size - read_start
+                if length > available:
+                    raise ValueError(
+                        f"External data length ({length}) exceeds available "
+                        f"data ({available} bytes from offset {read_start}) "
+                        f"for tensor {tensor.name!r}"
+                    )
+                raw = f.read(length)
+            else:
+                raw = f.read()
+
+        tensor.raw_data = raw
+        tensor.data_location = TensorProto.DEFAULT
+        del tensor.external_data[:]
+        loaded_count += 1
+
+    if loaded_count:
+        logger.debug(
+            "Loaded external data for %d tensor(s) from %s",
+            loaded_count,
+            base_dir,
+        )
+
+
+def load_onnx_model(model_uri: str) -> ModelProto:
+    """Load an ONNX model with symlink-safe external data handling.
+
+    Uses pure-Python I/O to load external tensor data, which follows
+    symlinks transparently.  This avoids the symlink rejection added in
+    ONNX >= 1.17 (GHSA-538c-55jv-c5g9) that breaks KServe modelcar
+    deployments and shared-storage mounts with symlinked data files.
+    """
+    model = onnx.load(model_uri, load_external_data=False)
+    base_dir = os.path.dirname(os.path.abspath(model_uri))
+    load_external_tensor_data(model, base_dir)
+    return model
+
+
 def _extract_metadata(model_uri: str) -> dict[str, list[MetadataTensor]]:
     """
     Extract input and output metadata from the ONNX model file.
@@ -277,7 +407,7 @@ def _extract_metadata(model_uri: str) -> dict[str, list[MetadataTensor]]:
     Returns:
         Dict with 'inputs' and 'outputs' lists of MetadataTensor.
     """
-    model = onnx.load(model_uri)
+    model = onnx.load(model_uri, load_external_data=False)
     graph = model.graph
     initializer_names = {init.name for init in graph.initializer}
     inputs = [

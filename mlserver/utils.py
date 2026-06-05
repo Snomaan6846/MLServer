@@ -13,6 +13,41 @@ from .errors import InvalidModelURI
 from .version import __version__
 
 
+def _resolve_symlinks(path: str) -> str:
+    """Walk *path* component-by-component, resolving symlinks at each level.
+
+    Unlike ``os.path.realpath``, this keeps the original component when the
+    symlink target does not exist, so the caller still gets a usable (though
+    possibly broken) path instead of an exception.
+
+    Paths under ``/proc/`` are returned normalized but never resolved.
+    ``/proc/<pid>/root`` is a procfs symlink into a container's root
+    filesystem — resolving it would lose the proc-based access path and
+    break model loading in KServe modelcar deployments.
+    """
+    abs_path = os.path.abspath(path)
+    if abs_path.startswith("/proc/"):
+        return os.path.normpath(path)
+
+    parts = os.path.normpath(path).split(os.sep)
+    resolved = os.sep if path.startswith(os.sep) else ""
+
+    for part in parts:
+        if not part:
+            continue
+        candidate = os.path.join(resolved, part)
+        if os.path.islink(candidate):
+            link_target = os.readlink(candidate)
+            if not os.path.isabs(link_target):
+                link_target = os.path.join(resolved, link_target)
+            link_target = os.path.normpath(link_target)
+            resolved = link_target if os.path.exists(link_target) else candidate
+        else:
+            resolved = candidate
+
+    return resolved
+
+
 async def get_model_uri(
     settings: ModelSettings, wellknown_filenames: list[str] = []
 ) -> str:
@@ -33,8 +68,9 @@ async def get_model_uri(
 
     if os.path.isdir(full_model_path):
         # If full_model_path is a folder, search for a well-known model filename
+
         for fname in wellknown_filenames:
-            model_path = os.path.join(full_model_path, fname)
+            model_path = _resolve_symlinks(os.path.join(full_model_path, fname))
             if os.path.isfile(model_path):
                 return model_path
 
@@ -50,11 +86,11 @@ def to_absolute_path(model_settings: ModelSettings, uri: str) -> str:
     if source is None:
         # Treat path as either absolute or relative to the working directory of
         # the MLServer instance
-        return uri
+        return _resolve_symlinks(uri)
 
     parent_folder = os.path.dirname(source)
     unnormalised = os.path.join(parent_folder, uri)
-    return os.path.normpath(unnormalised)
+    return _resolve_symlinks(os.path.normpath(unnormalised))
 
 
 def get_wrapped_method(f: Callable) -> Callable:

@@ -1,4 +1,3 @@
-import onnx
 import numpy as np
 import onnxruntime as ort
 
@@ -25,6 +24,7 @@ from .utils import (
     _extract_metadata,
     _get_provider_options,
     _get_providers,
+    load_onnx_model,
 )
 
 
@@ -85,7 +85,7 @@ class OnnxModel(MLModel):
         )
 
         try:
-            model = onnx.load(model_uri, load_external_data=True)
+            model = load_onnx_model(model_uri)
             model_bytes = model.SerializeToString()
             self._model = ort.InferenceSession(
                 model_bytes,
