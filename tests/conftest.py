@@ -26,6 +26,7 @@ from mlserver.logging import configure_logger
 from mlserver.env import Environment
 from mlserver.metrics.registry import MetricsRegistry, REGISTRY as METRICS_REGISTRY
 from mlserver import types, Settings, ModelSettings, MLServer
+from mlserver.settings import ModelParameters
 from mlserver.model import MLModel
 
 from .metrics.utils import unregister_metrics
@@ -187,6 +188,17 @@ def sum_model_settings() -> ModelSettings:
 
 
 @pytest.fixture
+def load_error_model_settings() -> ModelSettings:
+    from .fixtures import ErrorModel
+
+    return ModelSettings(
+        name="error-model",
+        implementation=ErrorModel,
+        parameters=ModelParameters(load_error=True),
+    )
+
+
+@pytest.fixture
 def simple_model_settings() -> ModelSettings:
     model_settings_path = os.path.join(TESTDATA_PATH, DEFAULT_MODEL_SETTINGS_FILENAME)
     model_settings = ModelSettings.parse_file(model_settings_path)
@@ -206,7 +218,8 @@ def error_model_settings() -> ModelSettings:
 
 @pytest.fixture
 async def error_model(
-    model_registry: MultiModelRegistry, error_model_settings: ModelSettings
+    model_registry: MultiModelRegistry,
+    error_model_settings: ModelSettings,
 ) -> MLModel:
     await model_registry.load(error_model_settings)
     return await model_registry.get_model(error_model_settings.name)
@@ -214,7 +227,8 @@ async def error_model(
 
 @pytest.fixture
 async def simple_model(
-    model_registry: MultiModelRegistry, simple_model_settings: ModelSettings
+    model_registry: MultiModelRegistry,
+    simple_model_settings: ModelSettings,
 ) -> MLModel:
     await model_registry.load(simple_model_settings)
     return await model_registry.get_model(simple_model_settings.name)
@@ -239,7 +253,8 @@ def text_model_settings() -> ModelSettings:
 
 @pytest.fixture
 async def text_model(
-    model_registry: MultiModelRegistry, text_model_settings: ModelSettings
+    model_registry: MultiModelRegistry,
+    text_model_settings: ModelSettings,
 ) -> MLModel:
     await model_registry.load(text_model_settings)
     return await model_registry.get_model(text_model_settings.name)
@@ -258,7 +273,8 @@ def text_stream_model_settings() -> ModelSettings:
 
 @pytest.fixture
 async def text_stream_model(
-    model_registry: MultiModelRegistry, text_stream_model_settings: ModelSettings
+    model_registry: MultiModelRegistry,
+    text_stream_model_settings: ModelSettings,
 ) -> MLModel:
     await model_registry.load(text_stream_model_settings)
     return await model_registry.get_model(text_stream_model_settings.name)
@@ -308,6 +324,27 @@ def inference_response() -> types.InferenceResponse:
 async def model_registry(sum_model_settings: ModelSettings) -> MultiModelRegistry:
     model_registry = MultiModelRegistry()
     await model_registry.load(sum_model_settings)
+    # Simulate that startup phase has completed
+    model_registry.startup_complete()
+    return model_registry
+
+
+@pytest.fixture
+async def model_registry_during_startup(
+    sum_model_settings: ModelSettings, simple_model_settings: ModelSettings
+) -> MultiModelRegistry:
+    """Model registry during startup phase (startup not yet complete)."""
+    model_registry = MultiModelRegistry()
+
+    # Load a model in ready state
+    ready_model = await model_registry.load(sum_model_settings)
+    ready_model.ready = True
+
+    # Load a model in not ready state
+    not_ready_model = await model_registry.load(simple_model_settings)
+    not_ready_model.ready = False
+
+    # Don't call startup_complete() - simulate during-startup state
     return model_registry
 
 
@@ -330,6 +367,16 @@ def data_plane(
     prometheus_registry: CollectorRegistry,
 ) -> DataPlane:
     return DataPlane(settings=settings, model_registry=model_registry)
+
+
+@pytest.fixture
+def data_plane_during_startup(
+    settings: Settings,
+    model_registry_during_startup: MultiModelRegistry,
+    prometheus_registry: CollectorRegistry,
+) -> DataPlane:
+    """DataPlane with a model registry during startup (startup not yet complete)."""
+    return DataPlane(settings=settings, model_registry=model_registry_during_startup)
 
 
 @pytest.fixture
