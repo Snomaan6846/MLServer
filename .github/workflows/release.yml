@@ -18,12 +18,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Update Version
         run: |
-          ./hack/update-version.sh "${{ github.event.inputs.version }}"
+          ./hack/update-version.sh "$VERSION"
+        env:
+          VERSION: ${{ github.event.inputs.version }}
       - name: Commiting & Pushing Updated Version Tag
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: Bump version to ${{ github.event.inputs.version }}
-          tagging_message: ${{ github.event.inputs.version }}
+          commit_message: Bump version to ${{ env.VERSION }}
+          tagging_message: ${{ env.VERSION }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
       - name: Draft Release
         # TODO: Use a version value, when available [1]
         #
@@ -57,12 +61,14 @@ jobs:
             --build-arg RUNTIMES=all \
             --label name="mlserver" \
             --label vendor="SeldonIO" \
-            --label version="${{ github.event.inputs.version }}" \
-            --label release="${{ github.event.inputs.version }}" \
+            --label version="$VERSION" \
+            --label release="$VERSION" \
             --label summary="An open source inference server for your machine learning models." \
             --label description="MLServer aims to provide an easy way to start serving your machine learning models through a REST and gRPC interface, fully compliant with KFServing’s V2 Dataplane spec." \
             --label maintainer="hello@seldon.io" \
             -t $MLSERVER_IMAGE
+        env:
+          VERSION: ${{ github.event.inputs.version }}
       - name: Scan Docker Image
         uses: snyk/actions/docker@master
         env:
@@ -135,12 +141,14 @@ jobs:
             --build-arg RUNTIMES="" \
             --label name="mlserver" \
             --label vendor="SeldonIO" \
-            --label version="${{ github.event.inputs.version }}" \
-            --label release="${{ github.event.inputs.version }}" \
+            --label version="$VERSION" \
+            --label release="$VERSION" \
             --label summary="An open source inference server for your machine learning models." \
             --label description="MLServer aims to provide an easy way to start serving your machine learning models through a REST and gRPC interface, fully compliant with KFServing’s V2 Dataplane spec." \
             --label maintainer="hello@seldon.io" \
             -t $MLSERVER_IMAGE-slim
+        env:
+          VERSION: ${{ github.event.inputs.version }}
       - name: Scan Docker Image
         uses: snyk/actions/docker@master
         env:
@@ -265,12 +273,14 @@ jobs:
             --build-arg RUNTIMES=mlserver-${{ matrix.runtime }} \
             --label name="mlserver" \
             --label vendor="SeldonIO" \
-            --label version="${{ github.event.inputs.version }}" \
-            --label release="${{ github.event.inputs.version }}" \
+            --label version="$VERSION" \
+            --label release="$VERSION" \
             --label summary="An open source inference server for your machine learning models." \
             --label description="MLServer aims to provide an easy way to start serving your machine learning models through a REST and gRPC interface, fully compliant with KFServing’s V2 Dataplane spec." \
             --label maintainer="hello@seldon.io" \
             -t $MLSERVER_IMAGE-${{ matrix.runtime }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
       - name: Scan Docker Image
         uses: snyk/actions/docker@master
         env:

@@ -7,9 +7,9 @@ from asyncio import CancelledError
 from mlserver.model import MLModel
 from mlserver.errors import MLServerError, ModelNotFound
 from mlserver.registry import MultiModelRegistry, SingleModelRegistry, model_initialiser
-from mlserver.settings import ModelSettings, ModelParameters
+from mlserver.settings import ModelSettings
 
-from .fixtures import ErrorModel, SlowModel
+from .fixtures import SlowModel
 
 
 @pytest.fixture
@@ -253,21 +253,23 @@ async def test_model_not_ready(model_registry: MultiModelRegistry):
         pass
 
 
-async def test_model_load_error(model_registry: MultiModelRegistry):
-    error_model_settings = ModelSettings(
-        name="error-model",
-        implementation=ErrorModel,
-        parameters=ModelParameters(load_error=True),
-    )
-
+async def test_model_load_error(
+    model_registry: MultiModelRegistry, load_error_model_settings: ModelSettings
+):
+    """
+    Test that models failing to load are removed from registry.
+    """
     with pytest.raises(MLServerError):
-        await model_registry.load(error_model_settings)
+        await model_registry.load(load_error_model_settings)
 
+    # Model should NOT be in registry (removed on load failure)
     with pytest.raises(ModelNotFound):
-        await model_registry.get_model(error_model_settings.name)
+        await model_registry.get_model(load_error_model_settings.name)
 
+    # Verify only the sum-model remains in registry
     models = list(await model_registry.get_models())
     assert len(models) == 1
+    assert models[0].name == "sum-model"
 
 
 async def test_rolling_reload(

@@ -17,6 +17,7 @@
 | `cache_size` | `int` | `100` | Cache size to be used if caching is enabled. |
 | `cors_settings` | `CORSSettings \| None` | `None` | - |
 | `debug` | `bool` | `False` | - |
+| `empty_registry_readiness` | `bool` | `True` | Flag to control readiness check behavior when no models are loaded. If True (default), the server reports ready when the model registry is empty. If False, the server reports not ready when the model registry is empty. **Note:** This flag only applies AFTER server startup completes. During startup, an empty registry always reports not ready to prevent race conditions. |
 | `environments_dir` | `str` | `'-'` | - |
 | `extensions` | `list[str]` | `[]` | - |
 | `grpc_max_message_length` | `int \| None` | `None` | - |
@@ -40,6 +41,7 @@
 | `parallel_workers` | `int` | `1` | - |
 | `parallel_workers_timeout` | `int` | `5` | - |
 | `root_path` | `str` | `''` | - |
+| `strict_readiness` | `bool` | `True` | Flag to control readiness check behavior for loaded models. If True (default), ALL models must be ready for health check to pass. If False, AT LEAST ONE model must be ready for health check to pass. **Note:** During server startup, readiness is always strict (all models must be ready) regardless of this setting. After startup completes, this setting takes effect. |
 | `server_name` | `str` | `'mlserver'` | - |
 | `server_version` | `str` | `'1.7.0.dev0'` | - |
 | `tracing_server` | `str \| None` | `None` | Server name used to export OpenTelemetry tracing to collector service. |
