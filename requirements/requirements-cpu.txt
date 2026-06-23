@@ -190,8 +190,8 @@ pydantic-core==2.46.4 \
     --hash=sha256:38235509e8f37596cc39453972c1a9b200287d92a98eb2a7c92d9708a98eec49 \
     --hash=sha256:bbc9884932978a8f52c59aac4a0a273c8e514d303fd040c38b0436b37e57ed33
 
-pydantic-settings==2.14.1 \
-    --hash=sha256:e93524b17fbfe5fb1df8be2efeb958e1a8acc08de1332059046523f803016d8b
+pydantic-settings==2.14.2 \
+    --hash=sha256:0398c90f6e52de6fc403d1aa3dfd53c7be8e011759e7fcd7b317fffb0649f726
 
 python-dateutil==2.9.0.post0 \
     --hash=sha256:48d0381d3876a6f959d2731ffddb508ea44e2f55212e48c3eea2c9b187c15712
@@ -210,9 +210,9 @@ scikit-learn==1.9.0 \
     --hash=sha256:6326a29ac3eeceb5724306cad2cfd41afac07af8ca83a8ac2a07e4063f3c71e2 \
     --hash=sha256:d5a5dbfa05f48494957544feb98cb091171c403a6a862e4bcee67f128750d4f1
 
-scipy==1.17.1 \
-    --hash=sha256:5b5fcb9a053e7c5352a1d8358f082edea9dc6358f435888c8b6a4e3980a25cd7 \
-    --hash=sha256:bc09f41aaf469fa1e5af67f47b8c1476745ca0596cb95e08165182973583a02e
+scipy==1.18.0 \
+    --hash=sha256:8f2ad17ab42ed3cf1d83574ef39b5a72cd534d6a070cb9d0f634748acf0a7949 \
+    --hash=sha256:db4e1e9b4ca944c34c49136e6553fe0607cdfe1ee2ada4d36037bd3c6545dcc0
 
 setuptools==82.0.1 \
     --hash=sha256:7e5ff8bc7a9ca38b475a54aba24110b025fa73f308833497031fda087064dc73
