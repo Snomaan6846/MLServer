@@ -60,6 +60,7 @@ aiokafka = "*"
 tritonclient = {version = ">=2.42", extras = ["http"]}
 # keep a min version for geventhttpclient to avoid compatibility regressions
 geventhttpclient = ">=2.1.1"
+urllib3 = ">=2.7.0"
 gevent = "*"
 aiofiles = "*"
 orjson = "*"
