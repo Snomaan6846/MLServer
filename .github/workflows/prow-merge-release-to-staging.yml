@@ -2,17 +2,6 @@ name: Prow Merge release-* Branch to rhoai-staging Branch
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm_pyproject_sync_policy:
-        description: |
-          Developer Note: release-* -> rhoai-staging auto-sync does not auto-propagate all pyproject.toml updates as-is.
-          If pyproject.toml or runtimes/*/pyproject.toml changes are needed in rhoai-staging, open a separate manual sync PR.
-          After manual pyproject sync, regenerate lock files with `make lock`.
-
-          Acknowledgement: I understand and will manually sync pyproject.toml changes when needed.
-        required: false
-        type: boolean
-        default: false
 
 # Prevent concurrent sync runs for the same source branch.
 # We queue instead of canceling to avoid losing a manually-triggered run.
@@ -23,6 +12,8 @@ concurrency:
 env:
   RELEASE_BRANCH: ${{ github.ref_name }}
   TARGET_BRANCH: rhoai-staging
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "2.1.1"
 
 permissions:
   contents: write
@@ -33,16 +24,21 @@ jobs:
     # Only release-* branches are allowed to trigger this sync flow.
     if: startsWith(github.ref, 'refs/heads/release-')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Validate manual pyproject sync acknowledgement
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_pyproject_sync_policy != 'true' }}
-        run: |
-          echo "Please acknowledge pyproject.toml manual sync policy before running this workflow."
-          exit 1
-
+      - name: Set up Python
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Poetry
+        # Pinned from snok/install-poetry v1.4.1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a
+        with:
+          version: ${{ env.POETRY_VERSION }}
+          virtualenvs-create: false
       - name: Checkout repository
-        # Pinned from actions/checkout v6
+        # Pinned from actions/checkout v6.0.2
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: master
@@ -65,8 +61,7 @@ jobs:
             echo "Required branch not found: origin/$RELEASE_BRANCH"
             exit 1
           fi
-      - name: Validate Sync Status
-        id: validate
+      - name: Check for existing sync PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -84,55 +79,7 @@ jobs:
             echo "Please close any outstanding syncs from $RELEASE_BRANCH to $TARGET_BRANCH before proceeding."
             exit 1
           fi
-
-          # Decide whether a sync is needed after applying the same policy rules
-          # used in the merge step (excluded files and keep-from-rhoai files).
-          MEANINGFUL_CHANGES=false
-
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-
-            # Always excluded from sync
-            if [[ "$file" == ".tekton/mlserver-push.yaml" ]] || \
-               [[ "$file" == ".github/workflows/prow-merge-release-to-staging.yml" ]] || \
-               [[ "$file" == ".github/workflows/create-and-bump-tag.yml" ]]; then
-              continue
-            fi
-
-            # Root-level metadata kept from rhoai-staging by policy.
-            # NOTE: bare filenames are root-path matches; runtime files are handled
-            # by explicit runtimes/* patterns below.
-            if [[ "$file" == "pyproject.toml" ]] || \
-               [[ "$file" == "poetry.lock" ]] || \
-               [[ "$file" == "docs/conf.py" ]] || \
-               [[ "$file" == "mlserver/version.py" ]] || \
-               [[ "$file" == runtimes/*/pyproject.toml ]] || \
-               [[ "$file" == runtimes/*/poetry.lock ]]; then
-              continue
-            fi
-
-            # Runtime version files are branch-owned when they already exist on
-            # $TARGET_BRANCH. New runtime version files on release are meaningful
-            # and should be synced into $TARGET_BRANCH.
-            if [[ "$file" == runtimes/*/*/version.py ]]; then
-              if git cat-file -e "origin/$TARGET_BRANCH:$file" 2>/dev/null; then
-                continue
-              fi
-            fi
-
-            MEANINGFUL_CHANGES=true
-            break
-          done < <(git diff --name-only "origin/$TARGET_BRANCH..origin/$RELEASE_BRANCH")
-
-          if [ "$MEANINGFUL_CHANGES" = true ]; then
-            echo "Meaningful changes detected between $RELEASE_BRANCH and $TARGET_BRANCH. Proceeding with PR creation."
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "No meaningful changes to sync from $RELEASE_BRANCH to $TARGET_BRANCH after applying sync policy."
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
       - name: Sync ${{ github.ref_name }} to ${{ env.TARGET_BRANCH }}
-        if: steps.validate.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -183,10 +130,11 @@ jobs:
           done
 
           # Apply metadata ownership policy:
-          # - Keep root/runtime dependency metadata from target branch.
+          # - Restore version/lock/docs metadata from target branch.
+          #   pyproject.toml files are then overlaid from the release branch
+          #   and re-stamped with the rhoai-staging version before commit.
           # - Keep existing runtime version.py from target branch.
           # - For newly introduced runtime version.py on release, keep release version.
-          # This mirrors files managed by hack/update-version.sh.
           # Iterate remote-ref branch diff (not merge-index state) for deterministic policy.
           while IFS= read -r file; do
             [ -z "$file" ] && continue
@@ -209,7 +157,7 @@ jobs:
                   git restore --source "origin/$TARGET_BRANCH" --staged --worktree -- "$file"
                 else
                   echo "::warning::Runtime version file '$file' exists only on release branch. Keeping release version to allow new runtime sync."
-                  # If this file is unmerged, resolve conflict by taking release side.
+                  # If this new file has a merge conflict, resolve by keeping the release version.
                   if [ -n "$(git ls-files -u -- "$file")" ]; then
                     git checkout --theirs -- "$file"
                   fi
@@ -231,10 +179,31 @@ jobs:
             fi
           fi
 
-          # No-op check:
-          # - first diff checks worktree vs index
-          # - second diff checks index vs HEAD (merge result before commit)
-          # If both are clean, policy neutralized the merge and we can stop.
+          # ── Sync pyproject.toml dependency specs from release branch ──
+          # Always overlay pyproject.toml from the release branch and
+          # re-stamp with the rhoai-staging version. Only regenerate lock
+          # files if the dependency specs actually changed.
+          PYPROJECT_FILES=("pyproject.toml")
+          for rt in runtimes/*/pyproject.toml; do
+            [ -f "$rt" ] && PYPROJECT_FILES+=("$rt")
+          done
+
+          git checkout "origin/$RELEASE_BRANCH" -- "${PYPROJECT_FILES[@]}"
+
+          STAGING_VERSION=$(python3 -c "g={}; exec(open('mlserver/version.py').read(), g); print(g['__version__'])")
+          echo "Re-stamping version: $STAGING_VERSION"
+          bash hack/update-version.sh "$STAGING_VERSION"
+
+          if ! git diff --quiet -- "${PYPROJECT_FILES[@]}"; then
+            echo "pyproject.toml dependency specs changed. Regenerating lock files..."
+            make lock
+          else
+            echo "No effective pyproject.toml changes after version re-stamp; skipping lock regeneration."
+          fi
+          git add -A
+
+          # No-op check: if both worktree and index are clean after all
+          # policy handling, the merge produced no effective changes.
           if git diff --quiet && git diff --quiet --cached; then
             echo "No effective changes remain after sync policy; skipping push and PR creation."
             if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
@@ -272,6 +241,7 @@ jobs:
             - \`.github/workflows/prow-merge-release-to-staging.yml\`
             - \`.github/workflows/create-and-bump-tag.yml\`
           - Version and dependency metadata files are preserved from \`$TARGET_BRANCH\` by sync policy.
+          - \`pyproject.toml\` dependency specs are synced from \`$RELEASE_BRANCH\` with the \`$TARGET_BRANCH\` version stamp, and lock files are regenerated.
 
           🤖 Generated with GitHub Actions
           EOF
