@@ -2,27 +2,19 @@ name: Prow Merge release-* Branch to rhoai-staging Branch
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm_pyproject_sync_policy:
-        description: |
-          Developer Note: release-* -> rhoai-staging auto-sync does not auto-propagate all pyproject.toml updates as-is.
-          If pyproject.toml or runtimes/*/pyproject.toml changes are needed in rhoai-staging, open a separate manual sync PR.
-          After manual pyproject sync, regenerate lock files with `make lock`.
-
-          Acknowledgement: I understand and will manually sync pyproject.toml changes when needed.
-        required: false
-        type: boolean
-        default: false
 
 # Prevent concurrent sync runs for the same source branch.
 # We queue instead of canceling to avoid losing a manually-triggered run.
 concurrency:
   group: sync-${{ github.ref }}
   cancel-in-progress: false
-        
+
 env:
   RELEASE_BRANCH: ${{ github.ref_name }}
   TARGET_BRANCH: rhoai-staging
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "2.1.1"
+  SLACK_WEBHOOK_URL: ${{ secrets.ALERTS_MLSERVER_CHANNEL_SLACK_WEBHOOK_URL }}
 
 permissions:
   contents: write
@@ -33,166 +25,136 @@ jobs:
     # Only release-* branches are allowed to trigger this sync flow.
     if: startsWith(github.ref, 'refs/heads/release-')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
-      - name: Validate manual pyproject sync acknowledgement
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_pyproject_sync_policy != 'true' }}
-        run: |
-          echo "Please acknowledge pyproject.toml manual sync policy before running this workflow."
-          exit 1
-
+      - name: Set up Python
+        # Pinned from actions/setup-python v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Poetry
+        run: pip install poetry==${{ env.POETRY_VERSION }}
       - name: Checkout repository
-        # Pinned from actions/checkout v6
+        # Pinned from actions/checkout v6.0.2
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: master
           fetch-depth: 0
       - name: Fetch required branches
         run: |
+          set -o errexit
           set -o nounset
           set -o pipefail
 
-          # Fetch both branch tips used throughout validation and merge.
           git fetch origin "$TARGET_BRANCH"
           git fetch origin "$RELEASE_BRANCH"
 
-          # Fail early with clear logs if expected refs are missing.
           if ! git rev-parse --verify "origin/$TARGET_BRANCH" >/dev/null 2>&1; then
-            echo "Required branch not found: origin/$TARGET_BRANCH"
+            echo "::error::Required branch not found: origin/$TARGET_BRANCH"
             exit 1
           fi
           if ! git rev-parse --verify "origin/$RELEASE_BRANCH" >/dev/null 2>&1; then
-            echo "Required branch not found: origin/$RELEASE_BRANCH"
+            echo "::error::Required branch not found: origin/$RELEASE_BRANCH"
             exit 1
           fi
-      - name: Validate Sync Status
-        id: validate
+      - name: Check for existing sync PR
+        id: check_pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -o errexit
           set -o nounset
           set -o pipefail
 
-          # Block duplicate in-flight sync PRs from the same release branch.
           EXISTING_PR=$(gh pr list \
             --base "$TARGET_BRANCH" \
-            --json number,headRefName \
-            --jq ".[] | select(.headRefName | startswith(\"sync/${RELEASE_BRANCH}\")) | .number" \
-            | head -n1)
+            --json number,headRefName,url \
+            | jq -c --arg prefix "sync/${RELEASE_BRANCH}-" \
+              '[.[] | select(.headRefName | startswith($prefix))][0] // empty')
+
           if [ -n "$EXISTING_PR" ]; then
-            echo "PR #$EXISTING_PR already exists for syncing $RELEASE_BRANCH to $TARGET_BRANCH."
-            echo "Please close any outstanding syncs from $RELEASE_BRANCH to $TARGET_BRANCH before proceeding."
+            PR_NUM=$(echo "$EXISTING_PR" | jq -r '.number')
+            PR_URL=$(echo "$EXISTING_PR" | jq -r '.url')
+            echo "existing_pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+            echo "existing_pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+            echo "::error::PR #$PR_NUM already exists for syncing $RELEASE_BRANCH to $TARGET_BRANCH."
             exit 1
           fi
-
-          # Decide whether a sync is needed after applying the same policy rules
-          # used in the merge step (excluded files and keep-from-rhoai files).
-          MEANINGFUL_CHANGES=false
-
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-
-            # Always excluded from sync
-            if [[ "$file" == ".tekton/mlserver-push.yaml" ]] || \
-               [[ "$file" == ".github/workflows/prow-merge-release-to-staging.yml" ]] || \
-               [[ "$file" == ".github/workflows/create-and-bump-tag.yml" ]]; then
-              continue
-            fi
-
-            # Root-level metadata kept from rhoai-staging by policy.
-            # NOTE: bare filenames are root-path matches; runtime files are handled
-            # by explicit runtimes/* patterns below.
-            if [[ "$file" == "pyproject.toml" ]] || \
-               [[ "$file" == "poetry.lock" ]] || \
-               [[ "$file" == "docs/conf.py" ]] || \
-               [[ "$file" == "mlserver/version.py" ]] || \
-               [[ "$file" == runtimes/*/pyproject.toml ]] || \
-               [[ "$file" == runtimes/*/poetry.lock ]]; then
-              continue
-            fi
-
-            # Runtime version files are branch-owned when they already exist on
-            # $TARGET_BRANCH. New runtime version files on release are meaningful
-            # and should be synced into $TARGET_BRANCH.
-            if [[ "$file" == runtimes/*/*/version.py ]]; then
-              if git cat-file -e "origin/$TARGET_BRANCH:$file" 2>/dev/null; then
-                continue
-              fi
-            fi
-
-            MEANINGFUL_CHANGES=true
-            break
-          done < <(git diff --name-only "origin/$TARGET_BRANCH..origin/$RELEASE_BRANCH")
-
-          if [ "$MEANINGFUL_CHANGES" = true ]; then
-            echo "Meaningful changes detected between $RELEASE_BRANCH and $TARGET_BRANCH. Proceeding with PR creation."
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "No meaningful changes to sync from $RELEASE_BRANCH to $TARGET_BRANCH after applying sync policy."
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
+          echo "existing_pr_url=" >> "$GITHUB_OUTPUT"
       - name: Sync ${{ github.ref_name }} to ${{ env.TARGET_BRANCH }}
-        if: steps.validate.outputs.has_changes == 'true'
+        id: sync
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
+          set -o errexit
           set -o nounset
           set -o pipefail
 
-          # Generate sync branch name with timestamp
+          SYNC_BRANCH=""
+          PUSHED_TO_REMOTE=false
+
+          cleanup_on_failure() {
+            local exit_code=$?
+            if [ "$exit_code" -eq 0 ]; then
+              return
+            fi
+            echo "::error::Sync failed (exit $exit_code). Cleaning up..."
+            if [ "$PUSHED_TO_REMOTE" = true ] && [ -n "$SYNC_BRANCH" ]; then
+              echo "Deleting orphaned remote branch: $SYNC_BRANCH"
+              GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" git push origin --delete "$SYNC_BRANCH" 2>/dev/null || true
+            fi
+            if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+              git merge --abort 2>/dev/null || true
+            fi
+          }
+          trap cleanup_on_failure EXIT
+
           SYNC_BRANCH="sync/${RELEASE_BRANCH}-$(date +%Y-%m-%d-%H%M%S)"
-          
-          # Configure git
+
           git config user.name "Sync Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create new sync branch from origin/$TARGET_BRANCH.
           git checkout -b "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
 
-          # Start merge without committing yet. This lets us apply policy changes
-          # first so the final PR contains one deterministic merge commit.
-          set +e
-          git merge --no-commit --no-ff -X theirs "origin/$RELEASE_BRANCH"
-          MERGE_EXIT=$?
-          set -e
+          MERGE_EXIT=0
+          git merge --no-commit --no-ff -X theirs "origin/$RELEASE_BRANCH" || MERGE_EXIT=$?
 
-          # Distinguish expected conflict state (MERGE_HEAD exists) from fatal
-          # merge failures where no merge state was created.
           if [ "$MERGE_EXIT" -ne 0 ] && ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
-            echo "Merge failed unexpectedly with exit code $MERGE_EXIT and no MERGE_HEAD."
+            echo "::error::Merge failed unexpectedly with exit code $MERGE_EXIT and no MERGE_HEAD."
             exit 1
           fi
 
-          # Always keep these files in target-branch shape (or absent if absent on target branch).
           FILES_TO_EXCLUDE=(
-            ".tekton/mlserver-push.yaml"
             ".github/workflows/prow-merge-release-to-staging.yml"
             ".github/workflows/create-and-bump-tag.yml"
           )
 
           for file in "${FILES_TO_EXCLUDE[@]}"; do
             if git cat-file -e "origin/$TARGET_BRANCH:$file" 2>/dev/null; then
-              # File exists on target branch, restore it
               echo "Restoring $file from $TARGET_BRANCH"
               git restore --source "origin/$TARGET_BRANCH" --staged --worktree -- "$file"
             else
-              # File doesn't exist on target branch, remove it
               echo "Removing $file (not present on $TARGET_BRANCH)"
               git rm -f --ignore-unmatch "$file"
             fi
           done
 
-          # Apply metadata ownership policy:
-          # - Keep root/runtime dependency metadata from target branch.
-          # - Keep existing runtime version.py from target branch.
-          # - For newly introduced runtime version.py on release, keep release version.
-          # This mirrors files managed by hack/update-version.sh.
-          # Iterate remote-ref branch diff (not merge-index state) for deterministic policy.
+          # Exclude entire .tekton/ directory — CI pipelines are branch-specific
+          while IFS= read -r tekton_file; do
+            [ -z "$tekton_file" ] && continue
+            if git cat-file -e "origin/$TARGET_BRANCH:$tekton_file" 2>/dev/null; then
+              echo "Restoring $tekton_file from $TARGET_BRANCH"
+              git restore --source "origin/$TARGET_BRANCH" --staged --worktree -- "$tekton_file"
+            else
+              echo "Removing $tekton_file (not present on $TARGET_BRANCH)"
+              git rm -f --ignore-unmatch "$tekton_file"
+            fi
+          done < <(git diff --name-only "origin/$TARGET_BRANCH..origin/$RELEASE_BRANCH" -- .tekton/)
+
           while IFS= read -r file; do
             [ -z "$file" ] && continue
 
             case "$file" in
-              # Dependency metadata and version tracking files.
               pyproject.toml|poetry.lock|docs/conf.py|mlserver/version.py|runtimes/*/pyproject.toml|runtimes/*/poetry.lock)
                 if git cat-file -e "origin/$TARGET_BRANCH:$file" 2>/dev/null; then
                   echo "Keeping $file from $TARGET_BRANCH"
@@ -209,7 +171,6 @@ jobs:
                   git restore --source "origin/$TARGET_BRANCH" --staged --worktree -- "$file"
                 else
                   echo "::warning::Runtime version file '$file' exists only on release branch. Keeping release version to allow new runtime sync."
-                  # If this file is unmerged, resolve conflict by taking release side.
                   if [ -n "$(git ls-files -u -- "$file")" ]; then
                     git checkout --theirs -- "$file"
                   fi
@@ -219,43 +180,80 @@ jobs:
             esac
           done < <(git diff --name-only "origin/$TARGET_BRANCH..origin/$RELEASE_BRANCH")
 
-          # Do not continue if any unresolved conflicts remain after policy handling.
           if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
             UNRESOLVED_CONFLICTS=$(git diff --name-only --diff-filter=U)
             if [ -n "$UNRESOLVED_CONFLICTS" ]; then
-              echo "Merge returned exit code: $MERGE_EXIT"
-              echo "Unresolved merge conflicts remain:"
+              echo "::error::Unresolved merge conflicts remain:"
               echo "$UNRESOLVED_CONFLICTS"
-              echo "Please resolve conflicts manually and fix the merge conflict."
               exit 1
             fi
           fi
 
-          # No-op check:
-          # - first diff checks worktree vs index
-          # - second diff checks index vs HEAD (merge result before commit)
-          # If both are clean, policy neutralized the merge and we can stop.
+          # ── Sync pyproject.toml dependency specs from release branch ──
+          mapfile -t PYPROJECT_FILES < <(
+            git ls-tree -r --name-only "origin/$RELEASE_BRANCH" \
+              | grep -E '^(pyproject\.toml|runtimes/[^/]+/pyproject\.toml)$'
+          )
+
+          git checkout "origin/$RELEASE_BRANCH" -- "${PYPROJECT_FILES[@]}"
+
+          STAGING_VERSION=$(python3 -c "g={}; exec(open('mlserver/version.py').read(), g); print(g['__version__'])")
+          if [ -z "$STAGING_VERSION" ]; then
+            echo "::error::Failed to extract version from mlserver/version.py"
+            exit 1
+          fi
+          if ! [[ "$STAGING_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.a-zA-Z0-9+_-]*)?$ ]]; then
+            echo "::error::Version '$STAGING_VERSION' contains unexpected characters. Aborting."
+            exit 1
+          fi
+          echo "Re-stamping version: $STAGING_VERSION"
+          bash hack/update-version.sh "$STAGING_VERSION"
+
+          git add -- "${PYPROJECT_FILES[@]}"
+
+          if ! git diff --quiet --cached "origin/$TARGET_BRANCH" -- "${PYPROJECT_FILES[@]}"; then
+            echo "pyproject.toml dependency specs changed. Regenerating lock files..."
+            # must stay as 'if make lock' — bare 'make lock' would fire the EXIT trap
+            for attempt in 1 2 3; do
+              if make lock; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::make lock failed after 3 attempts."
+                exit 1
+              fi
+              echo "::warning::make lock attempt $attempt failed. Retrying in 30s..."
+              sleep 30
+            done
+          else
+            echo "No effective pyproject.toml dependency changes; skipping lock regeneration."
+          fi
+
+          git add -- poetry.lock 2>/dev/null || true
+          for rt in runtimes/*/poetry.lock; do
+            [ -f "$rt" ] && git add -- "$rt"
+          done
+
           if git diff --quiet && git diff --quiet --cached; then
             echo "No effective changes remain after sync policy; skipping push and PR creation."
+            echo "sync_result=skipped" >> "$GITHUB_OUTPUT"
             if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
               git merge --abort || true
             fi
             exit 0
           fi
 
-          # Finalize exactly one merge commit for this sync PR.
           if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
             git commit --no-edit
           else
-            echo "Expected MERGE_HEAD to exist before final commit, but it was missing."
+            echo "::error::Expected MERGE_HEAD to exist before final commit, but it was missing."
             exit 1
           fi
 
-          # Push the sync branch
-          git push origin "$SYNC_BRANCH"
+          GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" git push origin "$SYNC_BRANCH"
+          PUSHED_TO_REMOTE=true
 
-          # Create new PR
-          gh pr create \
+          PR_URL=$(GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh pr create \
             --base "$TARGET_BRANCH" \
             --head "$SYNC_BRANCH" \
             --label "tide/merge-method-merge" \
@@ -266,13 +264,112 @@ jobs:
           - Part of RHOAI release preparation
 
           ## Changes
-          - All changes from $RELEASE_BRANCH
-          - Any changes to the following files are excluded:
-            - \`.tekton/mlserver-push.yaml\`
-            - \`.github/workflows/prow-merge-release-to-staging.yml\`
-            - \`.github/workflows/create-and-bump-tag.yml\`
-          - Version and dependency metadata files are preserved from \`$TARGET_BRANCH\` by sync policy.
+          - All changes from \`$RELEASE_BRANCH\`
+          - Excluded files: \`.tekton/mlserver-push.yaml\`, sync/tag workflows
+          - Version and dependency metadata preserved from \`$TARGET_BRANCH\`
+          - \`pyproject.toml\` dependency specs synced from \`$RELEASE_BRANCH\` with \`$TARGET_BRANCH\` version stamp, and lock files regenerated
 
           🤖 Generated with GitHub Actions
           EOF
-          )"
+          )")
+
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "sync_result=success" >> "$GITHUB_OUTPUT"
+
+          # Auto-assign reviewers from OWNERS file
+          mapfile -t ALL_REVIEWERS < <(
+            sed -n '/^reviewers:/,/^[^ ]/{ /^- /s/^- //p }' OWNERS \
+              | grep -Fxv "$ACTOR"
+          )
+
+          TOTAL=${#ALL_REVIEWERS[@]}
+          if [ "$TOTAL" -gt 0 ]; then
+            START=$(( ${{ github.run_number }} % TOTAL ))
+            SELECTED=()
+            for i in 0 1 2; do
+              IDX=$(( (START + i) % TOTAL ))
+              SELECTED+=("${ALL_REVIEWERS[$IDX]}")
+            done
+            # Order-preserving dedup (defensive)
+            SELECTED=($(printf '%s\n' "${SELECTED[@]}" | awk '!seen[$0]++'))
+            REVIEWER_LIST=$(IFS=,; echo "${SELECTED[*]}")
+            echo "Assigning reviewers: $REVIEWER_LIST"
+            GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh pr edit "$PR_URL" --add-reviewer "$REVIEWER_LIST" \
+              || echo "::warning::Failed to assign reviewers; PR $PR_URL was created. Assign manually."
+          fi
+
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        # Pinned from slackapi/slack-github-action v3.0.3 (SHA verified)
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+        with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Release Sync: ${{ env.RELEASE_BRANCH }} → ${{ env.TARGET_BRANCH }} — ${{ job.status }}",
+              "attachments": [
+                {
+                  "color": "${{ job.status == 'success' && '#2cbe4e' || job.status == 'failure' && '#cb2431' || '#d1d5da' }}",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "${{ job.status == 'success' && '✅ Release Sync Succeeded' || job.status == 'failure' && '❌ Release Sync Failed' || '⏭️ Release Sync Skipped' }}"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Source:*\n`${{ env.RELEASE_BRANCH }}`"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Target:*\n`${{ env.TARGET_BRANCH }}`"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Triggered by:*\n${{ github.actor }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Result:*\n${{ steps.sync.outputs.sync_result == 'skipped' && 'No changes to sync (no-op)' || steps.sync.outputs.sync_result == 'success' && 'PR created successfully' || steps.check_pr.outputs.existing_pr_url && 'Blocked by existing PR' || 'Failed — manual intervention needed' }}"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "${{ steps.sync.outputs.pr_url && format('*PR:* <{0}|View Pull Request>', steps.sync.outputs.pr_url) || steps.check_pr.outputs.existing_pr_url && format('*Blocked by:* <{0}|Existing PR #{1}>', steps.check_pr.outputs.existing_pr_url, steps.check_pr.outputs.existing_pr_number) || '*PR:* _not created_' }}"
+                      }
+                    },
+                    {
+                      "type": "actions",
+                      "elements": [
+                        {
+                          "type": "button",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "View Workflow Run"
+                          },
+                          "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "Repository: <https://github.com/${{ github.repository }}|${{ github.repository }}>"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
