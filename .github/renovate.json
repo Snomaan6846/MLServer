@@ -33,6 +33,8 @@
         "at any time"
       ],
       "versioning": "semver",
+      "ignoreUnstable": false,
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+(-ea\\.\\d+)?$/",
       "enabled": true
     }
   ]
