@@ -68,7 +68,7 @@ orjson = "*"
 uvloop = {version = "*", markers = "sys_platform != 'win32' and (sys_platform != 'cygwin' and platform_python_implementation != 'PyPy')"}
 pydantic = "^2.7.1"
 pydantic-settings = "^2.3.0"
-python-multipart = "*"
+python-multipart = ">=0.0.27,<0.0.33"
 
 opentelemetry-sdk = "^1.22.0"
 opentelemetry-instrumentation-fastapi = ">=0.43b0"
