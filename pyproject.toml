@@ -120,7 +120,13 @@ optional = true
 mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
-mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
+
+[tool.poetry.group.odh-runtimes-cuda]
+optional = true
+
+[tool.poetry.group.odh-runtimes-cuda.dependencies]
+mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cuda"]}
 
 [tool.poetry.group.all-runtimes]
 optional = true
@@ -129,7 +135,7 @@ optional = true
 mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
-mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
 mlserver-mlflow = {path = "./runtimes/mlflow", develop = true}
 mlserver-huggingface = {path = "./runtimes/huggingface", develop = true}
 mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}

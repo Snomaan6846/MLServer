@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """
-Generate requirements-<name>.txt with pinned versions and SHA256 hashes
+Generate requirements-<variant>.txt with pinned versions and SHA256 hashes
 for x86_64, aarch64 and ppc64le.
 
-Run inside the base image container for each variant; the image's pip index is used.
-Root packages are resolved as latest from the index (no version file). Output is
-pinned for reproducible installs.
+Run inside the base image container for each variant defined in
+hack/requirements-config.json. Each variant specifies its own root_packages
+and dockerfile. The image's pip index is used for resolution.
 
 Options:
-  -o PATH              Output path (default: requirements.txt in cwd).
-  --index-url URL      Override package index URL (otherwise use system pip config).
-  --print-base-image   Print base image from Dockerfile and exit (for CI).
+  --variant NAME       (required) Variant from config
+                       (e.g. cpu, cuda).
+  -o PATH              Output path (default: requirements.txt).
+  --index-url URL      Override package index URL.
+  --print-base-image   Print base image from Dockerfile.
+  --dry-run            Print pip commands without executing.
 
 Usage (in container):
-  python hack/generate-pinned-requirements.py -o requirements/requirements-cpu.txt
+  python hack/generate-pinned-requirements.py \
+    --variant cpu -o requirements/requirements-cpu.txt
+  python hack/generate-pinned-requirements.py \
+    --variant cuda -o requirements/requirements-cuda.txt
 Usage (on host):
   python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux
+  python hack/generate-pinned-requirements.py --print-base-image Dockerfile.cuda.konflux
 """
 
 import argparse
@@ -184,8 +191,7 @@ def load_config(script_dir: Path) -> dict:
         script_dir: Directory containing ``requirements-config.json``.
 
     Returns:
-        Parsed configuration dictionary with validated ``root_packages`` and
-        ``variants`` keys.
+        Parsed configuration dictionary with validated ``variants`` key.
 
     Raises:
         FileNotFoundError: If the configuration file does not exist.
@@ -195,16 +201,8 @@ def load_config(script_dir: Path) -> dict:
     if not config_path.exists():
         raise FileNotFoundError(f"Config not found: {config_path}")
     data = json.loads(config_path.read_text())
-    if "root_packages" not in data:
-        raise ValueError("Config missing required key: 'root_packages'")
     if "variants" not in data:
-        if "indexes" in data:
-            # Backward compatibility: accept legacy "indexes" key.
-            data["variants"] = data["indexes"]
-        else:
-            raise ValueError("Config missing required key: 'variants'")
-    if not isinstance(data["root_packages"], list) or not data["root_packages"]:
-        raise ValueError("Config 'root_packages' must be a non-empty list")
+        raise ValueError("Config missing required key: 'variants'")
     variants = data["variants"]
     if not isinstance(variants, list) or not variants:
         raise ValueError("Config 'variants' must be a non-empty list")
@@ -1007,6 +1005,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--variant",
+        default=None,
+        dest="variant",
+        help=(
+            "Select a variant from requirements-config.json. "
+            "Each variant must define its own root_packages."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Only print pip download commands, do not run",
@@ -1033,7 +1040,30 @@ def main() -> int:
     else:
         platform_groups = DEFAULT_PLATFORMS
 
-    root_names = config["root_packages"]
+    variants = config.get("variants", [])
+    if not args.variant:
+        available = [v.get("name", "?") for v in variants]
+        print(
+            f"Error: --variant is required. " f"Available: {available}",
+            file=sys.stderr,
+        )
+        return 1
+    matched = [v for v in variants if v.get("name") == args.variant]
+    if not matched:
+        available = [v.get("name", "?") for v in variants]
+        print(
+            f"Error: variant '{args.variant}' not found. " f"Available: {available}",
+            file=sys.stderr,
+        )
+        return 1
+    variant = matched[0]
+    root_names = variant.get("root_packages", [])
+    if not root_names:
+        print(
+            f"Error: variant '{args.variant}' has no root_packages.",
+            file=sys.stderr,
+        )
+        return 1
     print(f"Root packages (latest from index): {', '.join(root_names)}")
     if args.index_url:
         print(f"Output -> {out_path} (index: {redact_index_url(args.index_url)})")

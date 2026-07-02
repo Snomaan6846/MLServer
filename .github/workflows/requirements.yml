@@ -1,4 +1,5 @@
-# Generate requirements/*.txt from config variants and create a PR when files change.
+# Generate requirements/requirements-{cpu,cuda}.txt from hack/requirements-config.json
+# variants and create a PR when files change.
 name: Requirements Regeneration
 
 on:
@@ -70,7 +71,7 @@ jobs:
             podman run --rm --user 0 \
               -e PYTHONDONTWRITEBYTECODE=1 \
               -v "$WORKSPACE:$WORKSPACE:z" -w "$WORKSPACE" \
-              "$image" python "$script" -o "requirements/requirements-${name}.txt"
+              "$image" python "$script" --variant "$name" -o "requirements/requirements-${name}.txt"
           done
 
       - name: Fix ownership of generated files
@@ -101,10 +102,13 @@ jobs:
           title: Regenerate pinned requirements
           body: |
             ## Description
-            Regenerated `requirements/*.txt` by running the generator inside each base image container (per variant; pip uses each image index).
+            Regenerated `requirements/*.txt` by running the generator inside each variant's
+            base image container (cpu and cuda). Each variant resolves its own root_packages
+            from `hack/requirements-config.json` using the image's pip index.
 
             ## Changes
-            - Updated pinned requirements under `requirements/`
+            - Updated `requirements/requirements-cpu.txt` (CPU variant)
+            - Updated `requirements/requirements-cuda.txt` (CUDA variant)
 
             Triggered by **Actions → Requirements Regeneration** (manual or every 12 hours).
           add-paths: |

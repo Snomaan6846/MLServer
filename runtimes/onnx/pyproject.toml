@@ -13,14 +13,29 @@ packages = [{include = "mlserver_onnx"}]
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
 mlserver = "*"
+# >=1.21.0 required for opset 21 support used by onnxruntime >=1.20.0
+onnx = ">=1.21.0"
+# Upper bound capped to tested range; extend after validating newer ORT against
+# both CPU and CUDA execution providers in CI.
 onnxruntime = [
-    {version = ">=1.20.0,<1.24.0", markers = "python_version < '3.11'"},
-    {version = ">=1.20.0", markers = "python_version >= '3.11'"},
+    {version = ">=1.20.0,<1.24.0", markers = "python_version < '3.11'", optional = true},
+    {version = ">=1.20.0,<1.27.0", markers = "python_version >= '3.11'", optional = true},
 ]
-onnx = ">=1.16.0"
+onnxruntime-gpu = [
+    {version = ">=1.20.0,<1.24.0", markers = "python_version < '3.11'", optional = true},
+    {version = ">=1.20.0,<1.27.0", markers = "python_version >= '3.11'", optional = true},
+]
+
+[tool.poetry.extras]
+cpu = ["onnxruntime"]
+cuda = ["onnxruntime-gpu"]
 
 [tool.poetry.group.dev.dependencies]
 mlserver = {path = "../..", develop = true}
+onnxruntime = [
+    {version = ">=1.20.0,<1.24.0", markers = "python_version < '3.11'"},
+    {version = ">=1.20.0,<1.27.0", markers = "python_version >= '3.11'"},
+]
 
 [build-system]
 requires = ["poetry-core"]

@@ -15,7 +15,7 @@ The process generates `requirements/requirements-<variant-name>.txt` files that:
 - resolve the latest dependency graph for a set of root packages
 - pin every resolved package to an exact version
 - attach `--hash=sha256:...` entries for reproducible installs
-- include artifacts compatible with both `x86_64` and `aarch64` platforms
+- include artifacts compatible with `x86_64`, `aarch64` and `ppc64le` platforms
 
 ## Configuration
 
@@ -25,22 +25,34 @@ Current shape:
 
 ```json
 {
-  "root_packages": [
-    "mlserver",
-    "mlserver-lightgbm",
-    "mlserver-sklearn",
-    "mlserver-xgboost"
-  ],
   "variants": [
-    { "name": "cpu", "dockerfile": "Dockerfile.konflux" }
+    {
+      "name": "cpu",
+      "dockerfile": "Dockerfile.konflux",
+      "root_packages": [
+        "mlserver",
+        "mlserver-lightgbm",
+        "mlserver-onnx[cpu]",
+        "mlserver-sklearn",
+        "mlserver-xgboost"
+      ]
+    },
+    {
+      "name": "cuda",
+      "dockerfile": "Dockerfile.cuda.konflux",
+      "root_packages": [
+        "mlserver",
+        "mlserver-onnx[cuda]"
+      ]
+    }
   ]
 }
 ```
 
-- `root_packages`: top-level packages to resolve from the variant's configured index.
-- `variants`: list of output targets (for example `cpu`, `cuda`, `rocm`).
+- `variants`: list of output targets. Each variant defines:
   - `name`: suffix used in output file name (`requirements-<name>.txt`).
   - `dockerfile`: path from repo root used to discover the base image.
+  - `root_packages`: packages to resolve from the variant's configured index.
 
 ## How the Script Works
 
@@ -49,7 +61,7 @@ Current shape:
 1. **Resolve dependencies**  
    Uses `pip install --dry-run --report ...` on root packages to discover exact `(name, version)` pairs from pip's JSON report.
 2. **Collect platform artifacts + hashes**  
-   Uses `pip download` for both `x86_64` and `aarch64` platform groups in parallel, then computes SHA256 for downloaded artifacts and writes hash-pinned output.
+   Uses `pip download` for `x86_64`, `aarch64` and `ppc64le` platform groups in parallel, then computes SHA256 for downloaded artifacts and writes hash-pinned output.
 
 Important behavior:
 
@@ -79,7 +91,7 @@ Per variant in config, the workflow:
 4. extracts the base image from the configured Dockerfile using:
    - `python hack/generate-pinned-requirements.py --print-base-image <dockerfile>`
 5. runs the generator inside that base image container:
-   - `python hack/generate-pinned-requirements.py -o requirements/requirements-<name>.txt`
+   - `python hack/generate-pinned-requirements.py --variant <name> -o requirements/requirements-<name>.txt`
 6. fixes workspace ownership (`sudo chown -R "$USER:$USER" .`) after container execution
 7. creates or updates a PR if files under `requirements/` change using branch `requirements/regenerate-<BASE_BRANCH>`
 8. requests reviewers from the repository `OWNERS` file (`reviewers` list) only for `opendatahub-io/MLServer`
@@ -97,18 +109,20 @@ The workflow fails early if credentials are missing.
 
 ```bash
 python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux
+python hack/generate-pinned-requirements.py --print-base-image Dockerfile.cuda.konflux
 ```
 
 ### Generate pinned requirements in current environment
 
 ```bash
-python hack/generate-pinned-requirements.py -o requirements/requirements-cpu.txt
+python hack/generate-pinned-requirements.py --variant cpu -o requirements/requirements-cpu.txt
+python hack/generate-pinned-requirements.py --variant cuda -o requirements/requirements-cuda.txt
 ```
 
 ### Generate pinned requirements with explicit index override
 
 ```bash
-python hack/generate-pinned-requirements.py \
+python hack/generate-pinned-requirements.py --variant cpu \
   -o requirements/requirements-cpu.txt \
   --index-url https://example.com/simple/
 ```
@@ -116,7 +130,7 @@ python hack/generate-pinned-requirements.py \
 ### Dry run (show pip commands only)
 
 ```bash
-python hack/generate-pinned-requirements.py -o requirements/requirements-cpu.txt --dry-run
+python hack/generate-pinned-requirements.py --variant cpu -o requirements/requirements-cpu.txt --dry-run
 ```
 
 ### Custom platform tags
@@ -124,10 +138,11 @@ python hack/generate-pinned-requirements.py -o requirements/requirements-cpu.txt
 `--platform` can be repeated. When used, each provided platform is treated as its own download group.
 
 ```bash
-python hack/generate-pinned-requirements.py \
+python hack/generate-pinned-requirements.py --variant cpu \
   -o requirements/requirements-cpu.txt \
   --platform manylinux2014_x86_64 \
-  --platform manylinux2014_aarch64
+  --platform manylinux2014_aarch64 \
+  --platform manylinux2014_ppc64le
 ```
 
 ## Operational Notes

@@ -24,15 +24,19 @@
         "rhoai-staging"
       ],
       "matchFileNames": [
-        "Dockerfile.konflux"
+        "Dockerfile.konflux",
+        "Dockerfile.cuda.konflux"
       ],
       "matchDepNames": [
-        "quay.io/aipcc/base-images/cpu"
+        "quay.io/aipcc/base-images/cpu",
+        "quay.io/aipcc/base-images/cuda-12.9-el9.6"
       ],
       "schedule": [
         "at any time"
       ],
       "versioning": "semver",
+      "ignoreUnstable": false,
+      "allowedVersions": "/^\\d+\\.\\d+(\\.\\d+-ea\\.\\d+)?$/",
       "enabled": true
     }
   ]
