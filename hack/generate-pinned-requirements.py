@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate requirements-<name>.txt with pinned versions and SHA256 hashes
-for x86_64 and aarch64.
+for x86_64, aarch64 and ppc64le.
 
 Run inside the base image container for each variant; the image's pip index is used.
 Root packages are resolved as latest from the index (no version file). Output is
@@ -38,6 +38,7 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 DEFAULT_PLATFORMS = [
     ["manylinux2014_x86_64", "manylinux_2_34_x86_64", "linux_x86_64"],
     ["manylinux2014_aarch64", "manylinux_2_34_aarch64", "linux_aarch64"],
+    ["manylinux2014_ppc64le", "manylinux_2_34_ppc64le", "linux_ppc64le"],
 ]
 
 CONFIG_FILENAME = "requirements-config.json"
