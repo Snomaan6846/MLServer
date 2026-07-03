@@ -6,7 +6,7 @@ module with ``pytest -m "not cuda"`` or let them auto-skip via the
 """
 
 import asyncio
-import io
+from collections.abc import AsyncGenerator
 
 import numpy as np
 import pytest
@@ -24,7 +24,6 @@ def _has_cuda() -> bool:
     if "CUDAExecutionProvider" not in ort.get_available_providers():
         return False
     try:
-        import onnx
         from onnx import helper, TensorProto
 
         node = helper.make_node("Identity", ["x"], ["y"])
@@ -34,12 +33,12 @@ def _has_cuda() -> bool:
             [helper.make_tensor_value_info("x", TensorProto.FLOAT, [1])],
             [helper.make_tensor_value_info("y", TensorProto.FLOAT, [1])],
         )
-        model_proto = helper.make_model(graph)
-        buf = io.BytesIO()
-        onnx.save(model_proto, buf)
-        ort.InferenceSession(
-            buf.getvalue(), providers=["CUDAExecutionProvider"]
+        model_proto = helper.make_model(
+            graph, opset_imports=[helper.make_opsetid("", 13)]
         )
+        model_proto.ir_version = 7
+        model_bytes = model_proto.SerializeToString()
+        ort.InferenceSession(model_bytes, providers=["CUDAExecutionProvider"])
         return True
     except Exception:
         return False
@@ -75,7 +74,9 @@ def cuda_model_settings(model_uri: str) -> ModelSettings:
 
 
 @pytest.fixture
-async def cuda_model(cuda_model_settings: ModelSettings) -> OnnxModel:
+async def cuda_model(
+    cuda_model_settings: ModelSettings,
+) -> AsyncGenerator[OnnxModel, None]:
     """Loaded model with CUDA provider."""
     model = OnnxModel(cuda_model_settings)
     model.ready = await model.load()
@@ -201,8 +202,8 @@ async def test_cuda_provider_with_arena_extend_strategy(model_uri: str):
         await model.unload()
 
 
-async def test_invalid_device_id_raises(model_uri: str):
-    """Invalid device_id raises rather than silently falling back."""
+async def test_invalid_device_id_falls_back_to_cpu(model_uri: str):
+    """Invalid device_id triggers OnnxModel's fallback to CPUExecutionProvider."""
     settings = ModelSettings(
         name="onnx-cuda-bad-device",
         implementation=OnnxModel,
@@ -216,8 +217,14 @@ async def test_invalid_device_id_raises(model_uri: str):
         ),
     )
     model = OnnxModel(settings)
-    with pytest.raises(Exception):
-        await model.load()
+    model.ready = await model.load()
+    try:
+        assert model.ready
+        active = model._model.get_providers()
+        assert "CPUExecutionProvider" in active
+        assert "CUDAExecutionProvider" not in active
+    finally:
+        await model.unload()
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +233,11 @@ async def test_invalid_device_id_raises(model_uri: str):
 
 
 async def test_cuda_only_provider(model_uri: str):
-    """Model loads with CUDAExecutionProvider as the sole provider."""
+    """Model loads with CUDAExecutionProvider when it is the sole requested provider.
+
+    ORT always appends CPUExecutionProvider as a fallback, so we only
+    verify that CUDAExecutionProvider is the *first* (primary) provider.
+    """
     settings = ModelSettings(
         name="onnx-cuda-only",
         implementation=OnnxModel,
@@ -243,8 +254,7 @@ async def test_cuda_only_provider(model_uri: str):
     try:
         assert model.ready
         active = model._model.get_providers()
-        assert "CUDAExecutionProvider" in active
-        assert "CPUExecutionProvider" not in active
+        assert active[0] == "CUDAExecutionProvider"
     finally:
         await model.unload()
 

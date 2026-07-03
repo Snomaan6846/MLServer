@@ -430,7 +430,7 @@ poetry run tox -c ./runtimes/onnx
 ### CUDA runtime (mlserver-onnx-cuda)
 
 ```bash
-# From the repo root — installs onnx-cuda + dev dependencies
+# From the repo root — installs onnx-cuda + NVIDIA CUDA pip libraries + dev tools
 make install-dev-odh-cuda
 
 # Verify
@@ -442,6 +442,15 @@ poetry run tox -c ./runtimes/onnx-cuda
 # Run CUDA tests (requires GPU hardware)
 make test-cuda
 ```
+
+`make install-dev-odh-cuda` installs the `odh-runtimes-cuda-dev` Poetry group,
+which provides pip-packaged NVIDIA CUDA libraries (`nvidia-cublas-cu12`,
+`nvidia-cudnn-cu12`, etc.). This removes the need for a system-level CUDA
+toolkit on bare-metal dev/test nodes. The test `conftest.py` contains a
+`pytest_configure` hook that auto-discovers these pip-installed libraries and
+prepends their paths to `LD_LIBRARY_PATH` before any tests run, so
+`onnxruntime-gpu` can find CUDA shared objects at runtime without manual
+environment setup.
 
 > **Warning:** Do not install `install-dev` (CPU) and `install-dev-odh-cuda` into
 > the same virtualenv.  `onnxruntime` and `onnxruntime-gpu` share the same

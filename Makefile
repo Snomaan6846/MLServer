@@ -22,7 +22,7 @@ install-dev-odh:
 	poetry sync --with odh-runtimes --with dev
 
 install-dev-odh-cuda:
-	poetry sync --with odh-runtimes-cuda --with dev
+	poetry sync --with odh-runtimes-cuda --with odh-runtimes-cuda-dev --with dev
 
 test-cuda:
 	poetry run tox -c ./runtimes/onnx-cuda -e cuda
