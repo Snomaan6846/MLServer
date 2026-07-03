@@ -4,22 +4,36 @@ This package provides a MLServer runtime compatible with ONNX models using ONNX 
 
 ## Usage
 
-Install the CPU variant (default):
+Install the CPU runtime:
 
 ```bash
-pip install mlserver mlserver-onnx[cpu]
+pip install mlserver mlserver-onnx
 ```
 
-For GPU acceleration with CUDA:
+For GPU acceleration with CUDA, use the separate package:
 
 ```bash
-pip install mlserver mlserver-onnx[cuda]
+pip install mlserver-onnx-cuda
+```
+
+To also install NVIDIA CUDA runtime libraries via pip (useful when system CUDA packages are not available):
+
+```bash
+pip install "mlserver-onnx-cuda[cuda-libs]"
 ```
 
 ```{note}
-The bare `mlserver-onnx` package (without an extra) does not install any
-ONNX Runtime backend. Always specify `[cpu]` or `[cuda]`.
+**Package availability:** `mlserver-onnx` and `mlserver-onnx-cuda` are not
+published to PyPI. They are consumed via:
+
+- **RHOAI / Konflux builds** — resolved from the AIPCC private pip index
+  configured in `Dockerfile.konflux` / `Dockerfile.cuda.konflux`.
+- **ODH community images** — built as local wheels by `hack/build-wheels.sh`
+  and installed inside `Dockerfile` / `Dockerfile.cuda`.
 ```
+
+For local development, use Poetry (see [Developer Setup](#developer-setup)
+below).
 
 For further information on how to use MLServer with ONNX, you can check out
 this [worked out example](../../docs/examples/onnx/README.md).
@@ -243,10 +257,10 @@ to `onnxruntime.RunOptions` and is applied on every `session.run()` call.
 
 ### GPU Acceleration (CUDA)
 
-Use the CUDA-enabled Docker image or install the GPU extra:
+Use the CUDA-enabled Docker image or install the GPU package:
 
 ```bash
-pip install mlserver mlserver-onnx[cuda]
+pip install mlserver-onnx-cuda
 ```
 
 Then configure `CUDAExecutionProvider` in your model settings:
@@ -404,6 +418,87 @@ Log severity levels:
 - `2`: WARNING
 - `3`: ERROR
 - `4`: FATAL
+
+## Developer Setup
+
+Since `mlserver-onnx` and `mlserver-onnx-cuda` are not on PyPI, use Poetry for
+local development.
+
+### CPU runtime (mlserver-onnx)
+
+```bash
+# From the repo root — installs mlserver + all runtimes in development mode
+make install-dev
+
+# Or install only mlserver-onnx and its dependencies
+pip install -e ./runtimes/onnx
+
+# Verify
+poetry run python -c "from mlserver_onnx import OnnxModel; print('OK')"
+
+# Run tests
+poetry run tox -c ./runtimes/onnx
+```
+
+### CUDA runtime (mlserver-onnx-cuda)
+
+```bash
+# From the repo root — installs onnx-cuda + NVIDIA CUDA pip libraries + dev tools
+make install-dev-odh-cuda
+
+# Verify
+poetry run python -c "from mlserver_onnx import OnnxModel; print('OK')"
+
+# Run CPU tests (always works)
+poetry run tox -c ./runtimes/onnx-cuda
+
+# Run CUDA tests (requires GPU hardware)
+make test-cuda
+```
+
+`make install-dev-odh-cuda` installs the `odh-runtimes-cuda-dev` Poetry group,
+which provides pip-packaged NVIDIA CUDA libraries (`nvidia-cublas-cu12`,
+`nvidia-cudnn-cu12`, etc.). This removes the need for a system-level CUDA
+toolkit on bare-metal dev/test nodes. The test `conftest.py` contains a
+`pytest_configure` hook that auto-discovers these pip-installed libraries and
+prepends their paths to `LD_LIBRARY_PATH` before any tests run, so
+`onnxruntime-gpu` can find CUDA shared objects at runtime without manual
+environment setup.
+
+```{warning}
+Do not install `install-dev` (CPU) and `install-dev-odh-cuda` into the same
+virtualenv.  `onnxruntime` and `onnxruntime-gpu` share the same Python
+namespace and their files conflict.
+```
+
+### Building and testing wheels locally
+
+```bash
+# Build wheels and generate a constraints file (pins all dependency versions)
+./hack/build-wheels.sh ./dist "onnx onnx-cuda"
+poetry export --with odh-runtimes-cuda \
+    --without-hashes \
+    --format constraints.txt \
+    -o ./dist/constraints.txt
+
+# Install into a fresh virtualenv (CPU)
+python3 -m venv ./.test-venv
+./.test-venv/bin/pip install ./dist/mlserver-*.whl --constraint ./dist/constraints.txt
+./.test-venv/bin/pip install ./dist/mlserver_onnx-*.whl --constraint ./dist/constraints.txt
+
+# To also test the CUDA package in the same venv:
+./.test-venv/bin/pip install ./dist/mlserver_onnx_cuda-*.whl \
+    --find-links ./dist/ --constraint ./dist/constraints.txt
+
+# onnxruntime (CPU) was pulled in by mlserver-onnx and conflicts with
+# onnxruntime-gpu (same Python namespace).  Remove the CPU variant then
+# force-reinstall the GPU variant to restore any shared files the
+# uninstall may have deleted.  --no-deps avoids re-resolving transitive
+# dependencies that are already pinned by the constraints file.
+./.test-venv/bin/pip uninstall -y onnxruntime
+./.test-venv/bin/pip install --force-reinstall --no-deps \
+    onnxruntime-gpu --constraint ./dist/constraints.txt
+```
 
 ### Getting Help
 
