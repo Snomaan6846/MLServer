@@ -32,7 +32,7 @@ Current shape:
       "root_packages": [
         "mlserver",
         "mlserver-lightgbm",
-        "mlserver-onnx[cpu]",
+        "mlserver-onnx",
         "mlserver-sklearn",
         "mlserver-xgboost"
       ]
@@ -42,7 +42,7 @@ Current shape:
       "dockerfile": "Dockerfile.cuda.konflux",
       "root_packages": [
         "mlserver",
-        "mlserver-onnx[cuda]"
+        "mlserver-onnx-cuda"
       ]
     }
   ]

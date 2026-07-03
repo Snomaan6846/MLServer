@@ -1,7 +1,12 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
-ARG RUNTIMES="onnx"
+# onnx is included because mlserver-onnx-cuda depends on mlserver-onnx and
+# the wheel must be built locally (not available on PyPI).  Konflux images
+# resolve it from the AIPCC private pip index instead.
+ARG RUNTIMES="onnx onnx-cuda"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
+# Keep in sync with the AIPCC CUDA base image version in Dockerfile.cuda.konflux
+# (e.g. cuda-12.9-el9.6 → 12-9 here).  Not Renovate-managed.
 ARG CUDA_VERSION="12-9"
 
 FROM ${BASE_IMAGE} AS wheel-builder
@@ -28,6 +33,7 @@ RUN microdnf update -y && \
     microdnf clean all && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
     alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools
@@ -55,7 +61,7 @@ ENV MLSERVER_MODELS_DIR=/mnt/models \
     HF_HOME=/opt/mlserver/.cache \
     NUMBA_CACHE_DIR=/opt/mlserver/.cache \
     MLSERVER_MODEL_ONNX_PROVIDERS='["CUDAExecutionProvider","CPUExecutionProvider"]' \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
 # Install base dependencies and NVIDIA CUDA runtime libraries.
 RUN microdnf update -y && \
@@ -96,16 +102,19 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools && \
     pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
-    pip uninstall -y onnxruntime || true && \
     for _runtime in $RUNTIMES; do \
-        _wheel=$(ls ./dist/mlserver_${_runtime}-*.whl); \
+        _wheel=$(ls ./dist/mlserver_${_runtime//-/_}-*.whl); \
         echo "--> Installing $_wheel..."; \
-        if [ "$_runtime" = "onnx" ]; then \
-            pip install "${_wheel}[cuda]" --constraint ./dist/constraints.txt; \
-        else \
-            pip install "$_wheel" --constraint ./dist/constraints.txt; \
-        fi; \
+        pip install "$_wheel" --find-links ./dist/ --constraint ./dist/constraints.txt; \
     done && \
+    # mlserver-onnx-cuda depends on mlserver-onnx, which pulls in onnxruntime (CPU).
+    # onnxruntime and onnxruntime-gpu share the same Python namespace and their
+    # files conflict.  Remove the CPU package and force-reinstall the GPU package
+    # to restore any shared files that the uninstall may have deleted.
+    # --no-deps avoids re-resolving transitive dependencies that are already
+    # pinned by the constraints file.
+    pip uninstall -y onnxruntime 2>/dev/null || true && \
+    pip install --force-reinstall --no-deps onnxruntime-gpu --constraint ./dist/constraints.txt && \
     rm -rf /root/.cache/pip
 
 COPY ./licenses/license.txt .

@@ -159,6 +159,7 @@ The project defines separate Poetry dependency groups for runtime packages:
 | Group | Runtimes | Purpose |
 |-------|----------|---------|
 | `odh-runtimes` | sklearn, xgboost, lightgbm, onnx | ODH-shipped runtimes used for production builds and constraints |
+| `odh-runtimes-cuda` | onnx-cuda | CUDA-accelerated ONNX runtime. Requires GPU hardware. Run via `make test-cuda` or `tox -c ./runtimes/onnx-cuda -e cuda`. CPU subset runs automatically in CI via `tox -c ./runtimes/onnx-cuda`. |
 | `all-runtimes` | All of the above + mlflow, huggingface, alibi-explain, alibi-detect, catboost | Full upstream set used for testing |
 | `all-runtimes-dev` | torch, mlflow, transformers, etc. | Dev dependencies required by upstream runtimes |
 

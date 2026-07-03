@@ -27,6 +27,7 @@ RUN microdnf update -y && \
     microdnf clean all && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
     alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools
@@ -82,13 +83,9 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     pip install --upgrade pip wheel setuptools && \
     pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     for _runtime in $RUNTIMES; do \
-        _wheel=$(ls ./dist/mlserver_${_runtime}-*.whl); \
+        _wheel=$(ls ./dist/mlserver_${_runtime//-/_}-*.whl); \
         echo "--> Installing $_wheel..."; \
-        if [ "$_runtime" = "onnx" ]; then \
-            pip install "${_wheel}[cpu]" --constraint ./dist/constraints.txt; \
-        else \
-            pip install "$_wheel" --constraint ./dist/constraints.txt; \
-        fi; \
+        pip install "$_wheel" --constraint ./dist/constraints.txt; \
     done && \
     rm -rf /root/.cache/pip
 

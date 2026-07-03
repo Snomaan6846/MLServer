@@ -4170,21 +4170,38 @@ develop = true
 mlserver = "*"
 onnx = ">=1.21.0"
 onnxruntime = [
-    {version = ">=1.20.0,<1.24.0", optional = true, markers = "python_version < \"3.11\""},
-    {version = ">=1.20.0,<1.27.0", optional = true, markers = "python_version >= \"3.11\""},
+    {version = ">=1.20.0,<1.24.0", markers = "python_version < \"3.11\""},
+    {version = ">=1.20.0,<1.27.0", markers = "python_version >= \"3.11\""},
 ]
-onnxruntime-gpu = [
-    {version = ">=1.20.0,<1.24.0", optional = true, markers = "python_version < \"3.11\""},
-    {version = ">=1.20.0,<1.27.0", optional = true, markers = "python_version >= \"3.11\""},
-]
-
-[package.extras]
-cpu = ["onnxruntime (>=1.20.0,<1.24.0) ; python_version < \"3.11\"", "onnxruntime (>=1.20.0,<1.27.0) ; python_version >= \"3.11\""]
-cuda = ["onnxruntime-gpu (>=1.20.0,<1.24.0) ; python_version < \"3.11\"", "onnxruntime-gpu (>=1.20.0,<1.27.0) ; python_version >= \"3.11\""]
 
 [package.source]
 type = "directory"
 url = "runtimes/onnx"
+
+[[package]]
+name = "mlserver-onnx-cuda"
+version = "1.7.0.dev0"
+description = "ONNX CUDA runtime for MLServer"
+optional = false
+python-versions = ">=3.10,<3.13"
+groups = ["odh-runtimes-cuda"]
+files = []
+develop = true
+
+[package.dependencies]
+mlserver = "*"
+mlserver-onnx = "*"
+onnxruntime-gpu = [
+    {version = ">=1.20.0,<1.24.0", markers = "python_version < \"3.11\""},
+    {version = ">=1.20.0,<1.27.0", markers = "python_version >= \"3.11\""},
+]
+
+[package.extras]
+cuda-libs = ["nvidia-cublas-cu12 (>=12.0,<13.0)", "nvidia-cuda-nvrtc-cu12 (>=12.0,<13.0)", "nvidia-cuda-runtime-cu12 (>=12.0,<13.0)", "nvidia-cudnn-cu12 (>=9.0,<10.0)", "nvidia-cufft-cu12 (>=11.0,<12.0)", "nvidia-curand-cu12 (>=10.0,<11.0)", "nvidia-cusolver-cu12 (>=11.0,<12.0)", "nvidia-cusparse-cu12 (>=12.0,<13.0)", "nvidia-nvjitlink-cu12 (>=12.0,<13.0)"]
+
+[package.source]
+type = "directory"
+url = "runtimes/onnx-cuda"
 
 [[package]]
 name = "mlserver-sklearn"
@@ -4911,7 +4928,7 @@ version = "1.23.2"
 description = "ONNX Runtime is a runtime accelerator for Machine Learning models"
 optional = false
 python-versions = ">=3.10"
-groups = ["all-runtimes", "odh-runtimes"]
+groups = ["all-runtimes", "odh-runtimes", "odh-runtimes-cuda"]
 files = [
     {file = "onnxruntime-1.23.2-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:a7730122afe186a784660f6ec5807138bf9d792fa1df76556b27307ea9ebcbe3"},
     {file = "onnxruntime-1.23.2-cp310-cp310-macosx_13_0_x86_64.whl", hash = "sha256:b28740f4ecef1738ea8f807461dd541b8287d5650b5be33bca7b474e3cbd1f36"},
@@ -9827,4 +9844,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "41bbf504599bc3343c78774f66abf03e368e87168e4aefaaece4bea7927de212"
+content-hash = "91cafb9188d4c40ca16ba5f0c88039ac19b3c9025397536e78e39842ec56bd80"

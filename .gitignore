@@ -32,6 +32,7 @@ build/
 dist/
 venv/
 .venv/
+.test-venv/
 
 # Notebook Checkpoints
 .ipynb_checkpoints

@@ -41,6 +41,9 @@ exclude = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
+markers = [
+    "cuda: tests requiring CUDA hardware (CUDAExecutionProvider)",
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
@@ -120,14 +123,17 @@ optional = true
 mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
-mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true}
 
 [tool.poetry.group.odh-runtimes-cuda]
 optional = true
 
 [tool.poetry.group.odh-runtimes-cuda.dependencies]
-mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cuda"]}
+mlserver-onnx-cuda = {path = "./runtimes/onnx-cuda", develop = true}
 
+# CPU-only runtimes.  mlserver-onnx-cuda is excluded because onnxruntime-gpu
+# and onnxruntime share the same namespace and cannot coexist.  Use the
+# odh-runtimes-cuda group for CUDA development.
 [tool.poetry.group.all-runtimes]
 optional = true
 
@@ -135,7 +141,7 @@ optional = true
 mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
-mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true}
 mlserver-mlflow = {path = "./runtimes/mlflow", develop = true}
 mlserver-huggingface = {path = "./runtimes/huggingface", develop = true}
 mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}
