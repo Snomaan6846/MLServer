@@ -1,19 +1,18 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
-# onnx is included because mlserver-onnx-cuda depends on mlserver-onnx and
-# the wheel must be built locally (not available on PyPI).  Konflux images
-# resolve it from the AIPCC private pip index instead.
-ARG RUNTIMES="onnx onnx-cuda"
-# Space-separated list of runtime import paths
-ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
+ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION="2.1.1"
 # Keep in sync with the AIPCC CUDA base image version in Dockerfile.cuda.konflux
 # (e.g. cuda-12.9-el9.6 → 12-9 here).  Not Renovate-managed.
 ARG CUDA_VERSION="12-9"
+ARG RUNTIMES="onnx"
+# Space-separated list of runtime import paths
+ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
 
 FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
-ARG POETRY_VERSION="2.1.1"
-ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION
+ARG PYTHON_VERSION
 
 WORKDIR /opt/mlserver
 
@@ -42,7 +41,7 @@ RUN microdnf update -y && \
 RUN pip install poetry==$POETRY_VERSION && \
     pip install poetry-plugin-export && \
     ./hack/build-wheels.sh /opt/mlserver/dist "$RUNTIMES" && \
-    poetry export --with odh-runtimes-cuda \
+    poetry export --with runtimes-cuda \
         --without-hashes \
         --format constraints.txt \
         -o /opt/mlserver/dist/constraints.txt
@@ -51,11 +50,10 @@ FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 ARG CUDA_VERSION
 
 # Set default environment variables
-# NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
@@ -80,7 +78,7 @@ RUN microdnf update -y && \
         libcurand-${CUDA_VERSION} \
         libcusolver-${CUDA_VERSION} \
         libcusparse-${CUDA_VERSION} \
-        libcudnn9-cuda-12 \
+        libcudnn9-cuda-${CUDA_VERSION%%-*} \
         libnvjitlink-${CUDA_VERSION} && \
     microdnf clean all
 
@@ -103,16 +101,17 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     pip install --upgrade pip wheel setuptools && \
     pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     for _runtime in $RUNTIMES; do \
-        _wheel=$(ls ./dist/mlserver_${_runtime//-/_}-*.whl); \
+        _wheel="./dist/mlserver_$_runtime-"*.whl; \
         echo "--> Installing $_wheel..."; \
-        pip install "$_wheel" --find-links ./dist/ --constraint ./dist/constraints.txt; \
+        pip install $_wheel --find-links ./dist/ --constraint ./dist/constraints.txt; \
     done && \
-    # mlserver-onnx-cuda depends on mlserver-onnx, which pulls in onnxruntime (CPU).
-    # onnxruntime and onnxruntime-gpu share the same Python namespace and their
-    # files conflict.  Remove the CPU package and force-reinstall the GPU package
-    # to restore any shared files that the uninstall may have deleted.
+    # mlserver-onnx pulls in onnxruntime (CPU).  onnxruntime and onnxruntime-gpu
+    # share the same Python namespace and their files conflict.  Install the GPU
+    # package, remove the CPU package, then force-reinstall to restore any shared
+    # files that the uninstall may have deleted.
     # --no-deps avoids re-resolving transitive dependencies that are already
     # pinned by the constraints file.
+    pip install onnxruntime-gpu --constraint ./dist/constraints.txt && \
     pip uninstall -y onnxruntime 2>/dev/null || true && \
     pip install --force-reinstall --no-deps onnxruntime-gpu --constraint ./dist/constraints.txt && \
     rm -rf /root/.cache/pip

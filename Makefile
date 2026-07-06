@@ -2,7 +2,7 @@ SHELL := /bin/bash
 VERSION := $(shell sed 's/^__version__ = "\(.*\)"/\1/' ./mlserver/version.py)
 IMAGE_NAME := seldonio/mlserver
 
-.PHONY: install-dev install-dev-odh install-dev-odh-cuda test-cuda \
+.PHONY: install-dev install-dev-odh install-dev-cuda test-cuda \
 	_generate generate run build \
 	push-test push test lint fmt version clean licenses
 
@@ -10,7 +10,7 @@ IMAGE_NAME := seldonio/mlserver
 bootstrap-test:
 	for _runtime in ./runtimes/*; \
 	do \
-		[ "$$(basename $$_runtime)" = "onnx-cuda" ] && continue; \
+		[ "$$(basename $$_runtime)" = "onnx" ] && continue; \
 		echo "Copying Tox configuration to $$_runtime..."; \
 		cp tox.runtime.ini $$_runtime/tox.ini; \
 	done
@@ -21,11 +21,14 @@ install-dev:
 install-dev-odh:
 	poetry sync --with odh-runtimes --with dev
 
-install-dev-odh-cuda:
-	poetry sync --with odh-runtimes-cuda --with odh-runtimes-cuda-dev --with dev
+install-dev-cuda:
+	poetry sync --with runtimes-cuda --with dev
+	poetry run pip uninstall -y onnxruntime 2>/dev/null || true
+	poetry run pip install --force-reinstall --no-deps \
+		"onnxruntime-gpu==$$(poetry run python -c 'import importlib.metadata; print(importlib.metadata.version("onnxruntime-gpu"))')"
 
 test-cuda:
-	poetry run tox -c ./runtimes/onnx-cuda -e cuda
+	poetry run tox -c ./runtimes/onnx -e cuda
 
 lock:
 	echo "Locking mlserver deps..."

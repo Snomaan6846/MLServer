@@ -1,4 +1,6 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
+ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION="2.1.1"
 ARG RUNTIMES="lightgbm onnx sklearn xgboost"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
@@ -6,8 +8,8 @@ ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel ml
 FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
-ARG POETRY_VERSION="2.1.1"
-ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION
+ARG PYTHON_VERSION
 
 WORKDIR /opt/mlserver
 
@@ -45,10 +47,9 @@ FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 
 # Set default environment variables
-# NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
@@ -83,9 +84,9 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     pip install --upgrade pip wheel setuptools && \
     pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
     for _runtime in $RUNTIMES; do \
-        _wheel=$(ls ./dist/mlserver_${_runtime//-/_}-*.whl); \
+        _wheel="./dist/mlserver_$_runtime-"*.whl; \
         echo "--> Installing $_wheel..."; \
-        pip install "$_wheel" --constraint ./dist/constraints.txt; \
+        pip install $_wheel --constraint ./dist/constraints.txt; \
     done && \
     rm -rf /root/.cache/pip
 

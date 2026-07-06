@@ -3,7 +3,7 @@
 V2 Inference Protocol (KFServing) server for multi-model ML serving over
 REST (FastAPI) and gRPC. ODH midstream fork of `SeldonIO/MLServer` with
 Konflux builds, runtime security hardening, and release automation.
-Poetry-only monorepo: core `mlserver` + 11 runtime packages under `runtimes/`.
+Poetry-only monorepo: core `mlserver` + 10 runtime packages under `runtimes/`.
 
 - **Python:** 3.10–3.12 (all branches)
 - **Package manager:** Poetry (always use Poetry, never pip install directly)
@@ -20,10 +20,12 @@ Poetry-only monorepo: core `mlserver` + 11 runtime packages under `runtimes/`.
 
 - **`runtimes/*/tox.ini` are based on `tox.runtime.ini`.** Most are exact
   copies; a few (e.g. alibi-detect) add runtime-specific env vars. For shared
-  test config, edit the root template only. Exception: `runtimes/onnx-cuda/tox.ini`
-  has a custom layout (default env excludes `cuda`-marked tests; separate
-  `testenv:cuda` runs them serially). The `bootstrap-test` Makefile target
-  skips `onnx-cuda` to preserve its custom `tox.ini` layout.
+  test config, edit the root template only. Exception: `runtimes/onnx/tox.ini`
+  has a custom `[testenv:cuda]` section that installs the `cuda` extra and
+  performs the `onnxruntime`/`onnxruntime-gpu` namespace swap. The default
+  `[testenv]` runs all tests; `@pytest.mark.cuda` tests auto-skip on non-GPU
+  machines via `requires_cuda`. The `bootstrap-test` Makefile target skips
+  `onnx` to preserve this layout.
 - **Do not modify without explicit request:** `.tekton/`, `.github/workflows/`,
   `OWNERS`, release/sync automation. These control the supply chain — unauthorized
   edits risk pipeline injection, secrets exposure, privilege escalation, or release
@@ -45,12 +47,12 @@ Poetry-only monorepo: core `mlserver` + 11 runtime packages under `runtimes/`.
   CI matrix: Python 3.10/3.11/3.12; all-runtimes suite runs on push only (not PR).
 - **Tox envs:** `mlserver-{conda,venv}` (core), `all-runtimes-{conda,venv}` (everything), `licenses`.
 - **CUDA tests** are marked `@pytest.mark.cuda` and auto-skip without GPU
-  hardware. Run via `tox -c ./runtimes/onnx-cuda -e cuda` on a GPU machine.
+  hardware. Run via `tox -c ./runtimes/onnx -e cuda` on a GPU machine.
 
 ```bash
 make install-dev                     # Install all deps (all-runtimes + dev)
 make install-dev-odh                 # ODH CPU runtimes + dev tools
-make install-dev-odh-cuda            # ODH CUDA runtime + dev tools
+make install-dev-cuda                # CUDA runtime + NVIDIA libs + dev tools
 make lint                            # black --check, flake8, mypy
 make fmt                             # black .
 make generate                        # Protobuf/OpenAPI codegen
@@ -100,18 +102,17 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    remove or rename `.tekton/early-gate-ci-{build,test}.yaml` without
    coordinating with the Konflux team.
 
-9. **`mlserver-onnx-cuda` is a metapackage** that depends on `mlserver-onnx`
-   and adds `onnxruntime-gpu`. It shares the `mlserver_onnx.OnnxModel`
-   runtime class — no separate `ALLOWED_MODEL_IMPLEMENTATIONS` entry needed.
-   Because `onnxruntime` (CPU) and `onnxruntime-gpu` share the same Python
-   namespace, CUDA Dockerfiles run `pip uninstall onnxruntime` then
-   `pip install --force-reinstall --no-deps onnxruntime-gpu` after installing
-   the wheels.
+9. **`mlserver-onnx[cuda]` is the CUDA extra** that adds `onnxruntime-gpu`.
+   Same `mlserver_onnx.OnnxModel` runtime class — no separate
+   `ALLOWED_MODEL_IMPLEMENTATIONS` entry. `onnxruntime` and `onnxruntime-gpu`
+   share the same Python namespace, so a post-install swap is required
+   (uninstall CPU, force-reinstall GPU). `make install-dev-cuda` and
+   `Dockerfile.cuda` handle this automatically.
 
-10. **`onnxruntime` and `onnxruntime-gpu` version bounds must stay in sync.**
-    When bumping `onnxruntime` bounds in `runtimes/onnx/pyproject.toml`, the
-    mirrored `onnxruntime-gpu` bounds in `runtimes/onnx-cuda/pyproject.toml`
-    must be updated in the same PR. Run `make lock` for both runtimes.
+10. **`onnxruntime-gpu` bounds live in `runtimes/onnx/pyproject.toml` only**
+    (under the `[cuda]` extra). Keep in sync with `onnxruntime` bounds in the
+    same file. NVIDIA pip libs are dev-only, defined in the root `runtimes-cuda`
+    group. Run `make lock` after any changes.
 
 ## Boundaries
 

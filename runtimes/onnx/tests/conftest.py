@@ -393,19 +393,27 @@ async def grpc_stub(server_settings: Settings, onnx_mlserver: MLServer):
         yield GRPCInferenceServiceStub(channel)
 
 
+NVIDIA_LIB_MODULES = [
+    "nvidia.cublas.lib",
+    "nvidia.cudnn.lib",
+    "nvidia.cuda_runtime.lib",
+    "nvidia.nvjitlink.lib",
+    "nvidia.cufft.lib",
+    "nvidia.curand.lib",
+    "nvidia.cusolver.lib",
+    "nvidia.cusparse.lib",
+    "nvidia.cuda_nvrtc.lib",
+]
+
+
 def pytest_configure(config):
     """Ensure pip-installed NVIDIA CUDA libs are on LD_LIBRARY_PATH.
 
     Runs before test collection, so onnxruntime's dlopen finds CUDA
     shared libraries installed via pip (nvidia-cublas-cu12 etc.).
     """
-    _nvidia_lib_modules = [
-        "nvidia.cublas.lib", "nvidia.cudnn.lib", "nvidia.cuda_runtime.lib",
-        "nvidia.nvjitlink.lib", "nvidia.cufft.lib", "nvidia.curand.lib",
-        "nvidia.cusolver.lib", "nvidia.cusparse.lib", "nvidia.cuda_nvrtc.lib",
-    ]
     paths = []
-    for pkg in _nvidia_lib_modules:
+    for pkg in NVIDIA_LIB_MODULES:
         try:
             paths.extend(importlib.import_module(pkg).__path__)
         except (ImportError, ModuleNotFoundError):

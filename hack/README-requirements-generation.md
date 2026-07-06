@@ -42,7 +42,7 @@ Current shape:
       "dockerfile": "Dockerfile.cuda.konflux",
       "root_packages": [
         "mlserver",
-        "mlserver-onnx-cuda"
+        "mlserver-onnx[cuda]"
       ]
     }
   ]

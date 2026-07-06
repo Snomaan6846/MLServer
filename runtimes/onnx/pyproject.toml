@@ -21,6 +21,16 @@ onnxruntime = [
     {version = ">=1.20.0,<1.24.0", markers = "python_version < '3.11'"},
     {version = ">=1.20.0,<1.27.0", markers = "python_version >= '3.11'"},
 ]
+# CUDA optional dep — version bounds must stay in sync with onnxruntime above.
+# NVIDIA pip libraries (nvidia-cublas-cu12, etc.) are dev-only and live in the
+# root pyproject.toml runtimes-cuda group, not here (see AGENTS.md #10).
+onnxruntime-gpu = [
+    {version = ">=1.20.0,<1.24.0", markers = "python_version < '3.11'", optional = true},
+    {version = ">=1.20.0,<1.27.0", markers = "python_version >= '3.11'", optional = true},
+]
+
+[tool.poetry.extras]
+cuda = ["onnxruntime-gpu"]
 
 [tool.poetry.group.dev.dependencies]
 mlserver = {path = "../..", develop = true}

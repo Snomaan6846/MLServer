@@ -13,6 +13,7 @@ import pytest
 
 import onnxruntime as ort
 
+from mlserver.errors import ModelLoadError
 from mlserver.settings import ModelSettings, ModelParameters
 from mlserver.types import Datatype, InferenceRequest, RequestInput
 
@@ -202,8 +203,8 @@ async def test_cuda_provider_with_arena_extend_strategy(model_uri: str):
         await model.unload()
 
 
-async def test_invalid_device_id_falls_back_to_cpu(model_uri: str):
-    """Invalid device_id triggers OnnxModel's fallback to CPUExecutionProvider."""
+async def test_invalid_device_id_raises(model_uri: str):
+    """Invalid device_id raises ModelLoadError (ORT rejects the ordinal)."""
     settings = ModelSettings(
         name="onnx-cuda-bad-device",
         implementation=OnnxModel,
@@ -217,14 +218,8 @@ async def test_invalid_device_id_falls_back_to_cpu(model_uri: str):
         ),
     )
     model = OnnxModel(settings)
-    model.ready = await model.load()
-    try:
-        assert model.ready
-        active = model._model.get_providers()
-        assert "CPUExecutionProvider" in active
-        assert "CUDAExecutionProvider" not in active
-    finally:
-        await model.unload()
+    with pytest.raises(ModelLoadError, match="invalid device ordinal|CUDA"):
+        await model.load()
 
 
 # ---------------------------------------------------------------------------
@@ -271,3 +266,19 @@ async def test_metadata_matches_cpu(cuda_model: OnnxModel, model: OnnxModel):
 
     assert cuda_meta.inputs == cpu_meta.inputs
     assert cuda_meta.outputs == cpu_meta.outputs
+
+
+# ---------------------------------------------------------------------------
+# ORT namespace swap verification
+# ---------------------------------------------------------------------------
+
+
+async def test_ort_namespace_swap_completed():
+    """Verify onnxruntime-gpu is installed and onnxruntime (CPU) is absent."""
+    from importlib.metadata import distribution, PackageNotFoundError
+
+    dist = distribution("onnxruntime-gpu")
+    assert dist is not None
+
+    with pytest.raises(PackageNotFoundError):
+        distribution("onnxruntime")
