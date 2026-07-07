@@ -3,7 +3,7 @@
 V2 Inference Protocol (KFServing) server for multi-model ML serving over
 REST (FastAPI) and gRPC. ODH midstream fork of `SeldonIO/MLServer` with
 Konflux builds, runtime security hardening, and release automation.
-Poetry-only monorepo: core `mlserver` + 10 runtime packages under `runtimes/`.
+Poetry-only monorepo: core `mlserver` + 11 runtime packages under `runtimes/`.
 
 - **Python:** 3.10–3.12 (all branches)
 - **Package manager:** Poetry (always use Poetry, never pip install directly)
@@ -20,7 +20,10 @@ Poetry-only monorepo: core `mlserver` + 10 runtime packages under `runtimes/`.
 
 - **`runtimes/*/tox.ini` are based on `tox.runtime.ini`.** Most are exact
   copies; a few (e.g. alibi-detect) add runtime-specific env vars. For shared
-  test config, edit the root template only.
+  test config, edit the root template only. Exception: `runtimes/onnx-cuda/tox.ini`
+  has a custom layout (default env excludes `cuda`-marked tests; separate
+  `testenv:cuda` runs them serially). The `bootstrap-test` Makefile target
+  skips `onnx-cuda` to preserve its custom `tox.ini` layout.
 - **Do not modify without explicit request:** `.tekton/`, `.github/workflows/`,
   `OWNERS`, release/sync automation. These control the supply chain — unauthorized
   edits risk pipeline injection, secrets exposure, privilege escalation, or release
@@ -41,13 +44,18 @@ Poetry-only monorepo: core `mlserver` + 10 runtime packages under `runtimes/`.
 - **Tests:** `async def test_*` with `asyncio_mode = auto`; parallel via `-n auto`.
   CI matrix: Python 3.10/3.11/3.12; all-runtimes suite runs on push only (not PR).
 - **Tox envs:** `mlserver-{conda,venv}` (core), `all-runtimes-{conda,venv}` (everything), `licenses`.
+- **CUDA tests** are marked `@pytest.mark.cuda` and auto-skip without GPU
+  hardware. Run via `tox -c ./runtimes/onnx-cuda -e cuda` on a GPU machine.
 
 ```bash
 make install-dev                     # Install all deps (all-runtimes + dev)
+make install-dev-odh                 # ODH CPU runtimes + dev tools
+make install-dev-odh-cuda            # ODH CUDA runtime + dev tools
 make lint                            # black --check, flake8, mypy
 make fmt                             # black .
 make generate                        # Protobuf/OpenAPI codegen
 make test                            # Full suite (root tox + each runtime)
+make test-cuda                       # Run GPU tests (requires GPU hardware)
 make lock                            # Regenerate poetry.lock (root + runtimes)
 poetry run tox -e mlserver-venv      # Core tests with venv isolation
 poetry run tox -c ./runtimes/<name>  # Single runtime tests
@@ -75,8 +83,9 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    truth. All `runtimes/*/pyproject.toml` and `docs/conf.py` must match.
    Use `hack/update-version.sh <version>` for bumps — never hand-edit.
 
-5. **`Dockerfile.konflux` exists only on `rhoai-staging`.** Not on `master`
-   or `release-*`. Renovate auto-updates its base image.
+5. **`Dockerfile.konflux` and `Dockerfile.cuda.konflux` exist only on
+   `rhoai-staging`.** Not on `master` or `release-*`. Renovate auto-updates
+   their base images.
 
 6. **Adding a built-in runtime** requires updating
    `ALLOWED_MODEL_IMPLEMENTATIONS` in `mlserver/settings.py` and the
@@ -91,6 +100,29 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    remove or rename `.tekton/early-gate-ci-{build,test}.yaml` without
    coordinating with the Konflux team.
 
+9. **`mlserver-onnx-cuda` is the GPU variant of `mlserver-onnx`.** It
+   requires `onnxruntime-gpu` and shares the `mlserver_onnx` Python
+   namespace via a symlink to `runtimes/onnx/mlserver_onnx/`. Same
+   `OnnxModel` runtime class — no separate `ALLOWED_MODEL_IMPLEMENTATIONS`
+   entry needed. Install `mlserver-onnx` for CPU or `mlserver-onnx-cuda`
+   for GPU.
+
+10. **`onnxruntime` and `onnxruntime-gpu` version bounds must stay in sync.**
+    When bumping `onnxruntime` bounds in `runtimes/onnx/pyproject.toml`, the
+    mirrored `onnxruntime-gpu` bounds in `runtimes/onnx-cuda/pyproject.toml`
+    must be updated in the same PR. Run `make lock` for both runtimes.
+
+11. **`runtimes/onnx-cuda/` uses symlinks for shared source and tests.**
+    `mlserver_onnx` and `tests` are symlinks to `../onnx/mlserver_onnx` and
+    `../onnx/tests`. `poetry-core` cannot build with symlinks outside the
+    project root, so:
+    - **`hack/build-wheels.sh`** builds in a temporary directory with
+      dereferenced copies (`cp -rL`), leaving the source tree untouched.
+    - **`tox.ini`** uses `skip_install = true` + `PYTHONPATH` to avoid the
+      build entirely; Poetry handles deps via `commands_pre`.
+    - **Editing source**: edit `runtimes/onnx/mlserver_onnx/` only — the
+      symlink ensures `onnx-cuda` always uses the same source.
+
 ## Boundaries
 
 ### Always
@@ -104,7 +136,7 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
 - Changes to CI workflows or Tekton pipelines
 - Dependency version bumps in `pyproject.toml`
 - Changes to `conftest.py` trusted-runtime configuration
-- Modifications to `Dockerfile` or `Dockerfile.konflux`
+- Modifications to `Dockerfile`, `Dockerfile.cuda`, `Dockerfile.konflux`, or `Dockerfile.cuda.konflux`
 
 ### Never
 - Hand-edit generated files under `mlserver/grpc/` or `mlserver/types/`

@@ -16,8 +16,10 @@ fi
 _buildImage() {
   local _runtimes=$1
   local _tag=$2
+  local _dockerfile="${3:-Dockerfile}"
 
   DOCKER_BUILDKIT=1 docker build $ROOT_FOLDER \
+    -f "$ROOT_FOLDER/$_dockerfile" \
     --build-arg RUNTIMES="$_runtimes" \
     -t "$IMAGE_NAME:$_tag"
 }
@@ -28,7 +30,13 @@ _buildRuntimeImage() {
   local _runtimeName=$(basename $_runtimePath)
 
   echo "---> Building MLServer runtime image: $_runtimeName"
-  _buildImage "mlserver-$_runtimeName" "$_version-$_runtimeName"
+
+  # CUDA runtimes use Dockerfile.cuda (NVIDIA RPM libs, GPU env defaults)
+  if [[ "$_runtimeName" == *cuda* ]]; then
+    _buildImage "$_runtimeName" "$_version-$_runtimeName" "Dockerfile.cuda"
+  else
+    _buildImage "$_runtimeName" "$_version-$_runtimeName"
+  fi
 }
 
 _main() {

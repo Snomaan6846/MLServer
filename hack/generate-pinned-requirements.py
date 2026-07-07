@@ -72,6 +72,19 @@ def normalize_distribution_name(name: str) -> str:
     return name.lower().replace("_", "-").replace(".", "-")
 
 
+def _strip_extras(name: str) -> str:
+    """Strip PEP 508 extras specifier from a package name.
+
+    Args:
+        name: Package name possibly containing an extras bracket
+              (e.g. ``some-package[extra]``).
+
+    Returns:
+        The bare package name without extras (e.g. ``some-package``).
+    """
+    return name.split("[")[0]
+
+
 def redact_index_url(url: str) -> str:
     """Redact secrets from an index URL before logging or writing output.
 
@@ -905,7 +918,7 @@ def generate_for_index(
     seen: set[tuple[str, str]] = set()
     ordered: list[tuple[str, str]] = []
     for root_name in root_names:
-        nv = resolved_by_norm.get(normalize_distribution_name(root_name))
+        nv = resolved_by_norm.get(normalize_distribution_name(_strip_extras(root_name)))
         if nv and (normalize_distribution_name(nv[0]), nv[1]) not in seen:
             seen.add((normalize_distribution_name(nv[0]), nv[1]))
             ordered.append(nv)

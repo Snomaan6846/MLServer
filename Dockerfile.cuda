@@ -1,14 +1,21 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
-ARG RUNTIMES="onnx"
+ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION="2.1.1"
+# Keep in sync with the AIPCC CUDA base image version in Dockerfile.cuda.konflux
+# (e.g. cuda-12.9-el9.6 → 12-9 here).  Not Renovate-managed.
+# When upgrading to a new CUDA major (e.g. 13), update this value and verify
+# that all RPM package names below (cuda-cudart, libcublas, etc.) still match
+# the naming convention for the new version.
+ARG CUDA_VERSION="12-9"
+ARG RUNTIMES="onnx-cuda"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
-ARG CUDA_VERSION="12-9"
 
 FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
-ARG POETRY_VERSION="2.1.1"
-ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION
+ARG PYTHON_VERSION
 
 WORKDIR /opt/mlserver
 
@@ -28,6 +35,7 @@ RUN microdnf update -y && \
     microdnf clean all && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
     alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools
@@ -45,17 +53,16 @@ FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 ARG CUDA_VERSION
 
 # Set default environment variables
-# NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
     NUMBA_CACHE_DIR=/opt/mlserver/.cache \
     MLSERVER_MODEL_ONNX_PROVIDERS='["CUDAExecutionProvider","CPUExecutionProvider"]' \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
 # Install base dependencies and NVIDIA CUDA runtime libraries.
 RUN microdnf update -y && \
@@ -74,7 +81,7 @@ RUN microdnf update -y && \
         libcurand-${CUDA_VERSION} \
         libcusolver-${CUDA_VERSION} \
         libcusparse-${CUDA_VERSION} \
-        libcudnn9-cuda-12 \
+        libcudnn9-cuda-${CUDA_VERSION%%-*} \
         libnvjitlink-${CUDA_VERSION} && \
     microdnf clean all
 
@@ -88,7 +95,7 @@ RUN mkdir -p $MLSERVER_PATH && \
     chown -R 1000:0 $MLSERVER_PATH && \
     chmod 1776 $MLSERVER_PATH
 
-# Configure the new python as default
+# Configure the new python as default and install wheels
 RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
     alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
@@ -96,15 +103,10 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools && \
     pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
-    pip uninstall -y onnxruntime || true && \
     for _runtime in $RUNTIMES; do \
-        _wheel=$(ls ./dist/mlserver_${_runtime}-*.whl); \
+        _wheel="./dist/mlserver_${_runtime//-/_}-"*.whl; \
         echo "--> Installing $_wheel..."; \
-        if [ "$_runtime" = "onnx" ]; then \
-            pip install "${_wheel}[cuda]" --constraint ./dist/constraints.txt; \
-        else \
-            pip install "$_wheel" --constraint ./dist/constraints.txt; \
-        fi; \
+        pip install $_wheel --constraint ./dist/constraints.txt; \
     done && \
     rm -rf /root/.cache/pip
 

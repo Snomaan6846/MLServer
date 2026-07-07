@@ -2,19 +2,28 @@ SHELL := /bin/bash
 VERSION := $(shell sed 's/^__version__ = "\(.*\)"/\1/' ./mlserver/version.py)
 IMAGE_NAME := seldonio/mlserver
 
-.PHONY: install-dev _generate generate run build \
+.PHONY: install-dev install-dev-odh install-dev-odh-cuda test-cuda \
+	_generate generate run build \
 	push-test push test lint fmt version clean licenses
 
 .PHONY: bootstrap-test
+# onnx-cuda is skipped: it has a custom tox.ini (CUDA passenv, shared tests via symlink)
 bootstrap-test:
 	for _runtime in ./runtimes/*; \
 	do \
+		[ "$$(basename $$_runtime)" = "onnx-cuda" ] && continue; \
 		echo "Copying Tox configuration to $$_runtime..."; \
 		cp tox.runtime.ini $$_runtime/tox.ini; \
 	done
 
 install-dev:
 	poetry sync --with all-runtimes --with all-runtimes-dev
+
+install-dev-odh:
+	poetry sync --with odh-runtimes --with dev
+
+install-dev-odh-cuda:
+	poetry sync --with odh-runtimes-cuda --with odh-runtimes-cuda-dev --with dev
 
 lock:
 	echo "Locking mlserver deps..."
@@ -80,6 +89,15 @@ test:
 	for _runtime in ./runtimes/*; \
 	do \
 		tox -c $$_runtime; \
+	done
+
+test-cuda:
+	@if ! ls ./runtimes/*cuda* >/dev/null 2>&1; then \
+		echo "Error: No CUDA runtimes found in ./runtimes/"; exit 1; fi
+	for _runtime in ./runtimes/*cuda*; \
+	do \
+		echo "Running CUDA tests for $$_runtime..."; \
+		poetry run tox -c $$_runtime -e cuda; \
 	done
 
 lint:

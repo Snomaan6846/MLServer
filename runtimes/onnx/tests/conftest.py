@@ -1,10 +1,12 @@
 import os
 import asyncio
+import importlib
 import socket
 import pytest
 import numpy as np
 import onnx
 import aiohttp
+
 from onnx import helper, TensorProto
 from grpc import aio
 from prometheus_client.registry import REGISTRY
@@ -389,3 +391,32 @@ async def grpc_stub(server_settings: Settings, onnx_mlserver: MLServer):
         f"{server_settings.host}:{server_settings.grpc_port}"
     ) as channel:
         yield GRPCInferenceServiceStub(channel)
+
+
+def pytest_configure(config):
+    """Ensure pip-installed NVIDIA CUDA libs are on LD_LIBRARY_PATH.
+
+    Runs before test collection, so onnxruntime's dlopen finds CUDA
+    shared libraries installed via pip (nvidia-cublas-cu12 etc.).
+    """
+    _nvidia_lib_modules = [
+        "nvidia.cublas.lib",
+        "nvidia.cudnn.lib",
+        "nvidia.cuda_runtime.lib",
+        "nvidia.nvjitlink.lib",
+        "nvidia.cufft.lib",
+        "nvidia.curand.lib",
+        "nvidia.cusolver.lib",
+        "nvidia.cusparse.lib",
+        "nvidia.cuda_nvrtc.lib",
+    ]
+    paths = []
+    for pkg in _nvidia_lib_modules:
+        try:
+            paths.extend(importlib.import_module(pkg).__path__)
+        except (ImportError, ModuleNotFoundError):
+            pass
+    if paths:
+        existing = os.environ.get("LD_LIBRARY_PATH", "")
+        new = ":".join(paths)
+        os.environ["LD_LIBRARY_PATH"] = f"{new}:{existing}" if existing else new

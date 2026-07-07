@@ -16,17 +16,33 @@ _buildWheel() {
   local _srcPath=$1
   local _outputPath=$2
 
-  # Poetry doesn't let us send the output to a separate folder so we'll `cd`
-  # into the folder and them move the wheels out
-  # https://github.com/python-poetry/poetry/issues/3586
-  pushd $_srcPath
-  poetry build
-  # Only copy files if destination is different from source
-  local _currentDistPath=$PWD/dist
-  if ! [[ "$_currentDistPath" = "$_outputPath" ]]; then
-    cp $_currentDistPath/* $_outputPath
+  if [ -n "$(find "$_srcPath" -maxdepth 1 -type l 2>/dev/null)" ]; then
+    # Symlinks present (e.g. onnx-cuda): poetry-core cannot build with
+    # symlinks outside the project root. Build from a dereferenced temp
+    # copy to avoid mutating the source tree.
+    local _tmpDir
+    _tmpDir=$(mktemp -d)
+    cp -rL "$_srcPath/." "$_tmpDir/"
+    rm -rf "$_tmpDir/.tox" "$_tmpDir/.venv" "$_tmpDir/dist" \
+           "$_tmpDir/.envs" "$_tmpDir/.metrics"
+    pushd "$_tmpDir"
+    poetry build
+    cp "$_tmpDir/dist/"* "$_outputPath"
+    popd
+    rm -rf "$_tmpDir"
+  else
+    # No symlinks: build in place (original behaviour)
+    # Poetry doesn't let us send the output to a separate folder so we'll
+    # `cd` into the folder and then move the wheels out
+    # https://github.com/python-poetry/poetry/issues/3586
+    pushd "$_srcPath"
+    poetry build
+    local _currentDistPath=$PWD/dist
+    if ! [[ "$_currentDistPath" = "$_outputPath" ]]; then
+      cp $_currentDistPath/* "$_outputPath"
+    fi
+    popd
   fi
-  popd
 }
 
 _main() {
