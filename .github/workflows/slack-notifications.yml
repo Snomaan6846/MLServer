@@ -77,7 +77,7 @@ jobs:
             --arg plus      "$ADDITIONS" \
             --arg minus     "$DELETIONS" \
             '{
-              "text": ("PR " + $status + ": #" + $number + " " + $title),
+              "text": ("<!channel> PR " + $status + ": #" + $number + " " + $title),
               "attachments": [
                 {
                   "color": $color,
