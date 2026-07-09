@@ -1,21 +1,21 @@
 apiVersion: tekton.dev/v1
 kind: PipelineRun
+#
 metadata:
   annotations:
     build.appstudio.openshift.io/repo: https://github.com/opendatahub-io/MLServer?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
-    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch
       == "master"
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: opendatahub-builds
-    appstudio.openshift.io/component: mlserver-ci
+    appstudio.openshift.io/component: odh-mlserver-cuda-ci
     pipelines.appstudio.openshift.io/type: build
-  name: mlserver-on-pull-request
+  name: odh-mlserver-cuda-on-push
   namespace: open-data-hub-tenant
 spec:
   params:
@@ -24,19 +24,11 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/opendatahub/mlserver:odh-pr
+    value: quay.io/opendatahub/odh-mlserver-cuda:odh-stable
   - name: dockerfile
-    value: Dockerfile
+    value: Dockerfile.cuda
   - name: path-context
     value: .
-  - name: build-args
-    value:
-    - RUNTIMES=lightgbm onnx sklearn xgboost
-  - name: additional-tags
-    value:
-    - 'odh-pr-{{revision}}'
-  - name: pipeline-type
-    value: pull-request
   pipelineRef:
     resolver: git
     params:
@@ -47,7 +39,7 @@ spec:
     - name: pathInRepo
       value: pipeline/multi-arch-container-build.yaml
   taskRunTemplate:
-    serviceAccountName: build-pipeline-mlserver
+    serviceAccountName: build-pipeline-odh-mlserver-cuda-ci
   workspaces:
   - name: git-auth
     secret:
