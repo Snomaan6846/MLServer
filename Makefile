@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+
 VERSION := $(shell sed 's/^__version__ = "\(.*\)"/\1/' ./mlserver/version.py)
 IMAGE_NAME := seldonio/mlserver
 
