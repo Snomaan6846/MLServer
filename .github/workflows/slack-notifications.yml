@@ -1,0 +1,161 @@
+# Notify Slack channel when pull requests are opened or merged.
+# Workflow runs from the source branch, so any branch derived from master
+# (which carries this file) will fire notifications to any target branch.
+name: Slack PR Notifications
+
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+jobs:
+  notify-on-slack:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.ALERTS_MLSERVER_CHANNEL_SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Set notification details
+        id: details
+        run: |
+          if [[ "${{ github.event.action }}" == "closed" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+            echo "emoji=:white_check_mark:" >> "$GITHUB_OUTPUT"
+            echo "status=merged" >> "$GITHUB_OUTPUT"
+            echo "color=#6f42c1" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.action }}" == "closed" ]]; then
+            echo "emoji=:no_entry_sign:" >> "$GITHUB_OUTPUT"
+            echo "status=closed" >> "$GITHUB_OUTPUT"
+            echo "color=#cb2431" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.action }}" == "reopened" ]]; then
+            echo "emoji=:recycle:" >> "$GITHUB_OUTPUT"
+            echo "status=reopened" >> "$GITHUB_OUTPUT"
+            echo "color=#2cbe4e" >> "$GITHUB_OUTPUT"
+          else
+            # Only remaining declared trigger action is "opened"
+            echo "emoji=:arrow_heading_up:" >> "$GITHUB_OUTPUT"
+            echo "status=opened" >> "$GITHUB_OUTPUT"
+            echo "color=#2cbe4e" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Slack payload
+        id: build-payload
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_STATUS: ${{ steps.details.outputs.status }}
+          PR_EMOJI: ${{ steps.details.outputs.emoji }}
+          PR_COLOR: ${{ steps.details.outputs.color }}
+          AUTHOR_URL: ${{ github.event.pull_request.user.html_url }}
+          AUTHOR_LOGIN: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ', ') }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+        run: |
+          DESCRIPTION="${PR_BODY:-_No description provided_}"
+          LABELS="${PR_LABELS:-_none_}"
+
+          jq -n \
+            --arg status    "$PR_STATUS" \
+            --arg number    "$PR_NUMBER" \
+            --arg title     "$PR_TITLE" \
+            --arg emoji     "$PR_EMOJI" \
+            --arg color     "$PR_COLOR" \
+            --arg pr_url    "$PR_URL" \
+            --arg auth_url  "$AUTHOR_URL" \
+            --arg auth_name "$AUTHOR_LOGIN" \
+            --arg repo      "$REPO" \
+            --arg head      "$HEAD_REF" \
+            --arg base      "$BASE_REF" \
+            --arg desc      "$DESCRIPTION" \
+            --arg labels    "$LABELS" \
+            --arg files     "$CHANGED_FILES" \
+            --arg plus      "$ADDITIONS" \
+            --arg minus     "$DELETIONS" \
+            '{
+              "text": ("PR " + $status + ": #" + $number + " " + $title),
+              "attachments": [
+                {
+                  "color": $color,
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": {
+                        "type": "plain_text",
+                        "text": ($emoji + " Pull Request " + $status)
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": ("*<" + $pr_url + "|#" + $number + " - " + $title + ">*")
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": ("*Author:*\n<" + $auth_url + "|" + $auth_name + ">")
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": ("*Repository:*\n<https://github.com/" + $repo + "|" + $repo + ">")
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": ("*Branch:*\n`" + $head + "` → `" + $base + "`")
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": ("*Labels:*\n" + $labels)
+                        }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": ("*Description:*\n" + $desc)
+                      }
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        {
+                          "type": "mrkdwn",
+                          "text": ("Files changed: " + $files + " | Additions: +" + $plus + " | Deletions: -" + $minus)
+                        }
+                      ]
+                    },
+                    {
+                      "type": "actions",
+                      "elements": [
+                        {
+                          "type": "button",
+                          "text": {
+                            "type": "plain_text",
+                            "text": "View Pull Request"
+                          },
+                          "url": $pr_url
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }' > /tmp/slack-payload.json
+
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        # Pinned from slackapi/slack-github-action v3.0.3
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+        with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: /tmp/slack-payload.json
