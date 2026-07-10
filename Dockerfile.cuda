@@ -1,7 +1,8 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
-ARG RUNTIMES="lightgbm onnx sklearn xgboost"
+ARG RUNTIMES="onnx"
 # Space-separated list of runtime import paths
-ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
+ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
+ARG CUDA_VERSION="12-9"
 ARG PYTHON_VERSION=3.12
 ARG POETRY_VERSION="2.1.1"
 
@@ -38,7 +39,7 @@ RUN microdnf update -y && \
 RUN pip install poetry==$POETRY_VERSION && \
     pip install poetry-plugin-export && \
     ./hack/build-wheels.sh /opt/mlserver/dist "$RUNTIMES" && \
-    poetry export --with odh-runtimes \
+    poetry export --with odh-runtimes-cuda \
         --without-hashes \
         --format constraints.txt \
         -o /opt/mlserver/dist/constraints.txt
@@ -48,22 +49,36 @@ FROM ${BASE_IMAGE}
 ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
 ARG PYTHON_VERSION
+ARG CUDA_VERSION
 
 # Set default environment variables
 # NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
-    NUMBA_CACHE_DIR=/opt/mlserver/.cache
+    NUMBA_CACHE_DIR=/opt/mlserver/.cache \
+    MLSERVER_MODEL_ONNX_PROVIDERS='["CUDAExecutionProvider","CPUExecutionProvider"]' \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
-# Install some base dependencies required for some libraries.
-# libgomp is needed by the LightGBM runtime.
+# Install base dependencies and NVIDIA CUDA runtime libraries.
 RUN microdnf update -y && \
     microdnf install -y \
-        libgomp \
         shadow-utils \
         python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-pip && \
+    rpm --import https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/D42D0685.pub && \
+    printf '[cuda-rhel9]\nname=CUDA for RHEL9 x86_64\nbaseurl=https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/D42D0685.pub\n' \
+        > /etc/yum.repos.d/cuda-rhel9.repo && \
+    microdnf install -y \
+        cuda-cudart-${CUDA_VERSION} \
+        cuda-nvrtc-${CUDA_VERSION} \
+        libcublas-${CUDA_VERSION} \
+        libcufft-${CUDA_VERSION} \
+        libcurand-${CUDA_VERSION} \
+        libcusolver-${CUDA_VERSION} \
+        libcusparse-${CUDA_VERSION} \
+        libcudnn9-cuda-${CUDA_VERSION%%-*} \
+        libnvjitlink-${CUDA_VERSION} && \
     microdnf clean all
 
 WORKDIR /opt/mlserver
@@ -88,7 +103,7 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
         _wheel=$(ls ./dist/mlserver_${_runtime}-*.whl); \
         echo "--> Installing $_wheel..."; \
         if [ "$_runtime" = "onnx" ]; then \
-            pip install "${_wheel}[cpu]" --constraint ./dist/constraints.txt; \
+            pip install "${_wheel}[cuda]" --constraint ./dist/constraints.txt; \
         else \
             pip install "$_wheel" --constraint ./dist/constraints.txt; \
         fi; \
