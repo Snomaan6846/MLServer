@@ -393,6 +393,70 @@ Log severity levels:
 - `3`: ERROR
 - `4`: FATAL
 
+## Developer Setup
+
+Since `mlserver-onnx` is not published to PyPI, use Poetry for local
+development.
+
+### CPU development
+
+```bash
+# From the repo root — installs mlserver + ODH runtimes in development mode
+make install-dev-odh
+
+# Or install all runtimes (including upstream-only ones)
+make install-dev
+
+# Verify
+poetry run python -c "from mlserver_onnx import OnnxModel; print('OK')"
+
+# Run ONNX tests
+poetry run tox -c ./runtimes/onnx
+```
+
+### CUDA development
+
+```bash
+# From the repo root — installs onnx with CUDA extra + NVIDIA pip libs + dev tools
+make install-dev-odh-cuda
+
+# Run CPU tests (always works, CUDA tests auto-skip without GPU)
+poetry run tox -c ./runtimes/onnx
+
+# Run CUDA tests (requires GPU hardware)
+make test-cuda
+```
+
+The test `conftest.py` contains a `pytest_configure` hook that auto-discovers
+pip-installed NVIDIA CUDA libraries and prepends their paths to
+`LD_LIBRARY_PATH` before any tests run, so `onnxruntime-gpu` can find CUDA
+shared objects at runtime without manual environment setup.
+
+`make install-dev-odh-cuda` includes the `odh-runtimes-cuda-dev` Poetry group,
+which provides pip-packaged NVIDIA CUDA libraries (`nvidia-cublas-cu12`,
+`nvidia-cudnn-cu12`, etc.). This removes the need for a system-level CUDA
+toolkit on bare-metal dev/test nodes.
+
+> **Warning:** `onnxruntime` (CPU) and `onnxruntime-gpu` share the same Python
+> namespace and their files conflict. The CUDA tox environment handles this
+> automatically, but avoid installing both extras into the same virtualenv
+> manually.
+
+### Building and testing wheels locally
+
+```bash
+# Build wheels for the onnx runtime
+./hack/build-wheels.sh ./dist "onnx"
+
+# Install into a fresh virtualenv (CPU)
+python3 -m venv ./.test-venv
+./.test-venv/bin/pip install ./dist/mlserver-*.whl
+./.test-venv/bin/pip install "./dist/mlserver_onnx-*.whl[cpu]"
+
+# Or for CUDA
+./.test-venv/bin/pip install "./dist/mlserver_onnx-*.whl[cuda]"
+```
+
 ## Getting Help
 
 If you encounter issues:

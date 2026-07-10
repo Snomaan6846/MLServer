@@ -2,12 +2,14 @@ ARG BASE_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal"
 ARG RUNTIMES="lightgbm onnx sklearn xgboost"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
+ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION="2.1.1"
 
 FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
-ARG POETRY_VERSION="2.1.1"
-ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION
+ARG PYTHON_VERSION
 
 WORKDIR /opt/mlserver
 
@@ -27,6 +29,7 @@ RUN microdnf update -y && \
     microdnf clean all && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
     alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools
@@ -44,7 +47,7 @@ FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 
 # Set default environment variables
 # NOTE: When updating between major Python versions, update the PYTHON_VERSION ARG above.

@@ -3,12 +3,14 @@ ARG RUNTIMES="onnx"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
 ARG CUDA_VERSION="12-9"
+ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION="2.1.1"
 
 FROM ${BASE_IMAGE} AS wheel-builder
 
 ARG RUNTIMES
-ARG POETRY_VERSION="2.1.1"
-ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION
+ARG PYTHON_VERSION
 
 WORKDIR /opt/mlserver
 
@@ -28,6 +30,7 @@ RUN microdnf update -y && \
     microdnf clean all && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 && \
     alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip3 && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools
@@ -45,7 +48,7 @@ FROM ${BASE_IMAGE}
 
 ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 ARG CUDA_VERSION
 
 # Set default environment variables
@@ -55,7 +58,7 @@ ENV MLSERVER_MODELS_DIR=/mnt/models \
     HF_HOME=/opt/mlserver/.cache \
     NUMBA_CACHE_DIR=/opt/mlserver/.cache \
     MLSERVER_MODEL_ONNX_PROVIDERS='["CUDAExecutionProvider","CPUExecutionProvider"]' \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
 # Install base dependencies and NVIDIA CUDA runtime libraries.
 RUN microdnf update -y && \
@@ -74,7 +77,7 @@ RUN microdnf update -y && \
         libcurand-${CUDA_VERSION} \
         libcusolver-${CUDA_VERSION} \
         libcusparse-${CUDA_VERSION} \
-        libcudnn9-cuda-12 \
+        libcudnn9-cuda-${CUDA_VERSION%%-*} \
         libnvjitlink-${CUDA_VERSION} && \
     microdnf clean all
 
@@ -96,7 +99,6 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools && \
     pip install $(ls "./dist/mlserver-"*.whl) --constraint ./dist/constraints.txt && \
-    pip uninstall -y onnxruntime || true && \
     for _runtime in $RUNTIMES; do \
         _wheel=$(ls ./dist/mlserver_${_runtime}-*.whl); \
         echo "--> Installing $_wheel..."; \

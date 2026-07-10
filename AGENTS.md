@@ -40,14 +40,20 @@ Poetry-only monorepo: core `mlserver` + 10 runtime packages under `runtimes/`.
 - **Type annotations** expected on new public functions and methods.
 - **Tests:** `async def test_*` with `asyncio_mode = auto`; parallel via `-n auto`.
   CI matrix: Python 3.10/3.11/3.12; all-runtimes suite runs on push only (not PR).
+- **CUDA tests** use `@pytest.mark.cuda` and auto-skip on CPU-only systems.
+  Run with `make test-cuda` or `tox -c ./runtimes/onnx -e cuda`. CUDA tests
+  run serially (no `-n auto`) to avoid GPU OOM.
 - **Tox envs:** `mlserver-{conda,venv}` (core), `all-runtimes-{conda,venv}` (everything), `licenses`.
 
 ```bash
 make install-dev                     # Install all deps (all-runtimes + dev)
+make install-dev-odh                 # Install ODH runtimes + dev
+make install-dev-odh-cuda            # Install ODH CUDA runtimes + NVIDIA libs + dev
 make lint                            # black --check, flake8, mypy
 make fmt                             # black .
 make generate                        # Protobuf/OpenAPI codegen
 make test                            # Full suite (root tox + each runtime)
+make test-cuda                       # CUDA GPU tests (serial, auto-skips without GPU)
 make lock                            # Regenerate poetry.lock (root + runtimes)
 poetry run tox -e mlserver-venv      # Core tests with venv isolation
 poetry run tox -c ./runtimes/<name>  # Single runtime tests
@@ -75,8 +81,9 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    truth. All `runtimes/*/pyproject.toml` and `docs/conf.py` must match.
    Use `hack/update-version.sh <version>` for bumps — never hand-edit.
 
-5. **`Dockerfile.konflux` exists only on `rhoai-staging`.** Not on `master`
-   or `release-*`. Renovate auto-updates its base image.
+5. **`Dockerfile.konflux` and `Dockerfile.cuda.konflux` exist only on
+   `rhoai-staging`.** Not on `master` or `release-*`. Renovate auto-updates
+   their base images.
 
 6. **Adding a built-in runtime** requires updating
    `ALLOWED_MODEL_IMPLEMENTATIONS` in `mlserver/settings.py` and the

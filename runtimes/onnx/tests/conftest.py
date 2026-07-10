@@ -1,3 +1,4 @@
+import importlib
 import os
 import asyncio
 import socket
@@ -23,6 +24,7 @@ from mlserver.server import MLServer
 from mlserver.utils import install_uvloop_event_loop
 
 from mlserver_onnx import OnnxModel
+from mlserver_onnx.constants import NVIDIA_LIB_MODULES
 
 TESTS_PATH = os.path.dirname(__file__)
 TESTDATA_PATH = os.path.join(TESTS_PATH, "testdata")
@@ -389,3 +391,21 @@ async def grpc_stub(server_settings: Settings, onnx_mlserver: MLServer):
         f"{server_settings.host}:{server_settings.grpc_port}"
     ) as channel:
         yield GRPCInferenceServiceStub(channel)
+
+
+def pytest_configure(config):
+    """Ensure pip-installed NVIDIA CUDA libs are on LD_LIBRARY_PATH.
+
+    Runs before test collection, so onnxruntime's dlopen finds CUDA
+    shared libraries installed via pip (nvidia-cublas-cu12 etc.).
+    """
+    paths = []
+    for pkg in NVIDIA_LIB_MODULES:
+        try:
+            paths.extend(importlib.import_module(pkg).__path__)
+        except (ImportError, ModuleNotFoundError, AttributeError):
+            pass
+    if paths:
+        existing = os.environ.get("LD_LIBRARY_PATH", "")
+        new = ":".join(paths)
+        os.environ["LD_LIBRARY_PATH"] = f"{new}:{existing}" if existing else new
