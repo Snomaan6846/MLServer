@@ -41,6 +41,7 @@ exclude = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
+markers = ["cuda: marks tests requiring CUDA GPU hardware (auto-skipped without GPU)"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
@@ -120,7 +121,27 @@ optional = true
 mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
-mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
+
+[tool.poetry.group.odh-runtimes-cuda]
+optional = true
+
+[tool.poetry.group.odh-runtimes-cuda.dependencies]
+mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cuda"]}
+
+[tool.poetry.group.odh-runtimes-cuda-dev]
+optional = true
+
+[tool.poetry.group.odh-runtimes-cuda-dev.dependencies]
+nvidia-cuda-nvrtc-cu12 = "~=12.0"
+nvidia-cuda-runtime-cu12 = "~=12.0"
+nvidia-cublas-cu12 = "~=12.0"
+nvidia-cufft-cu12 = "~=11.0"
+nvidia-curand-cu12 = "~=10.0"
+nvidia-cusolver-cu12 = "~=11.0"
+nvidia-cusparse-cu12 = "~=12.0"
+nvidia-nvjitlink-cu12 = "~=12.0"
+nvidia-cudnn-cu12 = "~=9.0"
 
 [tool.poetry.group.all-runtimes]
 optional = true
@@ -129,7 +150,7 @@ optional = true
 mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
-mlserver-onnx = {path = "./runtimes/onnx", develop = true}
+mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
 mlserver-mlflow = {path = "./runtimes/mlflow", develop = true}
 mlserver-huggingface = {path = "./runtimes/huggingface", develop = true}
 mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}
