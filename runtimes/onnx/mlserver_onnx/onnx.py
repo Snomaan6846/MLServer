@@ -1,3 +1,5 @@
+import logging
+
 import onnx
 import numpy as np
 import onnxruntime as ort
@@ -19,6 +21,7 @@ from .utils import (
     PREDICT_OUTPUT,
     VALID_OUTPUTS,
     WELLKNOWN_MODEL_FILENAMES,
+    _ORT_LOG_SEVERITY,
     _apply_session_config_entries,
     _build_run_options,
     _build_session_options,
@@ -41,6 +44,21 @@ class OnnxModel(MLModel):
     def __init__(self, settings: ModelSettings):
         super().__init__(settings)
         self._onnx_settings = get_onnx_settings(self.settings)
+
+    def _configure_framework_logger(self) -> None:
+        """Store ORT log severity for session creation in load().
+
+        Per-session configuration is preferred over
+        ``ort.set_default_logger_severity()``, which modifies
+        process-wide state for all ORT sessions.
+        """
+        level = self._mlserver_log_level
+        self._ort_log_severity = _ORT_LOG_SEVERITY.get(level, 1)
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "onnx",
+            logging.getLevelName(level),
+        )
 
     async def load(self) -> bool:
         """
@@ -69,7 +87,9 @@ class OnnxModel(MLModel):
 
         providers = _get_providers(self._onnx_settings)
         provider_options = _get_provider_options(self._onnx_settings, providers)
-        session_options = _build_session_options(self._onnx_settings)
+        session_options = _build_session_options(
+            self._onnx_settings, log_severity=self._ort_log_severity
+        )
         session_options = _apply_session_config_entries(
             session_options, self._onnx_settings
         )
@@ -97,6 +117,22 @@ class OnnxModel(MLModel):
             raise ModelLoadError(
                 f"Failed to load ONNX model from '{model_uri}': {exc}"
             ) from exc
+
+        active_providers = self._model.get_providers()
+        logger.info(
+            "ONNX model '%s' loaded with execution providers: %s",
+            self.name,
+            active_providers,
+        )
+        missing = [p for p in providers if p not in active_providers]
+        if missing:
+            logger.warning(
+                "ONNX model '%s': requested providers %s but %s not available "
+                "(failed to initialize or not installed)",
+                self.name,
+                providers,
+                missing,
+            )
 
         inputs = self._model.get_inputs()
         if not inputs:

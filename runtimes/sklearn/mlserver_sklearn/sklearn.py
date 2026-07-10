@@ -1,9 +1,12 @@
+import logging
+
 import joblib
 
 from sklearn.pipeline import Pipeline
 
 from mlserver.codecs import NumpyCodec, NumpyRequestCodec, PandasCodec
 from mlserver.errors import InferenceError
+from mlserver.logging import logger
 from mlserver.model import MLModel
 from mlserver.types import (
     InferenceRequest,
@@ -21,6 +24,8 @@ VALID_OUTPUTS = [PREDICT_OUTPUT, PREDICT_PROBA_OUTPUT, PREDICT_TRANSFORM]
 
 WELLKNOWN_MODEL_FILENAMES = ["model.joblib", "model.pickle", "model.pkl"]
 
+_SKLEARN_LOGGERS = ("sklearn", "joblib")
+
 
 class SKLearnModel(MLModel):
     """
@@ -28,8 +33,18 @@ class SKLearnModel(MLModel):
     models persisted with `joblib`.
     """
 
+    def _configure_framework_logger(self) -> None:
+        """Align sklearn/joblib loggers with MLServer's effective log level."""
+        level = self._mlserver_log_level
+        for name in _SKLEARN_LOGGERS:
+            logging.getLogger(name).setLevel(level)
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "/".join(_SKLEARN_LOGGERS),
+            logging.getLevelName(level),
+        )
+
     async def load(self) -> bool:
-        # TODO: Log info message
         model_uri = await get_model_uri(
             self._settings, wellknown_filenames=WELLKNOWN_MODEL_FILENAMES
         )
