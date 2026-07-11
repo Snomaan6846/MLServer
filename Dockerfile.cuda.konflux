@@ -1,7 +1,7 @@
-ARG BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.5.0-ea.2"
-ARG RUNTIMES="lightgbm onnx sklearn xgboost"
+ARG BASE_IMAGE="quay.io/aipcc/base-images/cuda-12.9-el9.6:3.5.0-ea.2"
+ARG RUNTIMES="onnx"
 # Space-separated list of runtime import paths
-ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
+ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
 
 FROM ${BASE_IMAGE}
 
@@ -11,10 +11,13 @@ ARG TRUSTED_RUNTIMES
 USER 0
 
 # Set a few default environment variables.
+# CUDA library paths (LD_LIBRARY_PATH, etc.) are set by the AIPCC base
+# image cuda-12.9-el9.6; no explicit ENV needed here.
 ENV MLSERVER_MODELS_DIR=/mnt/models \
     MLSERVER_PATH=/opt/mlserver \
     HF_HOME=/opt/mlserver/.cache \
-    NUMBA_CACHE_DIR=/opt/mlserver/.cache
+    NUMBA_CACHE_DIR=/opt/mlserver/.cache \
+    MLSERVER_MODEL_ONNX_PROVIDERS='["CUDAExecutionProvider","CPUExecutionProvider"]'
 
 WORKDIR /opt/mlserver
 
@@ -29,7 +32,7 @@ RUN mkdir -p $MLSERVER_PATH && \
 RUN pip install mlserver && \
     for _runtime in $RUNTIMES; do \
         if [ "$_runtime" = "onnx" ]; then \
-            pip install "mlserver-onnx[cpu]"; \
+            pip install "mlserver-onnx[cuda]"; \
         else \
             pip install "mlserver-${_runtime}"; \
         fi; \
@@ -65,12 +68,12 @@ USER 1000
 # MLServer starts
 CMD ["/bin/sh", "-c", "mlserver start $MLSERVER_MODELS_DIR"]
 
-LABEL com.redhat.component="odh-mlserver-rhel9" \
-      name="rhoai/odh-mlserver-rhel9" \
-      description="odh-mlserver" \
-      summary="odh-mlserver" \
+LABEL com.redhat.component="odh-mlserver-cuda-rhel9" \
+      name="rhoai/odh-mlserver-cuda-rhel9" \
+      description="odh-mlserver-cuda" \
+      summary="odh-mlserver-cuda" \
       maintainer="['managed-open-data-hub@redhat.com']" \
       io.openshift.expose-services="" \
-      io.k8s.display-name="odh-mlserver" \
-      io.k8s.description="odh-mlserver" \
+      io.k8s.display-name="odh-mlserver-cuda" \
+      io.k8s.description="odh-mlserver-cuda" \
       com.redhat.license_terms="https://www.redhat.com/licenses/Red_Hat_Standard_EULA_20191108.pdf"
