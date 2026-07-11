@@ -4,11 +4,20 @@ This package provides a MLServer runtime compatible with ONNX models using ONNX 
 
 ## Usage
 
-You can install the runtime, alongside `mlserver`, as:
+Install the CPU variant (default):
 
 ```bash
-pip install mlserver mlserver-onnx
+pip install mlserver mlserver-onnx[cpu]
 ```
+
+For GPU acceleration with CUDA:
+
+```bash
+pip install mlserver mlserver-onnx[cuda]
+```
+
+> **Note:** The bare `mlserver-onnx` package (without an extra) does not install any
+> ONNX Runtime backend. Always specify `[cpu]` or `[cuda]`.
 
 For further information on how to use MLServer with ONNX, you can check out
 this [worked out example](../examples/onnx/README.md).
@@ -215,6 +224,38 @@ list (passed to `InferenceSession` as a sequence of option dicts per the
 runtime keys via `SessionOptions.add_session_config_entry`. `run_options` maps
 to `onnxruntime.RunOptions` and is applied on every `session.run()` call.
 
+### GPU Acceleration (CUDA)
+
+Use the CUDA-enabled Docker image or install the GPU extra:
+
+```bash
+pip install mlserver mlserver-onnx[cuda]
+```
+
+Then configure `CUDAExecutionProvider` in your model settings:
+
+```json
+{
+  "name": "my-onnx-model",
+  "implementation": "mlserver_onnx.OnnxModel",
+  "parameters": {
+    "uri": "./model.onnx",
+    "extra": {
+      "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    }
+  }
+}
+```
+
+Listing `CPUExecutionProvider` as a fallback ensures the model loads even if
+CUDA is unavailable. The runtime logs a warning at load time if any requested
+provider was not activated — check server logs if GPU inference is not being
+used.
+
+The CUDA Docker images set the environment variable
+`MLSERVER_MODEL_ONNX_PROVIDERS='["CUDAExecutionProvider","CPUExecutionProvider"]'`
+by default, so no model-settings change is needed when using the pre-built image.
+
 ### Execution provider fields
 
 - `providers`: ordered list of execution providers; the runtime attempts them in the order they appear in the list.
@@ -351,6 +392,70 @@ Log severity levels:
 - `2`: WARNING
 - `3`: ERROR
 - `4`: FATAL
+
+## Developer Setup
+
+Since `mlserver-onnx` is not published to PyPI, use Poetry for local
+development.
+
+### CPU development
+
+```bash
+# From the repo root — installs mlserver + ODH runtimes in development mode
+make install-dev-odh
+
+# Or install all runtimes (including upstream-only ones)
+make install-dev
+
+# Verify
+poetry run python -c "from mlserver_onnx import OnnxModel; print('OK')"
+
+# Run ONNX tests
+poetry run tox -c ./runtimes/onnx
+```
+
+### CUDA development
+
+```bash
+# From the repo root — installs onnx with CUDA extra + NVIDIA pip libs + dev tools
+make install-dev-odh-cuda
+
+# Run CPU tests (always works, CUDA tests auto-skip without GPU)
+poetry run tox -c ./runtimes/onnx
+
+# Run CUDA tests (requires GPU hardware)
+make test-cuda
+```
+
+The test `conftest.py` contains a `pytest_configure` hook that auto-discovers
+pip-installed NVIDIA CUDA libraries and prepends their paths to
+`LD_LIBRARY_PATH` before any tests run, so `onnxruntime-gpu` can find CUDA
+shared objects at runtime without manual environment setup.
+
+`make install-dev-odh-cuda` includes the `odh-runtimes-cuda-dev` Poetry group,
+which provides pip-packaged NVIDIA CUDA libraries (`nvidia-cublas-cu12`,
+`nvidia-cudnn-cu12`, etc.). This removes the need for a system-level CUDA
+toolkit on bare-metal dev/test nodes.
+
+> **Warning:** `onnxruntime` (CPU) and `onnxruntime-gpu` share the same Python
+> namespace and their files conflict. The CUDA tox environment handles this
+> automatically, but avoid installing both extras into the same virtualenv
+> manually.
+
+### Building and testing wheels locally
+
+```bash
+# Build wheels for the onnx runtime
+./hack/build-wheels.sh ./dist "onnx"
+
+# Install into a fresh virtualenv (CPU)
+python3 -m venv ./.test-venv
+./.test-venv/bin/pip install ./dist/mlserver-*.whl
+./.test-venv/bin/pip install "./dist/mlserver_onnx-*.whl[cpu]"
+
+# Or for CUDA
+./.test-venv/bin/pip install "./dist/mlserver_onnx-*.whl[cuda]"
+```
 
 ## Getting Help
 

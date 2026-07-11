@@ -1,15 +1,23 @@
 {
-  "root_packages": [
-    "mlserver",
-    "mlserver-lightgbm",
-    "mlserver-onnx",
-    "mlserver-sklearn",
-    "mlserver-xgboost"
-  ],
   "variants": [
     {
       "name": "cpu",
-      "dockerfile": "Dockerfile.konflux"
+      "dockerfile": "Dockerfile.konflux",
+      "root_packages": [
+        "mlserver",
+        "mlserver-lightgbm",
+        "mlserver-onnx[cpu]",
+        "mlserver-sklearn",
+        "mlserver-xgboost"
+      ]
+    },
+    {
+      "name": "cuda",
+      "dockerfile": "Dockerfile.cuda.konflux",
+      "root_packages": [
+        "mlserver",
+        "mlserver-onnx[cuda]"
+      ]
     }
   ]
 }
