@@ -34,9 +34,10 @@
       "schedule": [
         "at any time"
       ],
-      "versioning": "semver",
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+)-(?<prerelease>ea\\.\\d+))?$",
       "ignoreUnstable": false,
-      "allowedVersions": "/^\\d+\\.\\d+(\\.\\d+-ea\\.\\d+)?$/",
+      "respectLatest": false,
+      "allowedVersions": "/^(\\d+\\.\\d+|\\d+\\.\\d+\\.\\d+-ea\\.\\d+)$/",
       "enabled": true
     }
   ]
