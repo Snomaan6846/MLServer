@@ -39,7 +39,7 @@ Current shape:
     },
     {
       "name": "cuda",
-      "dockerfile": "Dockerfile.cuda.konflux",
+      "dockerfile": "Dockerfile.konflux.cuda",
       "root_packages": [
         "mlserver",
         "mlserver-onnx[cuda]"
@@ -109,7 +109,7 @@ The workflow fails early if credentials are missing.
 
 ```bash
 python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux
-python hack/generate-pinned-requirements.py --print-base-image Dockerfile.cuda.konflux
+python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux.cuda
 ```
 
 ### Generate pinned requirements in current environment
