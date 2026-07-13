@@ -81,7 +81,7 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    truth. All `runtimes/*/pyproject.toml` and `docs/conf.py` must match.
    Use `hack/update-version.sh <version>` for bumps — never hand-edit.
 
-5. **`Dockerfile.konflux` and `Dockerfile.cuda.konflux` exist only on
+5. **`Dockerfile.konflux` and `Dockerfile.konflux.cuda` exist only on
    `rhoai-staging`.** Not on `master` or `release-*`. Renovate auto-updates
    their base images.
 
