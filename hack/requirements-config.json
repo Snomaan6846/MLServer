@@ -13,7 +13,7 @@
     },
     {
       "name": "cuda",
-      "dockerfile": "Dockerfile.cuda.konflux",
+      "dockerfile": "Dockerfile.konflux.cuda",
       "root_packages": [
         "mlserver",
         "mlserver-onnx[cuda]"

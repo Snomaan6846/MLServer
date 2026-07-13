@@ -22,7 +22,7 @@ Usage (in container):
     --variant cuda -o requirements/requirements-cuda.txt
 Usage (on host):
   python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux
-  python hack/generate-pinned-requirements.py --print-base-image Dockerfile.cuda.konflux
+  python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux.cuda
 """
 
 import argparse
