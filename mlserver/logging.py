@@ -20,17 +20,29 @@ def get_logger():
     return logger
 
 
+def get_log_level() -> int:
+    """Return the effective log level of the MLServer logger.
+
+    Runtimes can use this to propagate MLServer's log verbosity
+    to their underlying framework-specific logging systems.
+    """
+    return logger.getEffectiveLevel()
+
+
 def apply_logging_file(logging_settings: str | dict):
     if isinstance(logging_settings, str) and Path(logging_settings).is_file():
         if "json" in Path(logging_settings).suffix:
             with open(logging_settings) as settings_file:
                 config = json.load(settings_file)
+            config.setdefault("disable_existing_loggers", False)
             logging.config.dictConfig(config)
         else:
             logging.config.fileConfig(
                 fname=logging_settings, disable_existing_loggers=False
             )
     elif isinstance(logging_settings, dict):
+        logging_settings = {**logging_settings}
+        logging_settings.setdefault("disable_existing_loggers", False)
         logging.config.dictConfig(logging_settings)
     else:
         logger.warning("Unable to parse logging_settings.")
@@ -105,9 +117,12 @@ def configure_logger(settings: Settings | None = None):
 
     handler.setFormatter(ModelLoggerFormatter(settings))
 
-    logger.setLevel(logging.INFO)
     if settings and settings.debug:
         logger.setLevel(logging.DEBUG)
+    elif settings:
+        logger.setLevel(getattr(logging, settings.log_level.upper(), logging.INFO))
+    else:
+        logger.setLevel(logging.INFO)
 
     if settings and settings.logging_settings:
         apply_logging_file(settings.logging_settings)

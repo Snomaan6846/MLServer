@@ -1,8 +1,8 @@
-import mlflow
-
+import logging
 from io import StringIO
-from fastapi import Depends, Header, Request, Response
 
+import mlflow
+from fastapi import Depends, Header, Request, Response
 from mlflow.version import VERSION
 from mlflow.exceptions import MlflowException
 from mlflow.pyfunc.scoring_server import (
@@ -42,6 +42,16 @@ class MLflowRuntime(MLModel):
     Implementation of the MLModel interface to load and serve `scikit-learn`
     models persisted with `joblib`.
     """
+
+    def _configure_framework_logger(self) -> None:
+        """Align the mlflow logger with MLServer's effective log level."""
+        level = self._mlserver_log_level
+        logging.getLogger("mlflow").setLevel(level)
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "mlflow",
+            logging.getLevelName(level),
+        )
 
     # TODO: Decouple from REST
     @custom_handler(rest_path="/ping", rest_method="GET")
@@ -153,7 +163,6 @@ class MLflowRuntime(MLModel):
         return Response(content=result.getvalue(), media_type="application/json")
 
     async def load(self) -> bool:
-        # TODO: Log info message
         model_uri = await get_model_uri(self._settings)
         self._model = mlflow.pyfunc.load_model(model_uri)
 

@@ -15,16 +15,30 @@ from py_grpc_prometheus.prometheus_server_interceptor import (
 from .logging import logger
 
 
+_GRPC_HEALTH_METHODS = frozenset(
+    {
+        "/inference.GRPCInferenceService/ServerLive",
+        "/inference.GRPCInferenceService/ServerReady",
+        "/inference.GRPCInferenceService/ModelReady",
+    }
+)
+
+
 class LoggingInterceptor(ServerInterceptor):
-    def _get_log_message(self, handler_call_details: HandlerCallDetails) -> str:
-        return handler_call_details.method
+    def __init__(self, *, skip_health: bool = True):
+        self._skip_health = skip_health
+
+    def _is_health_check(self, method: str) -> bool:
+        return method in _GRPC_HEALTH_METHODS
 
     async def intercept_service(
         self,
         continuation: Callable[[HandlerCallDetails], Awaitable[RpcMethodHandler]],
         handler_call_details: HandlerCallDetails,
     ) -> RpcMethodHandler:
-        logger.info(self._get_log_message(handler_call_details))
+        method = handler_call_details.method
+        if not (self._skip_health and self._is_health_check(method)):
+            logger.info(method)
         handler = await continuation(handler_call_details)
         return handler
 

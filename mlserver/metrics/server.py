@@ -61,7 +61,7 @@ class MetricsServer:
             {
                 "host": self._settings.host,
                 "port": self._settings.metrics_port,
-                "access_log": self._settings.debug,
+                "access_log": self._settings.access_log,
             }
         )
 
