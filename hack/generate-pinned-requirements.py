@@ -1,24 +1,33 @@
 #!/usr/bin/env python3
 """
 Generate requirements-<variant>.txt with pinned versions and SHA256 hashes
-for x86_64, aarch64 and ppc64le.
+for target architectures.
 
 Run inside the base image container for each variant defined in
-hack/requirements-config.json. Each variant specifies its own root_packages
-and dockerfile. The image's pip index is used for resolution.
+hack/requirements-config.json. Each variant specifies its own root_packages,
+dockerfile, target platforms, and download timeout. The image's pip index is
+used for resolution.
+
+Platform configuration:
+  Each variant may specify a "platforms" list in requirements-config.json.
+  Accepted values: x86_64, aarch64, ppc64le, s390x (canonical names) or
+  aliases amd64 (-> x86_64), arm64 (-> aarch64).
+  If omitted, defaults to x86_64 only.
+  Resolution precedence: --platform CLI > config "platforms" > default.
 
 Options:
-  --variant NAME       (required) Variant from config
-                       (e.g. cpu, cuda).
+  --variant NAME       (required) Variant from config (e.g. cpu, cuda).
   -o PATH              Output path (default: requirements.txt).
+  --platform ARCH      Target architecture (can repeat). Overrides config.
+  --timeout SECONDS    Download timeout per platform group. Overrides config.
   --index-url URL      Override package index URL.
   --print-base-image   Print base image from Dockerfile.
   --dry-run            Print pip commands without executing.
 
 Usage (in container):
-  python hack/generate-pinned-requirements.py \
+  python hack/generate-pinned-requirements.py \\
     --variant cpu -o requirements/requirements-cpu.txt
-  python hack/generate-pinned-requirements.py \
+  python hack/generate-pinned-requirements.py \\
     --variant cuda -o requirements/requirements-cuda.txt
 Usage (on host):
   python hack/generate-pinned-requirements.py --print-base-image Dockerfile.konflux
@@ -32,6 +41,7 @@ import json
 import os
 import queue
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -41,12 +51,84 @@ from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 
-# Phase 2: a pip download per arch; multiple tags per arch for index compatibility.
-DEFAULT_PLATFORMS = [
-    ["manylinux2014_x86_64", "manylinux_2_34_x86_64", "linux_x86_64"],
-    ["manylinux2014_aarch64", "manylinux_2_34_aarch64", "linux_aarch64"],
-    ["manylinux2014_ppc64le", "manylinux_2_34_ppc64le", "linux_ppc64le"],
-]
+PLATFORM_TAGS: dict[str, list[str]] = {
+    "x86_64": ["manylinux2014_x86_64", "manylinux_2_34_x86_64", "linux_x86_64"],
+    "aarch64": ["manylinux2014_aarch64", "manylinux_2_34_aarch64", "linux_aarch64"],
+    "ppc64le": ["manylinux2014_ppc64le", "manylinux_2_34_ppc64le", "linux_ppc64le"],
+    "s390x": ["manylinux2014_s390x", "manylinux_2_34_s390x", "linux_s390x"],
+}
+
+PLATFORM_ALIASES: dict[str, str] = {
+    "amd64": "x86_64",
+    "arm64": "aarch64",
+}
+
+DEFAULT_PLATFORM = "x86_64"
+
+
+def resolve_platform(name: str) -> list[str]:
+    """Resolve a short architecture name to its pip platform tag list.
+
+    Args:
+        name: Architecture name (e.g. ``x86_64``, ``amd64``, ``aarch64``).
+
+    Returns:
+        List of pip platform tags for the architecture.
+
+    Raises:
+        ValueError: If the name is not a supported architecture or alias.
+    """
+    canonical = PLATFORM_ALIASES.get(name, name)
+    if canonical in PLATFORM_TAGS:
+        return PLATFORM_TAGS[canonical]
+    supported = sorted(set(list(PLATFORM_TAGS.keys()) + list(PLATFORM_ALIASES.keys())))
+    raise ValueError(
+        f"Unsupported architecture '{name}'. " f"Supported: {', '.join(supported)}."
+    )
+
+
+def resolve_platform_groups(
+    cli_platforms: list[str], variant: dict
+) -> tuple[list[list[str]], str]:
+    """Resolve platform groups from CLI, config, or default.
+
+    Returns:
+        Tuple of (platform_groups, source_label) where source_label
+        is "CLI", "variant config", or "default" for logging.
+    """
+    if cli_platforms:
+        return [resolve_platform(p) for p in cli_platforms], "CLI"
+    if "platforms" in variant:
+        return [resolve_platform(p) for p in variant["platforms"]], "variant config"
+    return [resolve_platform(DEFAULT_PLATFORM)], "default"
+
+
+def resolve_download_timeout(cli_timeout: int | None, variant: dict) -> int:
+    """Resolve download timeout: CLI > config download_timeout > 480."""
+    if cli_timeout is not None:
+        return cli_timeout
+    return variant.get("download_timeout", 480)
+
+
+def _kill_registered_procs(procs: list[subprocess.Popen], lock: threading.Lock) -> None:
+    """Gracefully terminate all registered processes (SIGTERM -> wait -> SIGKILL)."""
+    with lock:
+        targets = list(procs)
+    for p in targets:
+        try:
+            p.terminate()
+        except OSError:
+            pass
+    for p in targets:
+        try:
+            p.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                p.kill()
+                p.wait(timeout=5)
+            except OSError:
+                pass
+
 
 CONFIG_FILENAME = "requirements-config.json"
 SENSITIVE_QUERY_KEYS = {
@@ -214,6 +296,31 @@ def load_config(script_dir: Path) -> dict:
                 f"Config 'variants'][{i}] must have non-empty 'dockerfile' "
                 "(path from repo root)"
             )
+        if "platforms" in ent:
+            platforms = ent["platforms"]
+            if not isinstance(platforms, list) or not platforms:
+                raise ValueError(
+                    f"Config 'variants'][{i}] 'platforms' must be a non-empty list"
+                )
+            for p in platforms:
+                if not isinstance(p, str):
+                    raise ValueError(
+                        f"Config 'variants'][{i}] 'platforms' entries must be strings"
+                    )
+                resolve_platform(p)
+            if "cuda" in ent.get("name", "").lower() and "ppc64le" in platforms:
+                print(
+                    f"  Warning: variant '{ent['name']}' includes ppc64le but "
+                    "CUDA indexes typically lack ppc64le wheels.",
+                    file=sys.stderr,
+                )
+        if "download_timeout" in ent:
+            dt = ent["download_timeout"]
+            if not isinstance(dt, int) or dt <= 0:
+                raise ValueError(
+                    f"Config 'variants'][{i}] 'download_timeout' must be a "
+                    "positive integer (seconds)"
+                )
     return data
 
 
@@ -562,6 +669,7 @@ def run_pip_command(
     context: str = "",
     attempts: int = 1,
     retry_backoff_sec: int = 0,
+    proc_registry: tuple[list[subprocess.Popen], threading.Lock] | None = None,
 ) -> subprocess.CompletedProcess:
     """Run a pip command with streamed logs, timeout enforcement, and retries.
 
@@ -572,6 +680,8 @@ def run_pip_command(
         context: Optional context suffix for logs (for example platform group).
         attempts: Number of attempts before failing.
         retry_backoff_sec: Delay between failed attempts in seconds.
+        proc_registry: Optional (list, lock) tuple for registering live procs
+            so they can be cleaned up on signal interruption.
 
     Returns:
         ``subprocess.CompletedProcess`` containing merged stdout on success.
@@ -592,6 +702,7 @@ def run_pip_command(
     last_error: RuntimeError | None = None
     for attempt in range(1, attempts + 1):
         out_lines: list[str] = []
+        proc = None
         attempt_prefix = (
             f"{prefix} [attempt {attempt}/{attempts}]" if attempts > 1 else prefix
         )
@@ -604,6 +715,10 @@ def run_pip_command(
                 errors="replace",
                 bufsize=1,
             ) as proc:
+                if proc_registry is not None:
+                    procs_list, procs_lock = proc_registry
+                    with procs_lock:
+                        procs_list.append(proc)
                 assert proc.stdout is not None
                 line_queue: queue.Queue[str | None] = queue.Queue()
                 stdout_stream = proc.stdout
@@ -702,6 +817,14 @@ def run_pip_command(
                 f"stdout(last): {(stdout_text[-800:] or '<empty>')}\n"
                 "stderr(last): <merged-into-stdout>"
             )
+        finally:
+            if proc_registry is not None and proc is not None:
+                procs_list, procs_lock = proc_registry
+                with procs_lock:
+                    try:
+                        procs_list.remove(proc)
+                    except ValueError:
+                        pass
 
         if attempt < attempts:
             print(
@@ -722,6 +845,7 @@ def generate_for_index(
     platform_groups: list[list[str]],
     out_path: Path,
     dry_run: bool = False,
+    download_timeout: int = 480,
 ) -> int:
     """Generate a fully pinned requirements file for one package index.
 
@@ -735,6 +859,7 @@ def generate_for_index(
         platform_groups: Platform tag groups for parallel download passes.
         out_path: Destination requirements file path.
         dry_run: If ``True``, print commands only and do not execute pip.
+        download_timeout: Per-platform-group download timeout in seconds.
 
     Returns:
         ``0`` on success, ``1`` on any validation or execution failure.
@@ -828,6 +953,10 @@ def generate_for_index(
         req_all = Path(tmp) / "req_all.txt"
         req_all.write_text("\n".join(req_all_lines) + "\n")
 
+        active_procs: list[subprocess.Popen] = []
+        active_procs_lock = threading.Lock()
+        registry = (active_procs, active_procs_lock)
+
         def download_for_group(
             group_index: int, group: list[str]
         ) -> tuple[list[str], Path]:
@@ -861,39 +990,54 @@ def generate_for_index(
             print(f"  Phase 2: Downloading for {group_name} ...")
             run_pip_command(
                 cmd,
-                timeout=480,
+                timeout=download_timeout,
                 phase_name="Phase 2",
                 context=f"platforms={group_name}",
                 attempts=2,
                 retry_backoff_sec=10,
+                proc_registry=registry,
             )
             return group, group_dir
 
         hashes_by_package_sets: dict[tuple[str, str], set[str]] = {}
         max_workers = max(1, min(len(platform_groups), os.cpu_count() or 1))
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        cancelled_early = False
+
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+        prev_sigint = signal.getsignal(signal.SIGINT)
+
+        def _cleanup_handler(signum, frame):
+            _kill_registered_procs(active_procs, active_procs_lock)
+            raise SystemExit(128 + signum)
+
+        signal.signal(signal.SIGTERM, _cleanup_handler)
+        signal.signal(signal.SIGINT, _cleanup_handler)
+
         try:
             futures = {
                 executor.submit(download_for_group, idx, group): group
                 for idx, group in enumerate(platform_groups)
             }
+            failures: list[tuple[list[str], RuntimeError]] = []
             for future in concurrent.futures.as_completed(futures):
                 group = futures[future]
                 try:
                     _, group_dir = future.result()
                 except RuntimeError as e:
-                    print(f"  {e}", file=sys.stderr)
-                    print(f"  Phase 2 failed for {group}", file=sys.stderr)
-                    executor.shutdown(wait=False, cancel_futures=True)
-                    cancelled_early = True
-                    return 1
+                    failures.append((group, e))
+                    continue
                 group_hashes = collect_hashes_from_download_dir(group_dir, hash_cache)
                 for pkg, hashes in group_hashes.items():
                     hashes_by_package_sets.setdefault(pkg, set()).update(hashes)
+
+            if failures:
+                for group, err in failures:
+                    print(f"  Phase 2 failed for {group}: {err}", file=sys.stderr)
+                return 1
         finally:
-            if not cancelled_early:
-                executor.shutdown(wait=True)
+            executor.shutdown(wait=True)
+            signal.signal(signal.SIGTERM, prev_sigterm)
+            signal.signal(signal.SIGINT, prev_sigint)
 
         hashes_by_package = {
             key: sorted(values) for key, values in hashes_by_package_sets.items()
@@ -905,7 +1049,8 @@ def generate_for_index(
     seen: set[tuple[str, str]] = set()
     ordered: list[tuple[str, str]] = []
     for root_name in root_names:
-        nv = resolved_by_norm.get(normalize_distribution_name(root_name))
+        bare_name = root_name.split("[", 1)[0]
+        nv = resolved_by_norm.get(normalize_distribution_name(bare_name))
         if nv and (normalize_distribution_name(nv[0]), nv[1]) not in seen:
             seen.add((normalize_distribution_name(nv[0]), nv[1]))
             ordered.append(nv)
@@ -993,7 +1138,22 @@ def main() -> int:
         action="append",
         default=[],
         dest="platforms",
-        help="Platform tag; can repeat. Default: manylinux2014+linux x86_64/aarch64",
+        help=(
+            "Platform to generate for (can repeat). "
+            "Supported: x86_64, amd64, aarch64, arm64, ppc64le, s390x. "
+            "Aliases: amd64 -> x86_64, arm64 -> aarch64. "
+            "Overrides config 'platforms' when set. Default: x86_64 only."
+        ),
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        dest="timeout",
+        help=(
+            "Download timeout per platform group in seconds. "
+            "Overrides config 'download_timeout'. Default: 480."
+        ),
     )
     parser.add_argument(
         "--index-url",
@@ -1029,22 +1189,21 @@ def main() -> int:
             print(f"Error: {e}", file=sys.stderr)
             return 1
 
+    if args.timeout is not None and args.timeout <= 0:
+        print("Error: --timeout must be a positive integer.", file=sys.stderr)
+        return 1
+
     if args.output is not None:
         out_path = args.output.resolve()
     else:
         out_path = (Path.cwd() / "requirements.txt").resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if args.platforms:
-        platform_groups = [[p] for p in args.platforms]
-    else:
-        platform_groups = DEFAULT_PLATFORMS
-
     variants = config.get("variants", [])
     if not args.variant:
         available = [v.get("name", "?") for v in variants]
         print(
-            f"Error: --variant is required. " f"Available: {available}",
+            f"Error: --variant is required. Available: {available}",
             file=sys.stderr,
         )
         return 1
@@ -1052,7 +1211,7 @@ def main() -> int:
     if not matched:
         available = [v.get("name", "?") for v in variants]
         print(
-            f"Error: variant '{args.variant}' not found. " f"Available: {available}",
+            f"Error: variant '{args.variant}' not found. Available: {available}",
             file=sys.stderr,
         )
         return 1
@@ -1064,6 +1223,18 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    try:
+        platform_groups, platform_source = resolve_platform_groups(
+            args.platforms, variant
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    print(f"Platforms ({platform_source}): " f"{[g[0] for g in platform_groups]}")
+
+    download_timeout = resolve_download_timeout(args.timeout, variant)
+
     print(f"Root packages (latest from index): {', '.join(root_names)}")
     if args.index_url:
         print(f"Output -> {out_path} (index: {redact_index_url(args.index_url)})")
@@ -1075,6 +1246,7 @@ def main() -> int:
         platform_groups=platform_groups,
         out_path=out_path,
         dry_run=args.dry_run,
+        download_timeout=download_timeout,
     )
 
 

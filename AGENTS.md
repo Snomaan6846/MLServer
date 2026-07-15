@@ -107,6 +107,11 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    construction, store a mapped value on `self` and apply it in `load()`
    (e.g. catboost, onnx, mllib).
 
+10. **Requirements generation platforms**: The `"platforms"` field in
+    `hack/requirements-config.json` controls target architectures per variant.
+    CUDA variants must NOT include `ppc64le` (no wheels on the CUDA index).
+    See `hack/README-requirements-generation.md` for details.
+
 ## Boundaries
 
 ### Always
