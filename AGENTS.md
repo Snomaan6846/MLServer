@@ -98,6 +98,20 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    remove or rename `.tekton/early-gate-ci-{build,test}.yaml` without
    coordinating with the Konflux team.
 
+9. **Log propagation**: New runtimes should override
+   `_configure_framework_logger()` on their `MLModel` subclass. The hook is
+   called automatically during `__init__()` after `self._mlserver_log_level`
+   is set. Use `self._mlserver_log_level` or `get_log_level()` in the hook.
+   Log the configuration at DEBUG level. Most runtimes configure the
+   framework there directly; when log settings must be passed at object
+   construction, store a mapped value on `self` and apply it in `load()`
+   (e.g. catboost, onnx, mllib).
+
+10. **Requirements generation platforms**: The `"platforms"` field in
+    `hack/requirements-config.json` controls target architectures per variant.
+    CUDA variants must NOT include `ppc64le` (no wheels on the CUDA index).
+    See `hack/README-requirements-generation.md` for details.
+
 ## Boundaries
 
 ### Always
