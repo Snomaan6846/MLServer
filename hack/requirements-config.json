@@ -9,7 +9,9 @@
         "mlserver-onnx[cpu]",
         "mlserver-sklearn",
         "mlserver-xgboost"
-      ]
+      ],
+      "platforms": ["x86_64", "aarch64", "ppc64le"],
+      "download_timeout": 480
     },
     {
       "name": "cuda",
@@ -17,7 +19,9 @@
       "root_packages": [
         "mlserver",
         "mlserver-onnx[cuda]"
-      ]
+      ],
+      "platforms": ["x86_64", "aarch64"],
+      "download_timeout": 720
     }
   ]
 }
