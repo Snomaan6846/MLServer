@@ -15,17 +15,28 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  BASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || 'rhoai-staging' }}
+
 jobs:
-  generate-and-pr:
+  gate:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.repository == 'opendatahub-io/MLServer') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      BASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || 'rhoai-staging' }}
+    timeout-minutes: 5
     steps:
       - name: Validate base branch exists
+        env:
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
         run: |
           set -euo pipefail
+          case "$BASE_BRANCH" in
+            main|rhoai-*) ;;
+            *)
+              echo "Error: branch '$BASE_BRANCH' is not approved for requirements generation."
+              echo "Allowed: main, rhoai-*"
+              exit 1
+              ;;
+          esac
           repo_url="https://github.com/${GITHUB_REPOSITORY}.git"
           if ! git ls-remote --heads "$repo_url" "$BASE_BRANCH" | grep -q .; then
             echo "Base branch '$BASE_BRANCH' not found in ${GITHUB_REPOSITORY}."
@@ -33,6 +44,15 @@ jobs:
             exit 1
           fi
 
+  generate:
+    needs: gate
+    strategy:
+      fail-fast: true
+      matrix:
+        variant: [cpu, cuda]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
       # Pinned from actions/checkout v6
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -58,25 +78,55 @@ jobs:
           username: ${{ secrets.AIPCC_QUAY_USERNAME }}
           password: ${{ secrets.AIPCC_QUAY_PASSWORD }}
 
-      - name: Generate pinned requirements
+      - name: Generate requirements
         env:
           WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
           script=hack/generate-pinned-requirements.py
           config=hack/requirements-config.json
-          jq -r '.variants[] | "\(.name)\t\(.dockerfile)"' "$config" | while IFS=$'\t' read -r name dockerfile; do
-            image="$(python "$script" --print-base-image "$dockerfile")"
-            echo "Running for variant $name in image $image ..."
-            podman run --rm --user 0 \
-              -e PYTHONDONTWRITEBYTECODE=1 \
-              -v "$WORKSPACE:$WORKSPACE:z" -w "$WORKSPACE" \
-              "$image" python "$script" --variant "$name" -o "requirements/requirements-${name}.txt"
-          done
+          dockerfile=$(jq -r --arg v "${{ matrix.variant }}" \
+            '.variants[] | select(.name == $v) | .dockerfile' "$config")
+          image=$(python "$script" --print-base-image "$dockerfile")
+          echo "Running for variant ${{ matrix.variant }} in image $image ..."
+          podman run --rm --user 0 \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            -v "$WORKSPACE:$WORKSPACE:z" -w "$WORKSPACE" \
+            "$image" python "$script" \
+              --variant "${{ matrix.variant }}" \
+              -o "requirements/requirements-${{ matrix.variant }}.txt"
 
-      - name: Fix ownership of generated files
+      - name: Fix file ownership
+        run: sudo chown -R "$USER:$USER" requirements/
+
+      # Pinned from actions/upload-artifact v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: requirements-${{ matrix.variant }}
+          path: requirements/requirements-${{ matrix.variant }}.txt
+
+  create-pr:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Pinned from actions/checkout v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          persist-credentials: false
+
+      - name: Install tools
         run: |
-          sudo chown -R "$USER:$USER" requirements/
+          sudo apt-get update
+          sudo apt-get install -y yq jq
+
+      # Pinned from actions/download-artifact v4.3.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: requirements-*
+          path: requirements/
+          merge-multiple: true
 
       - name: Load reviewers from OWNERS file
         id: owners_reviewers
@@ -98,8 +148,8 @@ jobs:
           base: ${{ env.BASE_BRANCH }}
           branch: requirements/regenerate-${{ env.BASE_BRANCH }}
           delete-branch: true
-          commit-message: "chore: regenerate pinned requirements from hack/requirements-config.json"
-          title: Regenerate pinned requirements
+          commit-message: "chore: regenerate pinned requirements"
+          title: "chore: regenerate pinned requirements for ${{ env.BASE_BRANCH }}"
           body: |
             ## Description
             Regenerated `requirements/*.txt` by running the generator inside each variant's
@@ -114,4 +164,3 @@ jobs:
           add-paths: |
             requirements/
           reviewers: ${{ github.repository == 'opendatahub-io/MLServer' && steps.owners_reviewers.outputs.reviewers || '' }}
-

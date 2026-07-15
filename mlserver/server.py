@@ -1,6 +1,5 @@
 import asyncio
 import signal
-import logging
 
 from mlserver.repository.factory import ModelRepositoryFactory
 
@@ -91,10 +90,6 @@ class MLServer:
         )
 
     def _configure_logger(self):
-        logger.setLevel(logging.INFO)
-        if self._settings.debug:
-            logger.setLevel(logging.DEBUG)
-
         self._logger = configure_logger(self._settings)
 
     def _create_servers(self):

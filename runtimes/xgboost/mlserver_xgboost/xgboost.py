@@ -1,8 +1,11 @@
+import logging
+
 import xgboost as xgb
 
 from xgboost.sklearn import XGBModel
 
 from mlserver.errors import InferenceError
+from mlserver.logging import logger
 from mlserver.model import MLModel
 from mlserver.utils import get_model_uri
 from mlserver.codecs import NumpyRequestCodec, NumpyCodec
@@ -18,6 +21,14 @@ PREDICT_PROBA_OUTPUT = "predict_proba"
 VALID_OUTPUTS = [PREDICT_OUTPUT, PREDICT_PROBA_OUTPUT]
 
 WELLKNOWN_MODEL_FILENAMES = ["model.bst", "model.json", "model.ubj"]
+
+_XGB_VERBOSITY = {
+    logging.DEBUG: 3,
+    logging.INFO: 2,
+    logging.WARNING: 1,
+    logging.ERROR: 0,
+    logging.CRITICAL: 0,
+}
 
 
 def _load_sklearn_interface(model_uri: str) -> XGBModel:
@@ -38,8 +49,19 @@ def _load_sklearn_interface(model_uri: str) -> XGBModel:
 
 class XGBoostModel(MLModel):
     """
-    Implementationof the MLModel interface to load and serve `xgboost` models.
+    Implementation of the MLModel interface to load and serve `xgboost` models.
     """
+
+    def _configure_framework_logger(self) -> None:
+        """Align XGBoost's Python logger and C++ verbosity with MLServer's log level."""
+        level = self._mlserver_log_level
+        logging.getLogger("xgboost").setLevel(level)
+        xgb.set_config(verbosity=_XGB_VERBOSITY.get(level, 2))
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "xgboost",
+            logging.getLevelName(level),
+        )
 
     async def load(self) -> bool:
         model_uri = await get_model_uri(

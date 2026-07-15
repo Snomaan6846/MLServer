@@ -1,5 +1,9 @@
 import asyncio
+import logging
+
 import torch
+import transformers
+from huggingface_hub.utils import logging as hf_hub_logging
 
 from mlserver.model import MLModel
 from mlserver.settings import ModelSettings
@@ -21,6 +25,17 @@ class HuggingFaceRuntime(MLModel):
     def __init__(self, settings: ModelSettings):
         self.hf_settings = get_huggingface_settings(settings)
         super().__init__(settings)
+
+    def _configure_framework_logger(self) -> None:
+        """Align transformers and huggingface_hub with MLServer's log level."""
+        level = self._mlserver_log_level
+        transformers.logging.set_verbosity(level)
+        hf_hub_logging.set_verbosity(level)
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "huggingface",
+            logging.getLevelName(level),
+        )
 
     async def load(self) -> bool:
         # Loading & caching pipeline in asyncio loop to avoid blocking

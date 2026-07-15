@@ -13,10 +13,12 @@
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `access_log` | `bool` | `True` | Enable access logging for REST and gRPC endpoints. Independent of `debug`. When enabled, logs each request except successful health-check GETs (`/v2/health/live`, `/v2/health/ready`, `/v2/models/*/ready`), which are filtered unless `debug` is also True. Failed health-check responses are always logged. Set to `false` to disable access logging. |
+| `log_level` | `str` | `"INFO"` | Application log level. Accepts: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. Unrecognised values are normalised to `INFO` with a Python `UserWarning` emitted at startup (enable `logging.captureWarnings(True)` to route it to application logs). When `debug` is True this is overridden to `DEBUG`. If `logging_settings` is also provided, it takes final precedence. |
 | `cache_enabled` | `bool` | `False` | Enable caching for the model predictions. |
 | `cache_size` | `int` | `100` | Cache size to be used if caching is enabled. |
 | `cors_settings` | `CORSSettings \| None` | `None` | - |
-| `debug` | `bool` | `False` | - |
+| `debug` | `bool` | `False` | Enable debug mode. Sets the application log level to DEBUG, enables FastAPI debug mode on the inference and metrics servers, and includes health-check endpoints in access logs. Use `access_log` to control REST / gRPC request logging. If `logging_settings` is provided, it takes final precedence over the level set by `debug`. |
 | `empty_registry_readiness` | `bool` | `True` | Flag to control readiness check behavior when no models are loaded. If True (default), the server reports ready when the model registry is empty. If False, the server reports not ready when the model registry is empty. **Note:** This flag only applies AFTER server startup completes. During startup, an empty registry always reports not ready to prevent race conditions. |
 | `environments_dir` | `str` | `'-'` | - |
 | `extensions` | `list[str]` | `[]` | - |
