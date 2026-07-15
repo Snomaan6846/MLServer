@@ -15,7 +15,7 @@ The process generates `requirements/requirements-<variant-name>.txt` files that:
 - resolve the latest dependency graph for a set of root packages
 - pin every resolved package to an exact version
 - attach `--hash=sha256:...` entries for reproducible installs
-- include artifacts compatible with `x86_64`, `aarch64` and `ppc64le` platforms
+- include artifacts compatible with configured target architectures per variant
 
 ## Configuration
 
@@ -35,7 +35,9 @@ Current shape:
         "mlserver-onnx[cpu]",
         "mlserver-sklearn",
         "mlserver-xgboost"
-      ]
+      ],
+      "platforms": ["x86_64", "aarch64", "ppc64le"],
+      "download_timeout": 480
     },
     {
       "name": "cuda",
@@ -43,7 +45,9 @@ Current shape:
       "root_packages": [
         "mlserver",
         "mlserver-onnx[cuda]"
-      ]
+      ],
+      "platforms": ["x86_64", "aarch64"],
+      "download_timeout": 720
     }
   ]
 }
@@ -53,15 +57,22 @@ Current shape:
   - `name`: suffix used in output file name (`requirements-<name>.txt`).
   - `dockerfile`: path from repo root used to discover the base image.
   - `root_packages`: packages to resolve from the variant's configured index.
+  - `platforms`: (optional) list of target architectures for Phase 2 downloads.
+    Accepted values: `x86_64`, `amd64`, `aarch64`, `arm64`, `ppc64le`, `s390x`.
+    Aliases `amd64` and `arm64` resolve to `x86_64` and `aarch64` respectively.
+    Defaults to `["x86_64"]` if omitted.
+  - `download_timeout`: (optional) per-platform-group download timeout in seconds.
+    Defaults to 480. CUDA variants should use 720 due to large wheel sizes.
+    Overridable via the `--timeout` CLI flag.
 
 ## How the Script Works
 
 `hack/generate-pinned-requirements.py` runs in two phases:
 
-1. **Resolve dependencies**  
+1. **Resolve dependencies**
    Uses `pip install --dry-run --report ...` on root packages to discover exact `(name, version)` pairs from pip's JSON report.
-2. **Collect platform artifacts + hashes**  
-   Uses `pip download` for `x86_64`, `aarch64` and `ppc64le` platform groups in parallel, then computes SHA256 for downloaded artifacts and writes hash-pinned output.
+2. **Collect platform artifacts + hashes**
+   Uses `pip download` for each platform group (derived from the variant's `platforms` config) in parallel, then computes SHA256 for downloaded artifacts and writes hash-pinned output. Each platform group uses the configured `download_timeout`.
 
 Important behavior:
 
@@ -70,6 +81,7 @@ Important behavior:
 - If an explicit index URL is not provided, it uses system pip config/env (`PIP_INDEX_URL`, `PIP_EXTRA_INDEX_URL`, or `pip config get global.index-url`).
 - For compatibility with base images, only Phase 1 relies on pip's JSON report; Phase 2 does not use `pip download --report`.
 - Live pip output is streamed during execution, so long downloads are visible in real time.
+- If one platform group fails, all remaining groups still complete before the script reports failure (prevents race-condition temp-dir cleanup).
 
 ## CI / GitHub Workflow
 
@@ -83,18 +95,18 @@ Execution rules:
 - Manual runs are allowed for any branch via the required `branch` input.
 - Scheduled runs execute only for `opendatahub-io/MLServer` and process `rhoai-staging` as the base branch.
 
-Per variant in config, the workflow:
+The workflow uses a three-job fanout pattern (fail-fast: if one variant fails, the other is cancelled and no PR is created):
 
-1. validates that the selected `BASE_BRANCH` exists in the target repository
-2. checks out the selected `BASE_BRANCH` (`workflow_dispatch` input branch, or `rhoai-staging` for schedule)
-3. sets up Python 3.12 and installs `podman`, `yq`, and `jq`
-4. extracts the base image from the configured Dockerfile using:
-   - `python hack/generate-pinned-requirements.py --print-base-image <dockerfile>`
-5. runs the generator inside that base image container:
-   - `python hack/generate-pinned-requirements.py --variant <name> -o requirements/requirements-<name>.txt`
-6. fixes workspace ownership (`sudo chown -R "$USER:$USER" .`) after container execution
-7. creates or updates a PR if files under `requirements/` change using branch `requirements/regenerate-<BASE_BRANCH>`
-8. requests reviewers from the repository `OWNERS` file (`reviewers` list) only for `opendatahub-io/MLServer`
+1. **gate** — validates that the selected `BASE_BRANCH` exists in the repository
+2. **generate** (matrix: cpu, cuda) — runs the requirements generation per variant in parallel:
+   - checks out the `BASE_BRANCH`
+   - sets up Python 3.12 and installs `podman`, `yq`, and `jq`
+   - extracts the base image from the configured Dockerfile
+   - runs the generator inside that base image container
+   - uploads the generated requirements file as an artifact
+3. **create-pr** — downloads all variant artifacts and creates/updates a single PR:
+   - requests reviewers from `OWNERS` file (only for `opendatahub-io/MLServer`)
+   - uses branch `requirements/regenerate-<BASE_BRANCH>`
 
 Registry login is required and uses secrets:
 
@@ -133,16 +145,28 @@ python hack/generate-pinned-requirements.py --variant cpu \
 python hack/generate-pinned-requirements.py --variant cpu -o requirements/requirements-cpu.txt --dry-run
 ```
 
-### Custom platform tags
+### Custom platform selection
 
-`--platform` can be repeated. When used, each provided platform is treated as its own download group.
+`--platform` can be repeated. When used, it overrides the variant's configured `platforms` value. Only short architecture names are accepted.
 
 ```bash
 python hack/generate-pinned-requirements.py --variant cpu \
   -o requirements/requirements-cpu.txt \
-  --platform manylinux2014_x86_64 \
-  --platform manylinux2014_aarch64 \
-  --platform manylinux2014_ppc64le
+  --platform x86_64 \
+  --platform aarch64 \
+  --platform ppc64le
+```
+
+Unsupported architecture names cause an immediate error listing all supported values.
+
+### Custom download timeout
+
+`--timeout` overrides the variant's `download_timeout` config value:
+
+```bash
+python hack/generate-pinned-requirements.py --variant cuda \
+  -o requirements/requirements-cuda.txt \
+  --timeout 900
 ```
 
 ## Operational Notes
@@ -150,3 +174,4 @@ python hack/generate-pinned-requirements.py --variant cpu \
 - Run generation inside the target runtime base image for each variant so pip resolves against the intended index and environment.
 - Keep `requirements-config.json` and workflow behavior aligned when adding new variants.
 - Generated files are expected under `requirements/` and are the only artifacts committed by the workflow.
+- CUDA variants must NOT include `ppc64le` in their platforms — the AIPCC CUDA index does not provide ppc64le wheels for several packages. The script emits a warning but does not hard-fail if this misconfiguration is detected.

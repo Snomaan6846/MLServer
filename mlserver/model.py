@@ -12,6 +12,7 @@ from .codecs import (
     RequestCodecLike,
 )
 from .codecs.errors import CodecNotFound
+from .logging import get_log_level
 from .settings import ModelSettings
 from .types import (
     InferenceRequest,
@@ -55,6 +56,23 @@ class MLModel:
         self._outputs_index = _generate_metadata_index(self._settings.outputs)
 
         self.ready = False
+        self._mlserver_log_level = get_log_level()
+        self._configure_framework_logger()
+
+    def _configure_framework_logger(self) -> None:
+        """Configure framework-specific logging to match MLServer's log level.
+
+        Override in runtime subclasses. Called automatically during ``__init__``
+        after ``self._mlserver_log_level`` is set from the effective MLServer
+        logger level.
+
+        Most runtimes configure the framework directly in this hook using
+        ``self._mlserver_log_level`` or ``get_log_level()``. When the framework
+        only accepts log settings at object construction time, map the level to
+        the required representation, store it on ``self``, and apply it in
+        ``load()``.
+        """
+        pass
 
     async def load(self) -> bool:
         """

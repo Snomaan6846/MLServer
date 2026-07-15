@@ -1,4 +1,6 @@
+import logging
 import os
+import signal
 import sys
 import pytest
 import json
@@ -25,6 +27,452 @@ def test_settings_debug_default_is_disabled(monkeypatch):
     monkeypatch.delenv("mlserver_debug", raising=False)
     settings = Settings(_env_file=None)
     assert settings.debug is False
+
+
+def test_settings_log_level_default_is_info(monkeypatch):
+    monkeypatch.delenv("MLSERVER_LOG_LEVEL", raising=False)
+    settings = Settings(_env_file=None)
+    assert settings.log_level == "INFO"
+
+
+@pytest.mark.parametrize("level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+def test_settings_log_level_from_env(monkeypatch, level):
+    monkeypatch.setenv("MLSERVER_LOG_LEVEL", level)
+    settings = Settings(_env_file=None)
+    assert settings.log_level == level
+
+
+@pytest.mark.parametrize(
+    "env_val, expected", [("warning", "WARNING"), ("error", "ERROR")]
+)
+def test_settings_log_level_from_env_case_insensitive(monkeypatch, env_val, expected):
+    monkeypatch.setenv("MLSERVER_LOG_LEVEL", env_val)
+    settings = Settings(_env_file=None)
+    assert settings.log_level == expected
+
+
+def test_settings_log_level_invalid_from_env_defaults_to_info(monkeypatch):
+    monkeypatch.setenv("MLSERVER_LOG_LEVEL", "BOGUS")
+    with pytest.warns(UserWarning, match="Unrecognised log_level"):
+        settings = Settings(_env_file=None)
+    assert settings.log_level == "INFO"
+
+
+@pytest.mark.parametrize(
+    "env_val, expected",
+    [(" DEBUG ", "DEBUG"), ("info\n", "INFO")],
+)
+def test_settings_log_level_strips_whitespace(monkeypatch, env_val, expected):
+    monkeypatch.setenv("MLSERVER_LOG_LEVEL", env_val)
+    settings = Settings(_env_file=None)
+    assert settings.log_level == expected
+
+
+def test_settings_access_log_default_is_enabled(monkeypatch):
+    monkeypatch.delenv("MLSERVER_ACCESS_LOG", raising=False)
+    settings = Settings(_env_file=None)
+    assert settings.access_log is True
+
+
+@pytest.mark.parametrize("val", ["false", "False", "0", "no"])
+def test_settings_access_log_from_env(monkeypatch, val):
+    monkeypatch.setenv("MLSERVER_ACCESS_LOG", val)
+    settings = Settings(_env_file=None)
+    assert settings.access_log is False
+
+
+def test_settings_access_log_independent_of_debug(monkeypatch):
+    monkeypatch.setenv("MLSERVER_ACCESS_LOG", "false")
+    monkeypatch.setenv("MLSERVER_DEBUG", "true")
+    settings = Settings(_env_file=None)
+    assert settings.access_log is False
+    assert settings.debug is True
+
+
+@pytest.mark.parametrize(
+    "access_log, debug, expect_access_log_in_config",
+    [
+        (True, False, True),
+        (True, True, True),
+        (False, False, False),
+        (False, True, False),
+    ],
+)
+def test_rest_server_config_uses_access_log_setting(
+    access_log: bool, debug: bool, expect_access_log_in_config: bool
+):
+    settings = Settings(access_log=access_log, debug=debug)
+
+    from mlserver.rest.server import RESTServer
+    from unittest.mock import MagicMock
+
+    server = RESTServer.__new__(RESTServer)
+    server._settings = settings
+    server._app = MagicMock()
+
+    config = server._get_config()
+    assert config.access_log is expect_access_log_in_config
+
+
+@pytest.mark.parametrize(
+    "access_log, debug, expect_health_filter",
+    [
+        (True, False, True),
+        (True, True, False),
+        (False, False, False),
+        (False, True, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_rest_health_log_filter_condition(
+    access_log: bool, debug: bool, expect_health_filter: bool
+):
+    from mlserver.rest.server import RESTServer
+    from unittest.mock import MagicMock, AsyncMock
+
+    settings = Settings(access_log=access_log, debug=debug)
+    server = RESTServer.__new__(RESTServer)
+    server._settings = settings
+    server._app = MagicMock()
+
+    with patch(
+        "mlserver.rest.server.disable_health_access_logs"
+    ) as mock_disable, patch.object(
+        server, "_get_config", return_value=MagicMock()
+    ), patch(
+        "mlserver.rest.server._NoSignalServer"
+    ) as mock_server_cls:
+        mock_instance = MagicMock()
+        mock_instance.serve = AsyncMock()
+        mock_server_cls.return_value = mock_instance
+        await server.start()
+
+    if expect_health_filter:
+        mock_disable.assert_called_once()
+    else:
+        mock_disable.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_grpc_interceptor_default_skips_health_methods(caplog):
+    from mlserver.grpc.interceptors import LoggingInterceptor
+    from unittest.mock import MagicMock, AsyncMock
+
+    interceptor = LoggingInterceptor()
+    mock_handler = MagicMock()
+    mock_continuation = AsyncMock(return_value=mock_handler)
+
+    health_details = MagicMock()
+    health_details.method = "/inference.GRPCInferenceService/ServerLive"
+
+    with caplog.at_level(logging.INFO, logger="mlserver.grpc"):
+        await interceptor.intercept_service(mock_continuation, health_details)
+
+    assert "/inference.GRPCInferenceService/ServerLive" not in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "health_method",
+    [
+        "/inference.GRPCInferenceService/ServerLive",
+        "/inference.GRPCInferenceService/ServerReady",
+        "/inference.GRPCInferenceService/ModelReady",
+    ],
+)
+async def test_grpc_interceptor_filters_health_methods(caplog, health_method):
+    from mlserver.grpc.interceptors import LoggingInterceptor
+    from unittest.mock import MagicMock, AsyncMock
+
+    interceptor = LoggingInterceptor(skip_health=True)
+    mock_handler = MagicMock()
+    mock_continuation = AsyncMock(return_value=mock_handler)
+
+    health_details = MagicMock()
+    health_details.method = health_method
+
+    with caplog.at_level(logging.INFO, logger="mlserver.grpc"):
+        await interceptor.intercept_service(mock_continuation, health_details)
+
+    assert health_method not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_grpc_interceptor_logs_non_health_methods(caplog):
+    from mlserver.grpc.interceptors import LoggingInterceptor
+    from unittest.mock import MagicMock, AsyncMock
+
+    interceptor = LoggingInterceptor(skip_health=True)
+    mock_handler = MagicMock()
+    mock_continuation = AsyncMock(return_value=mock_handler)
+
+    infer_details = MagicMock()
+    infer_details.method = "/inference.GRPCInferenceService/ModelInfer"
+
+    with caplog.at_level(logging.INFO, logger="mlserver.grpc"):
+        await interceptor.intercept_service(mock_continuation, infer_details)
+
+    assert "/inference.GRPCInferenceService/ModelInfer" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "health_method",
+    [
+        "/inference.GRPCInferenceService/ServerLive",
+        "/inference.GRPCInferenceService/ServerReady",
+        "/inference.GRPCInferenceService/ModelReady",
+    ],
+)
+async def test_grpc_interceptor_logs_health_when_skip_false(caplog, health_method):
+    from mlserver.grpc.interceptors import LoggingInterceptor
+    from unittest.mock import MagicMock, AsyncMock
+
+    interceptor = LoggingInterceptor(skip_health=False)
+    mock_handler = MagicMock()
+    mock_continuation = AsyncMock(return_value=mock_handler)
+
+    health_details = MagicMock()
+    health_details.method = health_method
+
+    with caplog.at_level(logging.INFO, logger="mlserver.grpc"):
+        await interceptor.intercept_service(mock_continuation, health_details)
+
+    assert health_method in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# REST HealthEndpointFilter unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestHealthEndpointFilter:
+    @staticmethod
+    def _make_record(*args):
+        record = logging.LogRecord(
+            "uvicorn.access", logging.INFO, "", 0, "msg", (), None
+        )
+        record.args = args
+        return record
+
+    def test_suppresses_health_live(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record("127.0.0.1:8080", "GET", "/v2/health/live")
+        assert f.filter(record) is False
+
+    def test_suppresses_health_ready(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record("127.0.0.1:8080", "GET", "/v2/health/ready")
+        assert f.filter(record) is False
+
+    def test_suppresses_model_ready(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record("127.0.0.1:8080", "GET", "/v2/models/my-model/ready")
+        assert f.filter(record) is False
+
+    def test_suppresses_successful_model_ready_with_status(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(
+            "127.0.0.1:8080", "GET", "/v2/models/my-model/ready", "1.1", 200
+        )
+        assert f.filter(record) is False
+
+    def test_allows_failed_model_ready_with_status(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(
+            "127.0.0.1:8080", "GET", "/v2/models/my-model/ready", "1.1", 503
+        )
+        assert f.filter(record) is True
+
+    def test_allows_failed_health_ready_with_status(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(
+            "127.0.0.1:8080", "GET", "/v2/health/ready", "1.1", 503
+        )
+        assert f.filter(record) is True
+
+    def test_allows_infer_endpoint(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(
+            "127.0.0.1:8080", "POST", "/v2/models/my-model/infer"
+        )
+        assert f.filter(record) is True
+
+    def test_suppresses_versioned_model_ready(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(
+            "127.0.0.1:8080", "GET", "/v2/models/my-model/versions/1/ready"
+        )
+        assert f.filter(record) is False
+
+    def test_allows_post_to_health_path(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record("127.0.0.1:8080", "POST", "/v2/health/live")
+        assert f.filter(record) is True
+
+    def test_suppresses_bytes_health_path(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(b"127.0.0.1:8080", b"GET", b"/v2/health/live")
+        assert f.filter(record) is False
+
+    def test_suppresses_bytes_model_ready_path(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = self._make_record(
+            b"127.0.0.1:8080", b"GET", b"/v2/models/my-model/ready"
+        )
+        assert f.filter(record) is False
+
+    def test_allows_non_tuple_args(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = logging.LogRecord(
+            "uvicorn.access", logging.INFO, "", 0, "msg", (), None
+        )
+        record.args = "not a tuple"
+        assert f.filter(record) is True
+
+    def test_allows_short_tuple_args(self):
+        from mlserver.rest.logging import HealthEndpointFilter
+
+        f = HealthEndpointFilter()
+        record = logging.LogRecord(
+            "uvicorn.access", logging.INFO, "", 0, "msg", (), None
+        )
+        record.args = ("127.0.0.1:8080",)
+        assert f.filter(record) is True
+
+
+@pytest.fixture(autouse=False)
+def _clean_uvicorn_filters():
+    from mlserver.rest.logging import clear_uvicorn_access_log_filters
+
+    clear_uvicorn_access_log_filters()
+    yield
+    clear_uvicorn_access_log_filters()
+
+
+def test_disable_health_access_logs_is_idempotent(_clean_uvicorn_filters):
+    from mlserver.rest.logging import (
+        disable_health_access_logs,
+        HealthEndpointFilter,
+    )
+
+    uvicorn_logger = logging.getLogger("uvicorn.access")
+    disable_health_access_logs()
+    disable_health_access_logs()
+    count = sum(
+        1 for f in uvicorn_logger.filters if isinstance(f, HealthEndpointFilter)
+    )
+    assert count == 1
+
+
+def test_clear_uvicorn_access_log_filters(_clean_uvicorn_filters):
+    from mlserver.rest.logging import (
+        disable_health_access_logs,
+        clear_uvicorn_access_log_filters,
+        HealthEndpointFilter,
+    )
+
+    uvicorn_logger = logging.getLogger("uvicorn.access")
+    disable_health_access_logs()
+    assert any(isinstance(f, HealthEndpointFilter) for f in uvicorn_logger.filters)
+
+    clear_uvicorn_access_log_filters()
+    assert not any(isinstance(f, HealthEndpointFilter) for f in uvicorn_logger.filters)
+
+
+@pytest.mark.asyncio
+async def test_rest_server_stop_removes_health_filter(_clean_uvicorn_filters):
+    from mlserver.rest.server import RESTServer
+    from mlserver.rest.logging import (
+        disable_health_access_logs,
+        HealthEndpointFilter,
+    )
+    from unittest.mock import MagicMock
+
+    uvicorn_logger = logging.getLogger("uvicorn.access")
+
+    settings = Settings(access_log=True, debug=False)
+    server = RESTServer.__new__(RESTServer)
+    server._settings = settings
+    server._server = MagicMock()
+
+    disable_health_access_logs()
+    assert any(isinstance(f, HealthEndpointFilter) for f in uvicorn_logger.filters)
+
+    await server.stop()
+    server._server.handle_exit.assert_called_once_with(sig=signal.SIGINT, frame=None)
+    assert not any(isinstance(f, HealthEndpointFilter) for f in uvicorn_logger.filters)
+
+
+# ---------------------------------------------------------------------------
+# gRPC server init integration
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "access_log, debug, expect_interceptor, expect_skip_health",
+    [
+        (True, False, True, True),
+        (True, True, True, False),
+        (False, False, False, None),
+        (False, True, False, None),
+    ],
+)
+def test_grpc_create_server_interceptor_config(
+    access_log, debug, expect_interceptor, expect_skip_health
+):
+    from mlserver.grpc.server import GRPCServer
+    from mlserver.grpc.interceptors import LoggingInterceptor
+    from unittest.mock import MagicMock
+
+    settings = Settings(access_log=access_log, debug=debug, metrics_endpoint=None)
+    data_plane = MagicMock()
+    model_repo = MagicMock()
+
+    server = GRPCServer(settings, data_plane, model_repo)
+
+    with patch("mlserver.grpc.server.InferenceServicer"), patch(
+        "mlserver.grpc.server.ModelRepositoryServicer"
+    ), patch("mlserver.grpc.server.aio.server", return_value=MagicMock()), patch(
+        "mlserver.grpc.server.add_GRPCInferenceServiceServicer_to_server"
+    ), patch(
+        "mlserver.grpc.server.add_ModelRepositoryServiceServicer_to_server"
+    ):
+        server._create_server()
+
+    logging_interceptors = [
+        i for i in server._interceptors if isinstance(i, LoggingInterceptor)
+    ]
+
+    if expect_interceptor:
+        assert len(logging_interceptors) == 1
+        assert logging_interceptors[0]._skip_health is expect_skip_health
+    else:
+        assert len(logging_interceptors) == 0
 
 
 def test_settings_from_env_file(monkeypatch):

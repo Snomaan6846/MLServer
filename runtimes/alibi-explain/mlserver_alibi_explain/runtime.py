@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -25,6 +26,7 @@ from mlserver.types import (
     ResponseOutput,
 )
 from mlserver.utils import get_model_uri
+from mlserver.logging import logger
 from mlserver_alibi_explain.alibi_dependency_reference import (
     get_mlmodel_class_as_str,
     get_alibi_class_as_str,
@@ -49,6 +51,16 @@ class AlibiExplainRuntimeBase(MLModel):
         self.alibi_explain_settings = explainer_settings
         self._executor = ThreadPoolExecutor()
         super().__init__(settings)
+
+    def _configure_framework_logger(self) -> None:
+        """Align the alibi root logger with MLServer's effective log level."""
+        level = self._mlserver_log_level
+        logging.getLogger("alibi").setLevel(level)
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "alibi-explain",
+            logging.getLevelName(level),
+        )
 
     @custom_handler(rest_path="/explain")
     async def explain_v1_output(self, request: InferenceRequest) -> Response:

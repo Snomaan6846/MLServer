@@ -6,11 +6,13 @@ import os
 import re
 import sys
 import uuid
+import warnings
 from contextlib import contextmanager
 from functools import lru_cache
 
 from typing import (
     Any,
+    ClassVar,
     no_type_check,
     TYPE_CHECKING,
 )
@@ -19,6 +21,7 @@ from pydantic import (
     ImportString,
     Field,
     AliasChoices,
+    field_validator,
 )
 from pydantic import model_validator
 from pydantic._internal._validators import import_string
@@ -348,6 +351,15 @@ class Settings(BaseSettings):
     )
 
     debug: bool = False
+    """
+    Enable debug mode.  When True, the application log level is set to DEBUG,
+    the FastAPI inference and metrics servers run in debug mode, and
+    health-check endpoints are included in access logs.
+    Use ``access_log`` to control REST / gRPC request logging.
+
+    If a ``logging_settings`` file/dict is also provided, it takes final
+    precedence over the level set by ``debug``.
+    """
 
     parallel_workers: int = DEFAULT_PARALLEL_WORKERS
     """When parallel inference is enabled, number of workers to run inference
@@ -457,6 +469,42 @@ class Settings(BaseSettings):
     """
 
     # Logging settings
+    log_level: str = "INFO"
+    """
+    Application log level.  Accepts any Python logging level name:
+    ``DEBUG``, ``INFO``, ``WARNING``, ``ERROR``, ``CRITICAL``.
+    When ``debug`` is True this is overridden to ``DEBUG``.
+
+    If a ``logging_settings`` file/dict is also provided, it takes final
+    precedence and may override both ``log_level`` and ``debug``.
+    """
+
+    _VALID_LOG_LEVELS: ClassVar[frozenset[str]] = frozenset(
+        {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    )
+
+    @field_validator("log_level")
+    @classmethod
+    def _validate_log_level(cls, v: str) -> str:
+        normalized = v.strip().upper()
+        if normalized not in cls._VALID_LOG_LEVELS:
+            warnings.warn(
+                f"Unrecognised log_level {v!r}; defaulting to 'INFO'",
+                UserWarning,
+                stacklevel=2,
+            )
+            return "INFO"
+        return normalized
+
+    access_log: bool = True
+    """
+    Enable access logging for REST and gRPC endpoints.
+    Independent of ``debug``. When enabled, logs each request except successful
+    health-check GETs (/v2/health/live, /v2/health/ready, and
+    /v2/models/\\*/ready), which are filtered unless ``debug`` is also True.
+    Failed health-check responses are always logged.
+    """
+
     use_structured_logging: bool = False
     """Use JSON-formatted structured logging instead of default format."""
     logging_settings: str | dict | None = None

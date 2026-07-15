@@ -1,3 +1,4 @@
+import logging
 import os
 import numpy as np
 
@@ -17,6 +18,7 @@ from mlserver.codecs import NumpyCodec, NumpyRequestCodec
 from mlserver.utils import get_model_uri
 from mlserver.errors import MLServerError, InferenceError
 from mlserver.logging import logger
+
 
 ENV_PREFIX_ALIBI_DETECT_SETTINGS = "MLSERVER_MODEL_ALIBI_DETECT_"
 
@@ -66,6 +68,16 @@ class AlibiDetectRuntime(MLModel):
 
         self._batch: list[InferenceRequest] = []
         super().__init__(settings)
+
+    def _configure_framework_logger(self) -> None:
+        """Align the alibi_detect root logger with MLServer's effective log level."""
+        level = self._mlserver_log_level
+        logging.getLogger("alibi_detect").setLevel(level)
+        logger.debug(
+            "Configured %s framework logger to %s",
+            "alibi-detect",
+            logging.getLevelName(level),
+        )
 
     async def load(self) -> bool:
         self._model_uri = await get_model_uri(self._settings)
