@@ -40,8 +40,8 @@ annotated-doc==0.0.4 \
 annotated-types==0.7.0 \
     --hash=sha256:d31d6f386f3ecd6cdca12274844b969c3f9c90d15ebef7774f2eb34857108758
 
-anyio==4.14.1 \
-    --hash=sha256:7b1919965ee5094a3cf8b0c371749b59b5835293055e51ab23a4a45bca1d3fab
+anyio==4.14.2 \
+    --hash=sha256:910fa689d2615586a8c10cd10caaa20a6613e5eda16c3844eeb2b0886d37c8d3
 
 asgiref==3.11.1 \
     --hash=sha256:90372ebc0549731df1fa4fe99d5166f84dbff7c4840b935627ca67afc54502d8

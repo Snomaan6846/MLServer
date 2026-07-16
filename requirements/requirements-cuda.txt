@@ -29,8 +29,8 @@ annotated-doc==0.0.4 \
 annotated-types==0.7.0 \
     --hash=sha256:33d6160b49f4805af08a82fdc3c6bb747583bdc621c2f94d414c926c2babdfeb
 
-anyio==4.14.1 \
-    --hash=sha256:bb7912f6a680489172bdcd61bb0968f3fef38c1b0d5bb166b14d50a7c563deaa
+anyio==4.14.2 \
+    --hash=sha256:e193a81d85090221840bf70f3d180c0577e5c49c0f7ff2125bc81153530b1de2
 
 asgiref==3.11.1 \
     --hash=sha256:0c34f3ead8abe8f0a07933d770ca170e891b10b36fdc2098cf142dea958d62f9
