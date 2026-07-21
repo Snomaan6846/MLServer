@@ -1,4 +1,4 @@
---index-url=https://packages.redhat.com/api/pypi/public-rhai/rhoai/3.5/cuda12.9-ubi9-test/simple/
+--index-url=https://packages.redhat.com/api/pypi/public-rhai/rhoai/3.5/cuda12.9-ubi9/simple/
 
 mlserver==1.7.1+rhaiv.10 \
     --hash=sha256:c630fbb1f7c3b889811e02eb402d35a28a1235b4de0f4f6c00f722361aecd6a4
@@ -32,8 +32,8 @@ annotated-types==0.7.0 \
 anyio==4.14.2 \
     --hash=sha256:e193a81d85090221840bf70f3d180c0577e5c49c0f7ff2125bc81153530b1de2
 
-asgiref==3.11.1 \
-    --hash=sha256:0c34f3ead8abe8f0a07933d770ca170e891b10b36fdc2098cf142dea958d62f9
+asgiref==3.12.1 \
+    --hash=sha256:a24acc3cf98bb423f5e74361e16d4a2a4827793bfec8efd6cb0d497cfbca1f79
 
 async-timeout==5.0.1 \
     --hash=sha256:e06e15c95a8efbe28d922e39c4c6e58a505015eb0a570d8292073822579144e0
@@ -106,38 +106,38 @@ onnxruntime-gpu==1.25.0 \
     --hash=sha256:242f2809557d78d732ad51fa2f432b8658f64b21a94a9c7dc4408405e329da12 \
     --hash=sha256:a1aaea63f09bfc4b9d171baaef41c672d134ee7d5dbed60d9746e6ec6318ec42
 
-opentelemetry-api==1.43.0 \
-    --hash=sha256:a3204036a3c6573b52876832a69e454eb07c39db88f417628ed2d9dd88d23e32
+opentelemetry-api==1.44.0 \
+    --hash=sha256:c21b18c523d064ecc48835dbbae8777a9deb67948581060a29f8c5061ee46ea7
 
-opentelemetry-exporter-otlp-proto-common==1.43.0 \
-    --hash=sha256:7f60728acced9c4182328917f695b69296bfda5789280c3b70d6112d9d12d827
+opentelemetry-exporter-otlp-proto-common==1.44.0 \
+    --hash=sha256:e87814793ed9c8ca2dea9b112e08aaf1f28028bfca2d32b44cea8f7dd4c39954
 
-opentelemetry-exporter-otlp-proto-grpc==1.43.0 \
-    --hash=sha256:e8098a922f99a1660558651a2ef1b8b8262725fbb363d88dafffa1682e72c1f8
+opentelemetry-exporter-otlp-proto-grpc==1.44.0 \
+    --hash=sha256:e1f0d724bf68edb48fb379fa948eaa165001bce358b21edacd299d8738d8099b
 
-opentelemetry-instrumentation==0.64b0 \
-    --hash=sha256:cc83ee20ae48bc19ac47c6dd121ebc536e1936532e813bab3dc73ddb709d3b15
+opentelemetry-instrumentation==0.65b0 \
+    --hash=sha256:e9dd7f3412edb35d35eea638831bce95f6bc13221b0724745faf9022d8dd543a
 
-opentelemetry-instrumentation-asgi==0.64b0 \
-    --hash=sha256:345256ffc632a156cade7cae30d419ede7be32881db48951f7d13320edec2fb8
+opentelemetry-instrumentation-asgi==0.65b0 \
+    --hash=sha256:c054fd0d773107ca70a6850f06c4d9278b4d43776493ad09e1a898e18594a2d6
 
-opentelemetry-instrumentation-fastapi==0.64b0 \
-    --hash=sha256:0a903140ed640d78fd25a91e453e3526c1c641f07b86329c07f75707f943a68f
+opentelemetry-instrumentation-fastapi==0.65b0 \
+    --hash=sha256:74fcc08bda5ae737df5f8f2d0c01f20469319b7eb56f00dd5c35c3308f479940
 
-opentelemetry-instrumentation-grpc==0.64b0 \
-    --hash=sha256:13cb631d3b7fd9a4713c75803aa74ded97ff6f0adbae3de7c16e4bed416f3c25
+opentelemetry-instrumentation-grpc==0.65b0 \
+    --hash=sha256:fc8c9cd273d769faf06485e8356c63d6e0c380b79ea940199db4de2890b3a770
 
-opentelemetry-proto==1.43.0 \
-    --hash=sha256:1657ff2da16b48027ba1da88227c7c7e5ad06754d034bb6cea3ef84c596f66c2
+opentelemetry-proto==1.44.0 \
+    --hash=sha256:1f171ce49cd8e7140992ca040e32a922340edcf33394f8762e971f45a4c324be
 
-opentelemetry-sdk==1.43.0 \
-    --hash=sha256:4a847a4a7d95d56239711fd13016c521367ea4c3017e89008fcc1bbd0dc84eea
+opentelemetry-sdk==1.44.0 \
+    --hash=sha256:45c849de5f19f11356d65ee580c09078bec0cacc17d2a56f920c41786b3efee3
 
-opentelemetry-semantic-conventions==0.64b0 \
-    --hash=sha256:2bddfe6a2e4315a84506014b02bd0cfee59bd45dafdd699b3c4f012f4ef2cd14
+opentelemetry-semantic-conventions==0.65b0 \
+    --hash=sha256:02e3436b8794f42f08e847aa5c1aeee89a894f5e244a5d1d6dd03a42be2512bd
 
-opentelemetry-util-http==0.64b0 \
-    --hash=sha256:514c77b8c62b55b56b975af827f2dc9816d71c2d2a8359bfb2e2be50fe895bd0
+opentelemetry-util-http==0.65b0 \
+    --hash=sha256:26f1dc99d9b70b8f7aa409cca8570b2463a365d8b4d8cef549444b114b0f4d94
 
 orjson==3.11.9 \
     --hash=sha256:ba0b59b2d56cb54c40b41164d3b835e0d719d4515154f573e626b4ee19aa36b4 \
