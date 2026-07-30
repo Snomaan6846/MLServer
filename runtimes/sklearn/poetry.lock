@@ -1121,7 +1121,7 @@ files = [
 
 [[package]]
 name = "mlserver"
-version = "1.7.1+rhaiv.10"
+version = "1.7.1+rhaiv.11"
 description = "MLServer"
 optional = false
 python-versions = ">=3.10,<3.13"
