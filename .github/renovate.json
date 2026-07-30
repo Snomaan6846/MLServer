@@ -38,7 +38,8 @@
       "ignoreUnstable": false,
       "respectLatest": false,
       "allowedVersions": "/^(\\d+\\.\\d+|\\d+\\.\\d+\\.\\d+-ea\\.\\d+)$/",
-      "enabled": true
+      "enabled": true,
+      "recreateWhen": "always"
     }
   ]
 }
