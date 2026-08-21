@@ -23,6 +23,7 @@ resolve_platform = _mod.resolve_platform
 resolve_platform_groups = _mod.resolve_platform_groups
 resolve_download_timeout = _mod.resolve_download_timeout
 load_config = _mod.load_config
+build_requirement_strings = _mod.build_requirement_strings
 _kill_registered_procs = _mod._kill_registered_procs
 run_pip_command = _mod.run_pip_command
 normalize_distribution_name = _mod.normalize_distribution_name
@@ -32,6 +33,7 @@ get_base_image_from_dockerfile = _mod.get_base_image_from_dockerfile
 PLATFORM_TAGS = _mod.PLATFORM_TAGS
 PLATFORM_ALIASES = _mod.PLATFORM_ALIASES
 DEFAULT_PLATFORM = _mod.DEFAULT_PLATFORM
+SKIP_NOT_AVAILABLE = _mod.SKIP_NOT_AVAILABLE
 
 
 class TestResolvePlatform:
@@ -397,6 +399,7 @@ class TestGenerateForIndexRaceCondition:
 
         monkeypatch.setattr(_mod.tempfile, "TemporaryDirectory", _CaptureTmpDir)
         monkeypatch.setattr(_mod, "run_pip_command", mock_run_pip_command)
+        monkeypatch.setattr(_mod, "_pip_supports_report", lambda: (True, ""))
         monkeypatch.setattr(
             _mod,
             "parse_report_packages_and_hashes",
@@ -707,3 +710,308 @@ class TestHelpers:
         dockerfile.write_text("ARG FOO=bar\n")
         with pytest.raises(ValueError, match="FROM"):
             get_base_image_from_dockerfile(tmp_path, "Dockerfile")
+
+
+class TestBuildRequirementStrings:
+    def test_basic_object_format(self):
+        pip_reqs, bare = build_requirement_strings(
+            [{"name": "mlserver", "version": "1.7.0"}]
+        )
+        assert pip_reqs == ["mlserver==1.7.0"]
+        assert bare == ["mlserver"]
+
+    def test_object_with_extras(self):
+        pip_reqs, bare = build_requirement_strings(
+            [{"name": "mlserver-onnx", "version": "1.7.0", "extras": ["cpu"]}]
+        )
+        assert pip_reqs == ["mlserver-onnx[cpu]==1.7.0"]
+        assert bare == ["mlserver-onnx[cpu]"]
+
+    def test_object_with_multiple_extras(self):
+        pip_reqs, bare = build_requirement_strings(
+            [
+                {
+                    "name": "mlserver-onnx",
+                    "version": "1.7.0",
+                    "extras": ["cpu", "rocm"],
+                }
+            ]
+        )
+        assert pip_reqs == ["mlserver-onnx[cpu,rocm]==1.7.0"]
+        assert bare == ["mlserver-onnx[cpu,rocm]"]
+
+    def test_legacy_string_format(self):
+        pip_reqs, bare = build_requirement_strings(["mlserver", "mlserver-onnx[cpu]"])
+        assert pip_reqs == ["mlserver", "mlserver-onnx[cpu]"]
+        assert bare == ["mlserver", "mlserver-onnx[cpu]"]
+
+    def test_mixed_formats(self):
+        pip_reqs, bare = build_requirement_strings(
+            [
+                "mlserver-legacy",
+                {"name": "mlserver", "version": "1.7.0"},
+            ]
+        )
+        assert pip_reqs == ["mlserver-legacy", "mlserver==1.7.0"]
+        assert bare == ["mlserver-legacy", "mlserver"]
+
+    def test_returns_tuple_of_two_lists(self):
+        result = build_requirement_strings([{"name": "mlserver", "version": "1.0"}])
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], list)
+        assert isinstance(result[1], list)
+
+    def test_bare_names_omit_version(self):
+        _, bare = build_requirement_strings(
+            [
+                {"name": "mlserver", "version": "1.7.1+rhaiv.11"},
+                {
+                    "name": "mlserver-onnx",
+                    "version": "1.7.1+rhaiv.11",
+                    "extras": ["cpu"],
+                },
+            ]
+        )
+        for name in bare:
+            assert "==" not in name
+            assert "1.7.1" not in name
+
+    def test_empty_list(self):
+        pip_reqs, bare = build_requirement_strings([])
+        assert pip_reqs == []
+        assert bare == []
+
+    def test_object_without_extras(self):
+        pip_reqs, bare = build_requirement_strings(
+            [{"name": "mlserver", "version": "2.0", "extras": []}]
+        )
+        assert pip_reqs == ["mlserver==2.0"]
+        assert bare == ["mlserver"]
+
+
+class TestLoadConfigRootPackagesValidation:
+    def _write_config(self, tmp_path, variants):
+        config = {"variants": variants}
+        config_path = tmp_path / "requirements-config.json"
+        config_path.write_text(json.dumps(config))
+        return tmp_path
+
+    def test_valid_object_format(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": [
+                        {"name": "mlserver", "version": "1.7.0"},
+                        {
+                            "name": "mlserver-onnx",
+                            "version": "1.7.0",
+                            "extras": ["cpu"],
+                        },
+                    ],
+                }
+            ],
+        )
+        result = load_config(d)
+        rp = result["variants"][0]["root_packages"]
+        assert len(rp) == 2
+        assert rp[0]["name"] == "mlserver"
+        assert rp[1]["extras"] == ["cpu"]
+
+    def test_legacy_string_format_accepted(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": ["mlserver", "mlserver-onnx[cpu]"],
+                }
+            ],
+        )
+        result = load_config(d)
+        assert result["variants"][0]["root_packages"] == [
+            "mlserver",
+            "mlserver-onnx[cpu]",
+        ]
+
+    def test_missing_name_raises(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": [{"version": "1.0"}],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="string 'name'"):
+            load_config(d)
+
+    def test_missing_version_raises(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": [{"name": "mlserver"}],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="string 'version'"):
+            load_config(d)
+
+    def test_invalid_extras_type_raises(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": [
+                        {"name": "mlserver", "version": "1.0", "extras": "cpu"}
+                    ],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="'extras' must be a list"):
+            load_config(d)
+
+    def test_empty_extras_string_raises(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": [
+                        {"name": "mlserver", "version": "1.0", "extras": [""]}
+                    ],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="'extras' must be a list"):
+            load_config(d)
+
+    def test_invalid_entry_type_raises(self, tmp_path):
+        d = self._write_config(
+            tmp_path,
+            [
+                {
+                    "name": "cpu",
+                    "dockerfile": "Dockerfile",
+                    "root_packages": [123],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="string or object"):
+            load_config(d)
+
+
+class TestSkipGracefully:
+    def test_skip_when_root_package_not_found(self, monkeypatch, tmp_path):
+        generate_for_index_fn = _mod.generate_for_index
+
+        def mock_run_pip_command(cmd, timeout, phase_name, **kwargs):
+            raise RuntimeError(
+                "Phase 1 failed with exit code 1. "
+                "Suspected requirement: mlserver==1.7.1+rhaiv.12.\n"
+                "stdout(last): No matching distribution found for "
+                "mlserver==1.7.1+rhaiv.12\n"
+                "stderr(last): <merged-into-stdout>"
+            )
+
+        monkeypatch.setattr(_mod, "run_pip_command", mock_run_pip_command)
+        monkeypatch.setattr(_mod, "_pip_supports_report", lambda: (True, ""))
+
+        result = generate_for_index_fn(
+            index_url=None,
+            root_names=["mlserver==1.7.1+rhaiv.12"],
+            root_bare_names=["mlserver"],
+            platform_groups=[PLATFORM_TAGS["x86_64"]],
+            out_path=tmp_path / "test-out.txt",
+            dry_run=False,
+            download_timeout=60,
+        )
+        assert result == SKIP_NOT_AVAILABLE
+
+    def test_no_skip_on_resolution_impossible(self, monkeypatch, tmp_path):
+        generate_for_index_fn = _mod.generate_for_index
+
+        def mock_run_pip_command(cmd, timeout, phase_name, **kwargs):
+            raise RuntimeError(
+                "Phase 1 failed with exit code 1.\n"
+                "stdout(last): ResolutionImpossible: conflicting deps "
+                "for requirements mlserver==1.7.1\n"
+                "stderr(last): <merged-into-stdout>"
+            )
+
+        monkeypatch.setattr(_mod, "run_pip_command", mock_run_pip_command)
+        monkeypatch.setattr(_mod, "_pip_supports_report", lambda: (True, ""))
+
+        result = generate_for_index_fn(
+            index_url=None,
+            root_names=["mlserver==1.7.1"],
+            root_bare_names=["mlserver"],
+            platform_groups=[PLATFORM_TAGS["x86_64"]],
+            out_path=tmp_path / "test-out.txt",
+            dry_run=False,
+            download_timeout=60,
+        )
+        assert result == 1
+
+    def test_no_skip_when_transitive_dep_not_found(self, monkeypatch, tmp_path):
+        generate_for_index_fn = _mod.generate_for_index
+
+        def mock_run_pip_command(cmd, timeout, phase_name, **kwargs):
+            raise RuntimeError(
+                "Phase 1 failed with exit code 1. "
+                "Suspected requirement: numpy>=2.0.\n"
+                "stdout(last): No matching distribution found for "
+                "numpy>=2.0\n"
+                "stderr(last): <merged-into-stdout>"
+            )
+
+        monkeypatch.setattr(_mod, "run_pip_command", mock_run_pip_command)
+        monkeypatch.setattr(_mod, "_pip_supports_report", lambda: (True, ""))
+
+        result = generate_for_index_fn(
+            index_url=None,
+            root_names=["mlserver==1.7.1"],
+            root_bare_names=["mlserver"],
+            platform_groups=[PLATFORM_TAGS["x86_64"]],
+            out_path=tmp_path / "test-out.txt",
+            dry_run=False,
+            download_timeout=60,
+        )
+        assert result == 1
+
+    def test_skip_with_extras_in_root_package(self, monkeypatch, tmp_path):
+        generate_for_index_fn = _mod.generate_for_index
+
+        def mock_run_pip_command(cmd, timeout, phase_name, **kwargs):
+            raise RuntimeError(
+                "Phase 1 failed with exit code 1.\n"
+                "stdout(last): No matching distribution found for "
+                "mlserver-onnx==1.7.1+rhaiv.12\n"
+                "stderr(last): <merged-into-stdout>"
+            )
+
+        monkeypatch.setattr(_mod, "run_pip_command", mock_run_pip_command)
+        monkeypatch.setattr(_mod, "_pip_supports_report", lambda: (True, ""))
+
+        result = generate_for_index_fn(
+            index_url=None,
+            root_names=["mlserver-onnx[cpu]==1.7.1+rhaiv.12"],
+            root_bare_names=["mlserver-onnx[cpu]"],
+            platform_groups=[PLATFORM_TAGS["x86_64"]],
+            out_path=tmp_path / "test-out.txt",
+            dry_run=False,
+            download_timeout=60,
+        )
+        assert result == SKIP_NOT_AVAILABLE
