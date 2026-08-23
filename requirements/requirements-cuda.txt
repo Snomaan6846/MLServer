@@ -83,8 +83,8 @@ grpcio==1.83.0 \
 h11==0.16.0 \
     --hash=sha256:e63ddf0a59e7095c9fbc735fcb0a2352af6450afcf1d58b5c1d825cebf384655
 
-idna==3.18 \
-    --hash=sha256:f03c2233ac82ab77ff249d8659a1b75fe6f32c800c14c30013e5b3eeed3272a7
+idna==3.19 \
+    --hash=sha256:3ae9c81661d62c991ad0d71643953b63d49e3edfd1117c16dc0aac583093a2b9
 
 ml-dtypes==0.6.0 \
     --hash=sha256:d0f6f8cad19330199ebf73fe5dcff4ead5b833731f450b153e6f32b7d8e563d5 \
@@ -211,8 +211,8 @@ typing-inspection==0.4.4 \
 urllib3==2.7.0 \
     --hash=sha256:22c05ba20811924a0028c48d5f0c32a8bfc7c455671da9d6320d2795f262ec4f
 
-uvicorn==0.52.3 \
-    --hash=sha256:7ff5e19369d21734a63dc5548c14c5e3dc87722a5cfd921b16f3a24612953cb7
+uvicorn==0.52.4 \
+    --hash=sha256:160f9004a84db4ea99fb222ca961191e1a3e647865c7e9bd9ff1779daad3b89c
 
 uvloop==0.22.1 \
     --hash=sha256:1d6d97b97da6fcbb254c4982b24898084910748d48572b2726ec7412f83c4712 \
