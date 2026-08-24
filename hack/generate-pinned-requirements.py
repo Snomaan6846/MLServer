@@ -154,6 +154,46 @@ def normalize_distribution_name(name: str) -> str:
     return name.lower().replace("_", "-").replace(".", "-")
 
 
+SKIP_NOT_AVAILABLE = 2
+"""Return code from :func:`generate_for_index` when a root package version
+is not yet published to the index.  The caller should write a skip marker
+file and exit successfully so CI stays green."""
+
+
+def build_requirement_strings(
+    root_packages: list[dict | str],
+) -> tuple[list[str], list[str]]:
+    """Convert config ``root_packages`` to pip requirement strings.
+
+    Handles both the legacy string format (``"mlserver"``) and the new
+    object format
+    (``{"name": "mlserver", "version": "1.7.0", "extras": ["cpu"]}``).
+
+    Args:
+        root_packages: List of root package entries from config.
+
+    Returns:
+        Tuple of ``(pip_requirement_strings, bare_name_strings)``.
+        Pip strings include version pins (e.g. ``mlserver[cpu]==1.7.0``).
+        Bare strings omit the version (e.g. ``mlserver[cpu]``).
+    """
+    pip_reqs: list[str] = []
+    bare_names: list[str] = []
+    for pkg in root_packages:
+        if isinstance(pkg, str):
+            pip_reqs.append(pkg)
+            bare_names.append(pkg)
+        elif isinstance(pkg, dict):
+            name = pkg["name"]
+            version = pkg["version"]
+            extras = pkg.get("extras", [])
+            extras_str = f"[{','.join(extras)}]" if extras else ""
+            bare = f"{name}{extras_str}"
+            pip_reqs.append(f"{bare}=={version}")
+            bare_names.append(bare)
+    return pip_reqs, bare_names
+
+
 def redact_index_url(url: str) -> str:
     """Redact secrets from an index URL before logging or writing output.
 
@@ -314,6 +354,55 @@ def load_config(script_dir: Path) -> dict:
                     "CUDA indexes typically lack ppc64le wheels.",
                     file=sys.stderr,
                 )
+        if "root_packages" in ent:
+            rp = ent["root_packages"]
+            if not isinstance(rp, list):
+                raise ValueError(
+                    f"Config 'variants'][{i}] 'root_packages' must be a list"
+                )
+            for j, pkg in enumerate(rp):
+                if isinstance(pkg, str):
+                    if not pkg.strip():
+                        raise ValueError(
+                            f"Config 'variants'][{i}] 'root_packages'[{j}] "
+                            "must be a non-empty string"
+                        )
+                    continue
+                if not isinstance(pkg, dict):
+                    raise ValueError(
+                        f"Config 'variants'][{i}] 'root_packages'[{j}] "
+                        "must be a string or object"
+                    )
+                if "name" not in pkg or not isinstance(pkg["name"], str):
+                    raise ValueError(
+                        f"Config 'variants'][{i}] 'root_packages'[{j}] "
+                        "must have a string 'name'"
+                    )
+                if not pkg["name"].strip():
+                    raise ValueError(
+                        f"Config 'variants'][{i}] 'root_packages'[{j}] "
+                        "'name' must not be blank"
+                    )
+                if "version" not in pkg or not isinstance(pkg["version"], str):
+                    raise ValueError(
+                        f"Config 'variants'][{i}] 'root_packages'[{j}] "
+                        "must have a string 'version'"
+                    )
+                if not pkg["version"].strip():
+                    raise ValueError(
+                        f"Config 'variants'][{i}] 'root_packages'[{j}] "
+                        "'version' must not be blank"
+                    )
+                if "extras" in pkg:
+                    extras = pkg["extras"]
+                    if not isinstance(extras, list) or not all(
+                        isinstance(e, str) and e.strip() for e in extras
+                    ):
+                        raise ValueError(
+                            f"Config 'variants'][{i}] "
+                            f"'root_packages'[{j}] 'extras' must be a "
+                            "list of non-empty strings"
+                        )
         if "download_timeout" in ent:
             dt = ent["download_timeout"]
             if not isinstance(dt, int) or dt <= 0:
@@ -364,6 +453,8 @@ def get_base_image_from_dockerfile(repo_root: Path, dockerfile_path: str) -> str
         ValueError: If no ``FROM`` is found or substitutions remain unresolved.
     """
     df_path = (repo_root / dockerfile_path).resolve()
+    if not df_path.is_relative_to(repo_root.resolve()):
+        raise ValueError(f"Dockerfile path escapes repo root: {dockerfile_path}")
     if not df_path.exists():
         raise FileNotFoundError(f"Dockerfile not found: {df_path}")
     text = df_path.read_text()
@@ -723,13 +814,13 @@ def run_pip_command(
                 line_queue: queue.Queue[str | None] = queue.Queue()
                 stdout_stream = proc.stdout
 
-                def _reader() -> None:
+                def _reader(stream=stdout_stream, out_queue=line_queue) -> None:
                     """Push subprocess stdout lines into a thread-safe queue."""
                     try:
-                        for line in stdout_stream:
-                            line_queue.put(line)
+                        for line in stream:
+                            out_queue.put(line)
                     finally:
-                        line_queue.put(None)
+                        out_queue.put(None)
 
                 reader_thread = threading.Thread(target=_reader, daemon=True)
                 reader_thread.start()
@@ -842,8 +933,9 @@ def run_pip_command(
 def generate_for_index(
     index_url: str | None,
     root_names: list[str],
-    platform_groups: list[list[str]],
-    out_path: Path,
+    root_bare_names: list[str] | None = None,
+    platform_groups: list[list[str]] | None = None,
+    out_path: Path = Path("requirements.txt"),
     dry_run: bool = False,
     download_timeout: int = 480,
 ) -> int:
@@ -855,15 +947,22 @@ def generate_for_index(
 
     Args:
         index_url: Explicit package index URL. If empty/``None``, use system pip.
-        root_names: Root packages to resolve.
+        root_names: Root packages to resolve (may include ``==version`` pins).
+        root_bare_names: Root package names without version pins, used for
+            output ordering.  Defaults to ``root_names`` when ``None``.
         platform_groups: Platform tag groups for parallel download passes.
         out_path: Destination requirements file path.
         dry_run: If ``True``, print commands only and do not execute pip.
         download_timeout: Per-platform-group download timeout in seconds.
 
     Returns:
-        ``0`` on success, ``1`` on any validation or execution failure.
+        ``0`` on success, :data:`SKIP_NOT_AVAILABLE` when a root package
+        version is not yet on the index, ``1`` on any other failure.
     """
+    if root_bare_names is None:
+        root_bare_names = root_names
+    if platform_groups is None:
+        platform_groups = [resolve_platform(DEFAULT_PLATFORM)]
     pip_ok, pip_msg = _pip_supports_report()
     if not pip_ok:
         print(f"Error: {pip_msg}", file=sys.stderr)
@@ -891,7 +990,7 @@ def generate_for_index(
         req_roots = Path(tmp) / "req_roots.txt"
         req_roots.write_text("\n".join(req_roots_lines) + "\n")
 
-        print("  Phase 1: Resolving dependency tree from index (latest) ...")
+        print("  Phase 1: Resolving dependency tree from index ...")
         resolve_report = resolve_dir / "resolve-report.json"
         resolve_cmd = [
             sys.executable,
@@ -936,6 +1035,28 @@ def generate_for_index(
                 retry_backoff_sec=5,
             )
         except RuntimeError as e:
+            error_text = str(e)
+            not_found_match = re.search(
+                r"No matching distribution found for\s+(\S+)",
+                error_text,
+                re.IGNORECASE,
+            )
+            if not_found_match:
+                failed_req = not_found_match.group(1)
+                failed_name = normalize_distribution_name(
+                    failed_req.split("[", 1)[0].split("==", 1)[0]
+                )
+                root_norm = {
+                    normalize_distribution_name(n.split("[", 1)[0])
+                    for n in root_bare_names
+                }
+                if failed_name in root_norm:
+                    print(
+                        f"  Root package {failed_req} not yet available "
+                        "on index. Skipping regeneration.",
+                        file=sys.stderr,
+                    )
+                    return SKIP_NOT_AVAILABLE
             print(f"  {e}", file=sys.stderr)
             return 1
 
@@ -1048,7 +1169,7 @@ def generate_for_index(
     }
     seen: set[tuple[str, str]] = set()
     ordered: list[tuple[str, str]] = []
-    for root_name in root_names:
+    for root_name in root_bare_names:
         bare_name = root_name.split("[", 1)[0]
         nv = resolved_by_norm.get(normalize_distribution_name(bare_name))
         if nv and (normalize_distribution_name(nv[0]), nv[1]) not in seen:
@@ -1216,13 +1337,14 @@ def main() -> int:
         )
         return 1
     variant = matched[0]
-    root_names = variant.get("root_packages", [])
-    if not root_names:
+    raw_root_packages = variant.get("root_packages", [])
+    if not raw_root_packages:
         print(
             f"Error: variant '{args.variant}' has no root_packages.",
             file=sys.stderr,
         )
         return 1
+    root_names, root_bare_names = build_requirement_strings(raw_root_packages)
 
     try:
         platform_groups, platform_source = resolve_platform_groups(
@@ -1235,19 +1357,31 @@ def main() -> int:
 
     download_timeout = resolve_download_timeout(args.timeout, variant)
 
-    print(f"Root packages (latest from index): {', '.join(root_names)}")
+    print(f"Root packages (pinned): {', '.join(root_names)}")
     if args.index_url:
         print(f"Output -> {out_path} (index: {redact_index_url(args.index_url)})")
     else:
         print(f"Output -> {out_path} (system pip)")
-    return generate_for_index(
+    result = generate_for_index(
         index_url=args.index_url,
         root_names=root_names,
+        root_bare_names=root_bare_names,
         platform_groups=platform_groups,
         out_path=out_path,
         dry_run=args.dry_run,
         download_timeout=download_timeout,
     )
+    if result == SKIP_NOT_AVAILABLE:
+        skip_info = {
+            "variant": args.variant,
+            "expected_packages": root_names,
+            "reason": "Root package version not yet available on index",
+        }
+        skip_marker = out_path.parent / f".skip-{args.variant}.json"
+        skip_marker.write_text(json.dumps(skip_info, indent=2) + "\n")
+        print(f"  Skip marker written to {skip_marker}")
+        return 0
+    return result
 
 
 if __name__ == "__main__":
