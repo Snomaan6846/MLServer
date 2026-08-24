@@ -229,7 +229,7 @@ yarl==1.24.5 \
 zope-event==6.2 \
     --hash=sha256:5f45c23b135ac401d1fb268c4d2f7976823ba5bb426f60dc1b222d440bdbc0be
 
-zope-interface==8.5 \
-    --hash=sha256:94eb78e3b5481aa9fbc64db51c4ad2bc9ebac34885ca796660d9b47bff5188c2 \
-    --hash=sha256:cfe634b7cf72323c1241ec0ee72b90e9ade3f58660d5f3f3c9e3b77c752c8b80
+zope-interface==8.6 \
+    --hash=sha256:1c7bafa4194aea8cd082ced1e584c29dfaa1cb1d2e9020893f633713e6c9f69f \
+    --hash=sha256:25678ed23f220afd8c96d0006b18a5ca45c46326b65f633445a29a28d19b5757
 
