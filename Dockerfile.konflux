@@ -1,11 +1,9 @@
-ARG BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.4.0"
-ARG RUNTIMES="lightgbm onnx sklearn xgboost"
+ARG BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.4"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_lightgbm.LightGBMModel mlserver_onnx.OnnxModel mlserver_sklearn.SKLearnModel mlserver_xgboost.XGBoostModel"
 
 FROM ${BASE_IMAGE}
 
-ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
 
 USER 0
@@ -26,11 +24,9 @@ RUN mkdir -p $MLSERVER_PATH && \
     chown -R 1000:0 $MLSERVER_PATH && \
     chmod 1776 $MLSERVER_PATH
 
-RUN pip install mlserver && \
-    for _runtime in $RUNTIMES; do \
-        pip install "mlserver-${_runtime}"; \
-    done
-   
+COPY requirements/requirements-cpu.txt requirements/requirements-cpu.txt
+RUN pip install --no-deps --require-hashes -r requirements/requirements-cpu.txt && \
+    rm -rf /root/.cache/pip
 
 COPY ./licenses/license.txt .
 COPY ./licenses/license.txt /licenses/

@@ -1,4 +1,5 @@
-# Generate requirements/*.txt from config variants and create a PR when files change.
+# Generate requirements/*.txt from hack/requirements-config.json
+# variants and create a PR when files change.
 name: Requirements Regeneration
 
 on:
@@ -8,23 +9,42 @@ on:
         description: 'Base branch to run against (manual runs only)'
         required: true
   schedule:
-    - cron: '0 */12 * * *'
+    - cron: '0 6 * * *'
 
+# Least-privilege default; jobs that need write access override below.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+
+env:
+  BASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || 'rhoai-staging' }}
+
+concurrency:
+  group: requirements-regen-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || 'rhoai-staging' }}
+  cancel-in-progress: true
 
 jobs:
-  generate-and-pr:
+  setup:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.repository == 'opendatahub-io/MLServer') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      BASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || 'rhoai-staging' }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.variants.outputs.matrix }}
     steps:
-      - name: Validate base branch exists
+      - name: Validate base branch
+        env:
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
         run: |
           set -euo pipefail
+          case "$BASE_BRANCH" in
+            main|rhoai-*|release-rhoai-*) ;;
+            *)
+              echo "Error: branch '$BASE_BRANCH' is not approved for requirements generation."
+              echo "Allowed: main, rhoai-*, release-rhoai-*"
+              exit 1
+              ;;
+          esac
           repo_url="https://github.com/${GITHUB_REPOSITORY}.git"
           if ! git ls-remote --heads "$repo_url" "$BASE_BRANCH" | grep -q .; then
             echo "Base branch '$BASE_BRANCH' not found in ${GITHUB_REPOSITORY}."
@@ -32,6 +52,40 @@ jobs:
             exit 1
           fi
 
+      # Pinned from actions/checkout v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          persist-credentials: false
+
+      - name: Derive matrix from config
+        id: variants
+        run: |
+          set -euo pipefail
+          config=hack/requirements-config.json
+          if [[ ! -f "$config" ]]; then
+            echo "::error::Config file not found: $config"
+            exit 1
+          fi
+          matrix=$(jq -c '{variant: [.variants[].name]}' "$config")
+          count=$(echo "$matrix" | jq '.variant | length')
+          if [[ "$count" -eq 0 ]]; then
+            echo "::error::No variants found in $config"
+            exit 1
+          fi
+          echo "Generated matrix ($count variants): $matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  generate:
+    needs: setup
+    strategy:
+      fail-fast: true
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
       # Pinned from actions/checkout v6
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -57,27 +111,108 @@ jobs:
           username: ${{ secrets.AIPCC_QUAY_USERNAME }}
           password: ${{ secrets.AIPCC_QUAY_PASSWORD }}
 
-      - name: Generate pinned requirements
+      - name: Generate requirements
         env:
           WORKSPACE: ${{ github.workspace }}
+          VARIANT: ${{ matrix.variant }}
         run: |
           set -euo pipefail
           script=hack/generate-pinned-requirements.py
           config=hack/requirements-config.json
-          jq -r '.variants[] | "\(.name)\t\(.dockerfile)"' "$config" | while IFS=$'\t' read -r name dockerfile; do
-            image="$(python "$script" --print-base-image "$dockerfile")"
-            echo "Running for variant $name in image $image ..."
-            podman run --rm --user 0 \
-              -e PYTHONDONTWRITEBYTECODE=1 \
-              -v "$WORKSPACE:$WORKSPACE:z" -w "$WORKSPACE" \
-              "$image" python "$script" -o "requirements/requirements-${name}.txt"
-          done
+          dockerfile=$(jq -r --arg v "$VARIANT" \
+            '.variants[] | select(.name == $v) | .dockerfile' "$config")
+          image=$(python "$script" --print-base-image "$dockerfile")
+          echo "Running for variant $VARIANT in image $image ..."
+          podman run --rm --user 0 \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            -v "$WORKSPACE:$WORKSPACE:z" -w "$WORKSPACE" \
+            "$image" python "$script" \
+              --variant "$VARIANT" \
+              -o "requirements/requirements-${VARIANT}.txt"
 
-      - name: Fix ownership of generated files
+      - name: Fix file ownership
+        run: sudo chown -R "$USER:$USER" requirements/
+
+      - name: Check for skip marker
+        id: check-skip
+        env:
+          VARIANT: ${{ matrix.variant }}
         run: |
-          sudo chown -R "$USER:$USER" requirements/
+          set -euo pipefail
+          skip_file="requirements/.skip-${VARIANT}.json"
+          if [[ -f "$skip_file" ]]; then
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Requirements generation skipped for $VARIANT — root package not yet on index"
+          else
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pinned from actions/upload-artifact v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.check-skip.outputs.skipped != 'true'
+        with:
+          name: requirements-${{ matrix.variant }}
+          path: requirements/requirements-${{ matrix.variant }}.txt
+
+      # Upload skip marker so the notify-slack job can read it
+      # Pinned from actions/upload-artifact v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.check-skip.outputs.skipped == 'true'
+        with:
+          name: skip-marker-${{ matrix.variant }}
+          path: requirements/.skip-${{ matrix.variant }}.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  create-pr:
+    needs: generate
+    if: ${{ !cancelled() && needs.generate.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Pinned from actions/checkout v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          persist-credentials: false
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yq jq
+
+      # Pinned from actions/download-artifact v4.3.0
+      - name: Download requirements artifacts
+        id: download
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: requirements-*
+          path: requirements/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Check if any requirements were generated
+        id: check-artifacts
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.download.outcome }}" == "failure" ]]; then
+            echo "::error::Artifact download failed — possible GitHub API issue."
+            exit 1
+          fi
+          shopt -s nullglob
+          files=(requirements/requirements-*.txt)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No requirements artifacts to commit."
+          else
+            echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Load reviewers from OWNERS file
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
         id: owners_reviewers
         run: |
           set -euo pipefail
@@ -89,6 +224,7 @@ jobs:
           echo "reviewers=${reviewers}" >> "$GITHUB_OUTPUT"
 
       - name: Create or Update Pull Request
+        if: steps.check-artifacts.outputs.has_artifacts == 'true'
         id: cpr
         # Pinned from peter-evans/create-pull-request v8
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
@@ -97,17 +233,211 @@ jobs:
           base: ${{ env.BASE_BRANCH }}
           branch: requirements/regenerate-${{ env.BASE_BRANCH }}
           delete-branch: true
-          commit-message: "chore: regenerate pinned requirements from hack/requirements-config.json"
-          title: Regenerate pinned requirements
+          commit-message: "chore: regenerate pinned requirements"
+          title: "chore: regenerate pinned requirements for ${{ env.BASE_BRANCH }}"
           body: |
             ## Description
-            Regenerated `requirements/*.txt` by running the generator inside each base image container (per variant; pip uses each image index).
+            Regenerated `requirements/*.txt` by running the generator inside each variant's
+            base image container. Each variant resolves its own root_packages
+            from `hack/requirements-config.json` using the image's pip index.
 
-            ## Changes
-            - Updated pinned requirements under `requirements/`
-
-            Triggered by **Actions → Requirements Regeneration** (manual or every 12 hours).
+            Triggered by **Actions → Requirements Regeneration** (manual or daily).
           add-paths: |
             requirements/
           reviewers: ${{ github.repository == 'opendatahub-io/MLServer' && steps.owners_reviewers.outputs.reviewers || '' }}
 
+  notify-slack:
+    needs: [generate, create-pr]
+    if: >-
+      always()
+      && github.repository == 'opendatahub-io/MLServer'
+      && (needs.generate.result == 'success' || needs.generate.result == 'failure'
+          || needs.create-pr.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.ALERTS_MLSERVER_CHANNEL_SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Download skip markers
+        if: needs.generate.result == 'success'
+        id: download-markers
+        # Pinned from actions/download-artifact v4.3.0
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: skip-marker-*
+          path: /tmp/skip-markers/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Build Slack payload
+        if: env.SLACK_WEBHOOK_URL != ''
+        id: payload
+        env:
+          GEN_RESULT: ${{ needs.generate.result }}
+          PR_RESULT: ${{ needs.create-pr.result }}
+          DOWNLOAD_OUTCOME: ${{ steps.download-markers.outcome }}
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
+          REPO: ${{ github.repository }}
+          RUN_URL: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          set -euo pipefail
+          if [[ "$GEN_RESULT" == "failure" || "$PR_RESULT" == "failure" ]]; then
+            # --- Failure notification ---
+            jq -n \
+              --arg branch "$BASE_BRANCH" \
+              --arg repo   "$REPO" \
+              --arg run_url "$RUN_URL" \
+              '{
+                "text": (":x: Requirements Regeneration Failed — " + $branch),
+                "attachments": [
+                  {
+                    "color": "#cb2431",
+                    "blocks": [
+                      {
+                        "type": "header",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "❌ Requirements Regeneration Failed"
+                        }
+                      },
+                      {
+                        "type": "section",
+                        "fields": [
+                          {
+                            "type": "mrkdwn",
+                            "text": ("*Branch:*\n`" + $branch + "`")
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Status:*\nGeneration failed — check workflow logs"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "actions",
+                        "elements": [
+                          {
+                            "type": "button",
+                            "text": {
+                              "type": "plain_text",
+                              "text": "View Workflow Run"
+                            },
+                            "url": $run_url
+                          }
+                        ]
+                      },
+                      {
+                        "type": "context",
+                        "elements": [
+                          {
+                            "type": "mrkdwn",
+                            "text": ("Repository: <https://github.com/" + $repo + "|" + $repo + ">")
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }' > /tmp/slack-payload.json
+          else
+            # --- Skip notification ---
+            shopt -s nullglob
+            markers=(/tmp/skip-markers/.skip-*.json)
+            if [[ ${#markers[@]} -eq 0 ]]; then
+              if [[ "$DOWNLOAD_OUTCOME" == "failure" ]]; then
+                echo "::warning::Skip marker download failed — possible GitHub API issue."
+              fi
+              echo "No skip markers found — nothing to notify."
+              echo "should_send=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            EXPECTED=$(jq -r '.expected_packages[]' "${markers[@]}" | sort -u | paste -sd ', ') || EXPECTED="unknown"
+            VARIANTS=$(jq -r '.variant' "${markers[@]}" | sort -u | paste -sd ', ') || VARIANTS="unknown"
+
+            jq -n \
+              --arg expected "$EXPECTED" \
+              --arg variants "$VARIANTS" \
+              --arg branch   "$BASE_BRANCH" \
+              --arg repo     "$REPO" \
+              --arg run_url  "$RUN_URL" \
+              '{
+                "text": (":fast_forward: Requirements Regeneration Skipped — " + $variants),
+                "attachments": [
+                  {
+                    "color": "#d1d5da",
+                    "blocks": [
+                      {
+                        "type": "header",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "⏭️ Requirements Regeneration Skipped"
+                        }
+                      },
+                      {
+                        "type": "section",
+                        "fields": [
+                          {
+                            "type": "mrkdwn",
+                            "text": ("*Expected Wheels:*\n`" + $expected + "`")
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Status:*\nNot yet available on index"
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": ("*Variant(s):*\n`" + $variants + "`")
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": ("*Branch:*\n`" + $branch + "`")
+                          }
+                        ]
+                      },
+                      {
+                        "type": "section",
+                        "text": {
+                          "type": "mrkdwn",
+                          "text": "Wheel not yet published to index. Generation will resume automatically on the next scheduled run (daily) when the wheel becomes available."
+                        }
+                      },
+                      {
+                        "type": "actions",
+                        "elements": [
+                          {
+                            "type": "button",
+                            "text": {
+                              "type": "plain_text",
+                              "text": "View Workflow Run"
+                            },
+                            "url": $run_url
+                          }
+                        ]
+                      },
+                      {
+                        "type": "context",
+                        "elements": [
+                          {
+                            "type": "mrkdwn",
+                            "text": ("Repository: <https://github.com/" + $repo + "|" + $repo + ">")
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }' > /tmp/slack-payload.json
+          fi
+          echo "should_send=true" >> "$GITHUB_OUTPUT"
+
+      # Pinned from slackapi/slack-github-action v3.0.3
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL != '' && steps.payload.outputs.should_send == 'true'
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
+        with:
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: /tmp/slack-payload.json

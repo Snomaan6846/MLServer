@@ -1,15 +1,17 @@
 {
-  "root_packages": [
-    "mlserver",
-    "mlserver-lightgbm",
-    "mlserver-onnx",
-    "mlserver-sklearn",
-    "mlserver-xgboost"
-  ],
   "variants": [
     {
       "name": "cpu",
-      "dockerfile": "Dockerfile.konflux"
+      "dockerfile": "Dockerfile.konflux",
+      "root_packages": [
+        {"name": "mlserver", "version": "1.7.1+rhaiv.8"},
+        {"name": "mlserver-lightgbm", "version": "1.7.1+rhaiv.8"},
+        {"name": "mlserver-onnx", "version": "1.7.1+rhaiv.8"},
+        {"name": "mlserver-sklearn", "version": "1.7.1+rhaiv.8"},
+        {"name": "mlserver-xgboost", "version": "1.7.1+rhaiv.8"}
+      ],
+      "platforms": ["x86_64", "aarch64"],
+      "download_timeout": 480
     }
   ]
 }
