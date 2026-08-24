@@ -1,11 +1,9 @@
 ARG BASE_IMAGE="quay.io/aipcc/base-images/cuda-12.9-el9.6:3.6.0-ea.1"
-ARG RUNTIMES="onnx"
 # Space-separated list of runtime import paths
 ARG TRUSTED_RUNTIMES="mlserver_onnx.OnnxModel"
 
 FROM ${BASE_IMAGE}
 
-ARG RUNTIMES
 ARG TRUSTED_RUNTIMES
 
 USER 0
@@ -29,15 +27,8 @@ RUN mkdir -p $MLSERVER_PATH && \
     chown -R 1000:0 $MLSERVER_PATH && \
     chmod 1776 $MLSERVER_PATH
 
-RUN pip install mlserver && \
-    for _runtime in $RUNTIMES; do \
-        if [ "$_runtime" = "onnx" ]; then \
-            pip install "mlserver-onnx[cuda]"; \
-        else \
-            pip install "mlserver-${_runtime}"; \
-        fi; \
-    done && \
-    # Single-stage build — clean pip cache to avoid inflating the final layer.
+COPY requirements/requirements-cuda.txt requirements/requirements-cuda.txt
+RUN pip install --no-deps --require-hashes -r requirements/requirements-cuda.txt && \
     rm -rf /root/.cache/pip
 
 COPY ./licenses/license.txt .
