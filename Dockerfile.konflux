@@ -1,9 +1,6 @@
-ARG RUNTIME_BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.2.0-1764758855"
-ARG RUNTIMES="lightgbm sklearn xgboost"
+ARG RUNTIME_BASE_IMAGE="quay.io/aipcc/base-images/cpu:3.3"
 
 FROM ${RUNTIME_BASE_IMAGE}
-
-ARG RUNTIMES
 
 USER 0
 
@@ -28,11 +25,9 @@ RUN mkdir -p $MLSERVER_PATH && \
     chown -R 1000:0 $MLSERVER_PATH && \
     chmod -R 776 $MLSERVER_PATH
 
-RUN pip install mlserver && \
-    for _runtime in $RUNTIMES; do \
-        pip install "mlserver-${_runtime}"; \
-    done
-   
+COPY requirements/requirements-cpu.txt requirements/requirements-cpu.txt
+RUN pip install --no-deps --require-hashes -r requirements/requirements-cpu.txt && \
+    rm -rf /root/.cache/pip
 
 COPY ./licenses/license.txt .
 COPY ./licenses/license.txt /licenses/
@@ -41,3 +36,13 @@ USER 1000
 
 # MLServer starts
 CMD ["/bin/sh", "-c", "mlserver start $MLSERVER_MODELS_DIR"]
+
+LABEL com.redhat.component="odh-mlserver-rhel9" \
+      name="rhoai/odh-mlserver-rhel9" \
+      description="odh-mlserver" \
+      summary="odh-mlserver" \
+      maintainer="['managed-open-data-hub@redhat.com']" \
+      io.openshift.expose-services="" \
+      io.k8s.display-name="odh-mlserver" \
+      io.k8s.description="odh-mlserver" \
+      com.redhat.license_terms="https://www.redhat.com/licenses/Red_Hat_Standard_EULA_20191108.pdf"

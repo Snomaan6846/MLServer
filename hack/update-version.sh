@@ -37,8 +37,27 @@ _updateDocs() {
     "$ROOT_FOLDER/docs/conf.py"
 }
 
+_updateRequirementsConfig() {
+  local _newVersion=$1
+  local _configFile="$ROOT_FOLDER/hack/requirements-config.json"
+
+  [ -f "$_configFile" ] || return 0
+
+  sed \
+    -i "s/\"version\": \"[^\"]*\"/\"version\": \"$_newVersion\"/g" \
+    "$_configFile"
+}
+
 _main() {
   local _newVersion=$1
+
+  # Validate version string before any interpolation (CWE-78 prevention)
+  case "$_newVersion" in
+    *[!A-Za-z0-9.+_-]*|"")
+      echo "Error: refusing unsafe version string: $_newVersion" >&2
+      exit 1
+      ;;
+  esac
 
   # To call within `-exec`
   export -f _updateVersion
@@ -61,6 +80,7 @@ _main() {
     -exec bash -c "_updatePyproject $_newVersion {}" \;
 
   _updateDocs $_newVersion
+  _updateRequirementsConfig "$_newVersion"
 }
 
-_main $1
+_main "$1"
