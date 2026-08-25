@@ -4,20 +4,24 @@
       "name": "cpu",
       "dockerfile": "Dockerfile.konflux",
       "root_packages": [
-        "mlserver",
-        "mlserver-lightgbm",
-        "mlserver-onnx[cpu]",
-        "mlserver-sklearn",
-        "mlserver-xgboost"
-      ]
+        {"name": "mlserver", "version": "1.7.1+rhaiv.10"},
+        {"name": "mlserver-lightgbm", "version": "1.7.1+rhaiv.10"},
+        {"name": "mlserver-onnx", "version": "1.7.1+rhaiv.10", "extras": ["cpu"]},
+        {"name": "mlserver-sklearn", "version": "1.7.1+rhaiv.10"},
+        {"name": "mlserver-xgboost", "version": "1.7.1+rhaiv.10"}
+      ],
+      "platforms": ["x86_64", "aarch64", "ppc64le"],
+      "download_timeout": 480
     },
     {
       "name": "cuda",
-      "dockerfile": "Dockerfile.cuda.konflux",
+      "dockerfile": "Dockerfile.konflux.cuda",
       "root_packages": [
-        "mlserver",
-        "mlserver-onnx[cuda]"
-      ]
+        {"name": "mlserver", "version": "1.7.1+rhaiv.10"},
+        {"name": "mlserver-onnx", "version": "1.7.1+rhaiv.10", "extras": ["cuda"]}
+      ],
+      "platforms": ["x86_64", "aarch64"],
+      "download_timeout": 720
     }
   ]
 }
