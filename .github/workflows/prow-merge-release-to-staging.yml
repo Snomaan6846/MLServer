@@ -233,6 +233,13 @@ jobs:
           for rt in runtimes/*/poetry.lock; do
             [ -f "$rt" ] && git add -- "$rt"
           done
+          # Stage all files touched by update-version.sh
+          git add -- hack/requirements-config.json 2>/dev/null || true
+          git add -- docs/conf.py 2>/dev/null || true
+          git add -- mlserver/version.py 2>/dev/null || true
+          while IFS= read -r -d '' vf; do
+            git add -- "$vf"
+          done < <(find runtimes -type f -name version.py -print0 2>/dev/null)
 
           if git diff --quiet && git diff --quiet --cached; then
             echo "No effective changes remain after sync policy; skipping push and PR creation."
