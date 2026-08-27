@@ -4,10 +4,10 @@
       "name": "cpu",
       "dockerfile": "Dockerfile.konflux",
       "root_packages": [
-        {"name": "mlserver", "version": "1.7.1+rhai5"},
-        {"name": "mlserver-lightgbm", "version": "1.7.1+rhai5"},
-        {"name": "mlserver-sklearn", "version": "1.7.1+rhai5"},
-        {"name": "mlserver-xgboost", "version": "1.7.1+rhai5"}
+        {"name": "mlserver", "version": "1.7.1+rhaiv.14"},
+        {"name": "mlserver-lightgbm", "version": "1.7.1+rhaiv.14"},
+        {"name": "mlserver-sklearn", "version": "1.7.1+rhaiv.14"},
+        {"name": "mlserver-xgboost", "version": "1.7.1+rhaiv.14"}
       ],
       "platforms": ["x86_64", "aarch64"],
       "download_timeout": 480
