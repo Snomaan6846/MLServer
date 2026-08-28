@@ -221,7 +221,6 @@ via `pip` or baked into custom images with `mlserver build`:
 | Framework | Package | Documentation |
 |-----------|---------|---------------|
 | CatBoost | `mlserver-catboost` | [Docs](./runtimes/catboost) |
-| MLflow | `mlserver-mlflow` | [Docs](./runtimes/mlflow) |
 | Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
 | Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
 | Spark MLlib | `mlserver-mllib` | [Docs](./runtimes/mllib) |

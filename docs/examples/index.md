@@ -19,7 +19,6 @@ models](./custom/README.md)).
 - [Serving CatBoost models](./catboost/README.md)
 - [Serving ONNX models](./onnx/README.md)
 - [Serving Tempo pipelines](./tempo/README.md)
-- [Serving MLflow models](./mlflow/README.md)
 - [Serving custom models](./custom/README.md)
 - [Serving Alibi Detect models](./alibi-detect/README.md)
 
@@ -33,7 +32,6 @@ models](./custom/README.md)).
 ./lightgbm/README.md
 ./onnx/README.md
 ./tempo/README.md
-./mlflow/README.md
 ./custom/README.md
 ./alibi-detect/README.md
 ```

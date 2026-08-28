@@ -1203,10 +1203,6 @@ def test_canonicalize_runtime_import_path_builtins():
         == "mlserver_lightgbm.LightGBMModel"
     )
     assert (
-        canonicalize_runtime_import_path("mlserver_mlflow.runtime.MLflowRuntime")
-        == "mlserver_mlflow.MLflowRuntime"
-    )
-    assert (
         canonicalize_runtime_import_path(
             "mlserver_alibi_detect.runtime.AlibiDetectRuntime"
         )

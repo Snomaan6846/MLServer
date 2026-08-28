@@ -3,7 +3,7 @@
 V2 Inference Protocol (KFServing) server for multi-model ML serving over
 REST (FastAPI) and gRPC. ODH midstream fork of `SeldonIO/MLServer` with
 Konflux builds, runtime security hardening, and release automation.
-Poetry-only monorepo: core `mlserver` + 10 runtime packages under `runtimes/`.
+Poetry-only monorepo: core `mlserver` + 8 runtime packages under `runtimes/`.
 
 - **Python:** 3.10–3.12 (all branches)
 - **Package manager:** Poetry (always use Poetry, never pip install directly)

@@ -98,7 +98,6 @@ MLServer runtime will be enabled internally on your model deployment when used.
 | ------------ | ------------------------------------------------ | ------------------------------- | -------------------------------------------------------------------------------------------- |
 | Scikit-Learn | [MLServer SKLearn](../../runtimes/sklearn)       | `SKLEARN_SERVER`                | [SKLearn Server](https://docs.seldon.io/projects/seldon-core/en/latest/servers/sklearn.html) |
 | XGBoost      | [MLServer XGBoost](../../runtimes/xgboost)       | `XGBOOST_SERVER`                | [XGBoost Server](https://docs.seldon.io/projects/seldon-core/en/latest/servers/xgboost.html) |
-| MLflow       | [MLServer MLflow](../../runtimes/mlflow)         | `MLFLOW_SERVER`                 | [MLflow Server](https://docs.seldon.io/projects/seldon-core/en/latest/servers/mlflow.html)   |
 | Tempo        | [Tempo](https://tempo.readthedocs.io/en/latest/) | `TEMPO_SERVER`                  | [Tempo Server](https://docs.seldon.io/projects/seldon-core/en/latest/servers/tempo.html)     |
 
 Note that, on top of the ones shown above (backed by MLServer), Seldon Core

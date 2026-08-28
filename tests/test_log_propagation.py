@@ -584,29 +584,6 @@ class TestSklearnConfigureFrameworkLogger:
 
 
 # ---------------------------------------------------------------------------
-# MLflow
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skipif(
-    not _can_import("mlserver_mlflow"),
-    reason="mlserver-mlflow not installed",
-)
-class TestMlflowConfigureFrameworkLogger:
-    @pytest.fixture(autouse=True)
-    def _reset_mlflow_logger(self):
-        yield
-        logging.getLogger("mlflow").setLevel(logging.NOTSET)
-
-    def test_sets_mlflow_logger_level(self):
-        from mlserver_mlflow.runtime import MLflowRuntime
-
-        _set_mlserver_level(logging.ERROR)
-        MLflowRuntime(settings=_make_settings())
-        assert logging.getLogger("mlflow").level == logging.ERROR
-
-
-# ---------------------------------------------------------------------------
 # alibi-detect
 # ---------------------------------------------------------------------------
 

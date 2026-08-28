@@ -31,7 +31,6 @@ class in your `model-settings.json` file.
 | CatBoost     | `mlserver-catboost`     | `mlserver_catboost.CatboostModel`          | [CatBoost example](../examples/catboost/README.md)         | [MLServer CatBoost](./catboost)                                  |
 | ONNX         | `mlserver-onnx[cpu]` or `mlserver-onnx[cuda]` | `mlserver_onnx.OnnxModel`                  | [ONNX example](../examples/onnx/README.md)                 | [MLServer ONNX](./onnx)                                  |
 | Tempo        | `tempo`                 | `tempo.mlserver.InferenceRuntime`          | [Tempo example](../examples/tempo/README.md)               | [`github.com/SeldonIO/tempo`](https://github.com/SeldonIO/tempo) |
-| MLflow       | `mlserver-mlflow`       | `mlserver_mlflow.MLflowRuntime`            | [MLflow example](../examples/mlflow/README.md)             | [MLServer MLflow](./mlflow)                                      |
 | Alibi-Detect | `mlserver-alibi-detect` | `mlserver_alibi_detect.AlibiDetectRuntime` | [Alibi-detect example](../examples/alibi-detect/README.md) | [MLServer Alibi-Detect](./alibi-detect)                          |
 
 ```{toctree}
@@ -40,7 +39,6 @@ class in your `model-settings.json` file.
 
 SKLearn <./sklearn>
 XGBoost <./xgboost>
-MLflow <./mlflow>
 Tempo <https://tempo.readthedocs.io>
 Spark MLlib <./mllib>
 LightGBM <./lightgbm>
