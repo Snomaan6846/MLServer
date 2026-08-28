@@ -1,9 +1,0 @@
-{
-    "name": "linear-model",
-    "implementation": "mlserver_onnx.OnnxModel",
-    "parameters": {
-        "uri": "./linear-model.onnx",
-        "version": "v0.1.0"
-    }
-}
-
