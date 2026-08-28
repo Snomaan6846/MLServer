@@ -48,6 +48,5 @@ Catboost <./catboost>
 ONNX <./onnx>
 Alibi-Detect <./alibi-detect>
 Alibi-Explain <./alibi-explain>
-HuggingFace <./huggingface>
 Custom <./custom>
 ```

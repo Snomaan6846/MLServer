@@ -17,11 +17,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "pip"
-    directory: "/runtimes/huggingface"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
     directory: "/runtimes/lightgbm"
     schedule:
       interval: "weekly"

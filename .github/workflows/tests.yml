@@ -137,7 +137,6 @@ jobs:
           - lightgbm
           - onnx
           - mlflow
-          - huggingface
           - alibi-explain
           - alibi-detect
           - catboost

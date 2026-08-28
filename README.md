@@ -44,8 +44,8 @@ and multi-model routing from scratch every time.
 **MLServer gives you all of that out of the box**, with a standardised wire
 format that works across frameworks:
 
-- **One server, many models** — serve scikit-learn, XGBoost, HuggingFace,
-  ONNX, and custom models side by side in a single process. No per-model
+- **One server, many models** — serve scikit-learn, XGBoost, ONNX,
+  and custom models side by side in a single process. No per-model
   containers needed.
 - **Production-grade by default** — health probes, Prometheus metrics,
   adaptive batching, parallel workers, and response caching are built in,
@@ -222,7 +222,6 @@ via `pip` or baked into custom images with `mlserver build`:
 |-----------|---------|---------------|
 | CatBoost | `mlserver-catboost` | [Docs](./runtimes/catboost) |
 | MLflow | `mlserver-mlflow` | [Docs](./runtimes/mlflow) |
-| HuggingFace | `mlserver-huggingface` | [Docs](./runtimes/huggingface) |
 | Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
 | Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
 | Spark MLlib | `mlserver-mllib` | [Docs](./runtimes/mllib) |
@@ -274,7 +273,6 @@ To see MLServer in action, check out the [full list of examples](./docs/examples
 | [Serving an ONNX model](./docs/examples/onnx/README.md) | ONNX Runtime |
 | [Serving a custom model](./docs/examples/custom/README.md) | Custom runtime |
 | [Serving an Alibi Detect model](./docs/examples/alibi-detect/README.md) | Alibi Detect |
-| [Serving a HuggingFace model](./docs/examples/huggingface/README.md) | HuggingFace |
 | [Multi-model serving](./docs/examples/mms/README.md) | Multiple frameworks |
 | [Model repository management](./docs/examples/model-repository/README.md) | Dynamic load/unload |
 

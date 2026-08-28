@@ -1208,12 +1208,6 @@ def test_canonicalize_runtime_import_path_builtins():
     )
     assert (
         canonicalize_runtime_import_path(
-            "mlserver_huggingface.runtime.HuggingFaceRuntime"
-        )
-        == "mlserver_huggingface.HuggingFaceRuntime"
-    )
-    assert (
-        canonicalize_runtime_import_path(
             "mlserver_alibi_detect.runtime.AlibiDetectRuntime"
         )
         == "mlserver_alibi_detect.AlibiDetectRuntime"

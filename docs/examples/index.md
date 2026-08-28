@@ -22,7 +22,6 @@ models](./custom/README.md)).
 - [Serving MLflow models](./mlflow/README.md)
 - [Serving custom models](./custom/README.md)
 - [Serving Alibi Detect models](./alibi-detect/README.md)
-- [Serving HuggingFace models](./huggingface/README.md)
 
 ```{toctree}
 :caption: Inference Runtimes
@@ -37,7 +36,6 @@ models](./custom/README.md)).
 ./mlflow/README.md
 ./custom/README.md
 ./alibi-detect/README.md
-./huggingface/README.md
 ```
 
 ## MLServer Features

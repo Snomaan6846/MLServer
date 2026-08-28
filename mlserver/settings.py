@@ -64,7 +64,6 @@ ALLOWED_MODEL_IMPLEMENTATIONS = {
     "mlserver_alibi_detect.AlibiDetectRuntime",
     "mlserver_alibi_explain.AlibiExplainRuntime",
     "mlserver_catboost.CatboostModel",
-    "mlserver_huggingface.HuggingFaceRuntime",
     "mlserver_sklearn.SKLearnModel",
     "mlserver_xgboost.XGBoostModel",
     "mlserver_lightgbm.LightGBMModel",
@@ -82,9 +81,6 @@ _BUILTIN_RUNTIME_IMPORT_PATH_ALIASES = {
         "mlserver_alibi_explain.AlibiExplainRuntime"
     ),
     "mlserver_catboost.catboost.CatboostModel": "mlserver_catboost.CatboostModel",
-    "mlserver_huggingface.runtime.HuggingFaceRuntime": (
-        "mlserver_huggingface.HuggingFaceRuntime"
-    ),
     "mlserver_sklearn.sklearn.SKLearnModel": "mlserver_sklearn.SKLearnModel",
     "mlserver_xgboost.xgboost.XGBoostModel": "mlserver_xgboost.XGBoostModel",
     "mlserver_lightgbm.lightgbm.LightGBMModel": "mlserver_lightgbm.LightGBMModel",

@@ -152,7 +152,6 @@ mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
 mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
 mlserver-mlflow = {path = "./runtimes/mlflow", develop = true}
-mlserver-huggingface = {path = "./runtimes/huggingface", develop = true}
 mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}
 mlserver-alibi-detect = {path = "./runtimes/alibi-detect", develop = true}
 mlserver-catboost = {path = "./runtimes/catboost", develop = true}
@@ -171,11 +170,6 @@ pytorch-lightning = "^2.4"
 torchmetrics = "1.6.0"
 torchvision = "0.19.1"
 mlflow = ">=3.0.0"
-
-## Dev dependencies from HuggingFace
-# TODO: Relax when we deprecate Conversation pipeline
-# see: https://github.com/SeldonIO/MLServer/issues/1955
-transformers = "4.41.2"
 
 [tool.poetry.group.docs]
 optional = true

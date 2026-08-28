@@ -584,44 +584,6 @@ class TestSklearnConfigureFrameworkLogger:
 
 
 # ---------------------------------------------------------------------------
-# HuggingFace
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skipif(
-    not _can_import("mlserver_huggingface"),
-    reason="mlserver-huggingface not installed",
-)
-class TestHuggingFaceConfigureFrameworkLogger:
-    def test_calls_transformers_and_hf_hub_set_verbosity(self):
-        from mlserver_huggingface.runtime import HuggingFaceRuntime
-
-        with patch(
-            "mlserver_huggingface.runtime.transformers"
-        ) as mock_transformers, patch(
-            "mlserver_huggingface.runtime.hf_hub_logging"
-        ) as mock_hf, patch(
-            "mlserver_huggingface.runtime.get_huggingface_settings"
-        ):
-            _set_mlserver_level(logging.WARNING)
-            HuggingFaceRuntime(settings=_make_settings())
-            mock_transformers.logging.set_verbosity.assert_called_once_with(
-                logging.WARNING
-            )
-            mock_hf.set_verbosity.assert_called_once_with(logging.WARNING)
-
-    def test_calls_hf_hub_at_error(self):
-        from mlserver_huggingface.runtime import HuggingFaceRuntime
-
-        with patch("mlserver_huggingface.runtime.transformers"), patch(
-            "mlserver_huggingface.runtime.hf_hub_logging"
-        ) as mock_hf, patch("mlserver_huggingface.runtime.get_huggingface_settings"):
-            _set_mlserver_level(logging.ERROR)
-            HuggingFaceRuntime(settings=_make_settings())
-            mock_hf.set_verbosity.assert_called_once_with(logging.ERROR)
-
-
-# ---------------------------------------------------------------------------
 # MLflow
 # ---------------------------------------------------------------------------
 
