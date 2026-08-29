@@ -100,7 +100,7 @@ source .venv/bin/activate
 # Step 1: Run most tests in parallel
 USE_CONDA=false python -m pytest -n auto tests/ \
     runtimes/alibi-explain/ runtimes/alibi-detect/ \
-    runtimes/sklearn/ runtimes/xgboost/ runtimes/mllib/ runtimes/lightgbm/ \
+    runtimes/sklearn/ runtimes/xgboost/ runtimes/lightgbm/ \
     runtimes/onnx/ runtimes/catboost/ \
     --ignore=tests/metrics --ignore=tests/kafka --ignore=tests/parallel \
     --ignore=tests/grpc --ignore=tests/env --ignore=tests/cli

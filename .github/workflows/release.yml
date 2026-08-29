@@ -231,7 +231,6 @@ jobs:
           - alibi-detect
           - alibi-explain
           - lightgbm
-          - mllib
           - sklearn
           - xgboost
           - catboost

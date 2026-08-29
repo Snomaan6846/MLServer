@@ -6,9 +6,9 @@ installed, so the suite works in core-only CI as well as full-runtimes CI.
 
 Tests cover:
   - Base class hook contract (no-op, called in __init__, polymorphic dispatch)
-  - Level-mapping dicts (XGBoost, ONNX, CatBoost, MLlib)
+  - Level-mapping dicts (XGBoost, ONNX, CatBoost)
   - _configure_framework_logger() side-effects for each runtime
-  - Deferred application in load() where required (CatBoost, ONNX, MLlib)
+  - Deferred application in load() where required (CatBoost, ONNX)
   - Level captured once as ``self._mlserver_log_level`` on ``MLModel.__init__``
 """
 
@@ -666,49 +666,3 @@ class TestAlibiExplainBlackBoxLoad:
         assert logging.getLogger("alibi").level == logging.ERROR
         mock_explainer_cls.assert_called_once()
 
-
-# ---------------------------------------------------------------------------
-# MLlib
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skipif(
-    not _can_import("mlserver_mllib"),
-    reason="mlserver-mllib not installed",
-)
-class TestMllibConfigureFrameworkLogger:
-    @pytest.fixture(autouse=True)
-    def _reset_py4j_logger(self):
-        yield
-        logging.getLogger("py4j").setLevel(logging.NOTSET)
-
-    def test_sets_py4j_logger_level(self):
-        from mlserver_mllib.mllib import MLlibModel
-
-        _set_mlserver_level(logging.WARNING)
-        MLlibModel(settings=_make_settings())
-        assert logging.getLogger("py4j").level == logging.WARNING
-
-    def test_stores_spark_log_level(self):
-        from mlserver_mllib.mllib import MLlibModel
-
-        _set_mlserver_level(logging.WARNING)
-        model = MLlibModel(settings=_make_settings())
-        assert model._spark_log_level == "WARN"
-
-    @pytest.mark.parametrize(
-        "python_level,expected_spark",
-        [
-            (logging.DEBUG, "DEBUG"),
-            (logging.INFO, "INFO"),
-            (logging.WARNING, "WARN"),
-            (logging.ERROR, "ERROR"),
-            (logging.CRITICAL, "ERROR"),
-        ],
-    )
-    def test_spark_level_mapping(self, python_level: int, expected_spark: str):
-        from mlserver_mllib.mllib import MLlibModel
-
-        _set_mlserver_level(python_level)
-        model = MLlibModel(settings=_make_settings())
-        assert model._spark_log_level == expected_spark

@@ -22,11 +22,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "pip"
-    directory: "/runtimes/mllib"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
     directory: "/runtimes/sklearn"
     schedule:
       interval: "weekly"

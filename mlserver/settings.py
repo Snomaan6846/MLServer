@@ -67,7 +67,6 @@ ALLOWED_MODEL_IMPLEMENTATIONS = {
     "mlserver_sklearn.SKLearnModel",
     "mlserver_xgboost.XGBoostModel",
     "mlserver_lightgbm.LightGBMModel",
-    "mlserver_mllib.MLlibModel",
     "mlserver_onnx.OnnxModel",
 }
 
@@ -83,7 +82,6 @@ _BUILTIN_RUNTIME_IMPORT_PATH_ALIASES = {
     "mlserver_sklearn.sklearn.SKLearnModel": "mlserver_sklearn.SKLearnModel",
     "mlserver_xgboost.xgboost.XGBoostModel": "mlserver_xgboost.XGBoostModel",
     "mlserver_lightgbm.lightgbm.LightGBMModel": "mlserver_lightgbm.LightGBMModel",
-    "mlserver_mllib.mllib.MLlibModel": "mlserver_mllib.MLlibModel",
     "mlserver_onnx.onnx.OnnxModel": "mlserver_onnx.OnnxModel",
 }
 

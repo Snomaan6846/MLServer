@@ -223,7 +223,6 @@ via `pip` or baked into custom images with `mlserver build`:
 | CatBoost | `mlserver-catboost` | [Docs](./runtimes/catboost) |
 | Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
 | Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
-| Spark MLlib | `mlserver-mllib` | [Docs](./runtimes/mllib) |
 
 ### Supported Python Versions
 

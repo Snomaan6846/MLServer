@@ -1219,10 +1219,6 @@ def test_canonicalize_runtime_import_path_builtins():
         == "mlserver_catboost.CatboostModel"
     )
     assert (
-        canonicalize_runtime_import_path("mlserver_mllib.mllib.MLlibModel")
-        == "mlserver_mllib.MLlibModel"
-    )
-    assert (
         canonicalize_runtime_import_path("mlserver_onnx.onnx.OnnxModel")
         == "mlserver_onnx.OnnxModel"
     )
