@@ -29,7 +29,6 @@ class in your `model-settings.json` file.
 | LightGBM     | `mlserver-lightgbm`     | `mlserver_lightgbm.LightGBMModel`          | [LightGBM example](../examples/lightgbm/README.md)         | [MLServer LightGBM](./lightgbm)                                  |
 | ONNX         | `mlserver-onnx[cpu]` or `mlserver-onnx[cuda]` | `mlserver_onnx.OnnxModel`                  | [ONNX example](../examples/onnx/README.md)                 | [MLServer ONNX](./onnx)                                  |
 | Tempo        | `tempo`                 | `tempo.mlserver.InferenceRuntime`          | [Tempo example](../examples/tempo/README.md)               | [`github.com/SeldonIO/tempo`](https://github.com/SeldonIO/tempo) |
-| Alibi-Detect | `mlserver-alibi-detect` | `mlserver_alibi_detect.AlibiDetectRuntime` | [Alibi-detect example](../examples/alibi-detect/README.md) | [MLServer Alibi-Detect](./alibi-detect)                          |
 
 ```{toctree}
 :hidden:
@@ -40,7 +39,5 @@ XGBoost <./xgboost>
 Tempo <https://tempo.readthedocs.io>
 LightGBM <./lightgbm>
 ONNX <./onnx>
-Alibi-Detect <./alibi-detect>
-Alibi-Explain <./alibi-explain>
 Custom <./custom>
 ```

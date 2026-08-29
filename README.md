@@ -212,17 +212,6 @@ covered by the default trusted runtimes allowlist:
 | LightGBM | `mlserver-lightgbm` | CPU | [Docs](./runtimes/lightgbm) |
 | ONNX Runtime | `mlserver-onnx` | CPU + CUDA | [Docs](./runtimes/onnx) |
 
-### Community Runtimes (source available, not shipped)
-
-These runtimes have source code and tests in this repository but are **not**
-included in the production container images. They can be installed separately
-via `pip` or baked into custom images with `mlserver build`:
-
-| Framework | Package | Documentation |
-|-----------|---------|---------------|
-| Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
-| Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
-
 ### Supported Python Versions
 
 | Python | Status |
@@ -268,7 +257,6 @@ To see MLServer in action, check out the [full list of examples](./docs/examples
 | [Serving a LightGBM model](./docs/examples/lightgbm/README.md) | LightGBM |
 | [Serving an ONNX model](./docs/examples/onnx/README.md) | ONNX Runtime |
 | [Serving a custom model](./docs/examples/custom/README.md) | Custom runtime |
-| [Serving an Alibi Detect model](./docs/examples/alibi-detect/README.md) | Alibi Detect |
 | [Multi-model serving](./docs/examples/mms/README.md) | Multiple frameworks |
 | [Model repository management](./docs/examples/model-repository/README.md) | Dynamic load/unload |
 
@@ -346,7 +334,4 @@ development environment setup.
 MLServer is licensed under the
 [Apache License, Version 2.0](./LICENSE).
 
-Note that some inference runtimes used alongside MLServer may be licensed under
-different terms. For example, Alibi Detect and Alibi Explain are licensed under
-the Business Source License 1.1. Refer to each runtime's documentation for
-details.
+

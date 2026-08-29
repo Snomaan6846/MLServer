@@ -58,7 +58,6 @@ TEST_ONLY_EXTRA_IMPLEMENTATIONS = {
     "tests.metrics.test_custom.CustomMetricsModel",
     "fixtures.SumModel",
     "env_models.DummySKLearnModel",
-    "runtimes.alibi-explain.tests.helpers.tf_model.TFMNISTModel",
 }
 
 

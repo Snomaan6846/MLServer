@@ -151,16 +151,11 @@ mlserver-sklearn = {path = "./runtimes/sklearn", develop = true}
 mlserver-xgboost = {path = "./runtimes/xgboost", develop = true}
 mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
 mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
-mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}
-mlserver-alibi-detect = {path = "./runtimes/alibi-detect", develop = true}
 
 [tool.poetry.group.all-runtimes-dev]
 optional = true
 
 [tool.poetry.group.all-runtimes-dev.dependencies]
-## Dev dependencies from Alibi-Explain
-requests-mock = "~1.11.0"
-types-requests = ">=2.28.11.5,<2.33.0.0"
 
 [tool.poetry.group.docs]
 optional = true

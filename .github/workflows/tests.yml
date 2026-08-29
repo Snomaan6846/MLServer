@@ -136,8 +136,6 @@ jobs:
           - xgboost
           - lightgbm
           - onnx
-          - alibi-explain
-          - alibi-detect
         is-pr:
           - ${{ github.event_name == 'pull_request' }}
         exclude:

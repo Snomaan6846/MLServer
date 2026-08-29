@@ -97,16 +97,6 @@ if html_theme == "sphinx_material":
                 "title": "Seldon Core",
             },
             {
-                "href": "https://docs.seldon.io/projects/alibi/en/stable/",
-                "internal": False,
-                "title": "Alibi Explain",
-            },
-            {
-                "href": "https://docs.seldon.io/projects/alibi-detect/en/stable/",
-                "internal": False,
-                "title": "Alibi Detect",
-            },
-            {
                 "href": "https://tempo.readthedocs.io/en/latest/",
                 "internal": False,
                 "title": "Tempo SDK",

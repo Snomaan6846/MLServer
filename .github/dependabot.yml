@@ -7,16 +7,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "pip"
-    directory: "/runtimes/alibi-detect"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
-    directory: "/runtimes/alibi-explain"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
     directory: "/runtimes/lightgbm"
     schedule:
       interval: "weekly"

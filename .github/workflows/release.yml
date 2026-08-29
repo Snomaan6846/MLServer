@@ -228,8 +228,6 @@ jobs:
       fail-fast: false
       matrix:
         runtime:
-          - alibi-detect
-          - alibi-explain
           - lightgbm
           - sklearn
           - xgboost

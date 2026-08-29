@@ -3,7 +3,7 @@
 V2 Inference Protocol (KFServing) server for multi-model ML serving over
 REST (FastAPI) and gRPC. ODH midstream fork of `SeldonIO/MLServer` with
 Konflux builds, runtime security hardening, and release automation.
-Poetry-only monorepo: core `mlserver` + 6 runtime packages under `runtimes/`.
+Poetry-only monorepo: core `mlserver` + 4 runtime packages under `runtimes/`.
 
 - **Python:** 3.10–3.12 (all branches)
 - **Package manager:** Poetry (always use Poetry, never pip install directly)
@@ -19,8 +19,8 @@ Poetry-only monorepo: core `mlserver` + 6 runtime packages under `runtimes/`.
   | `mlserver/types/dataplane.py`, `model_repository.py` | `openapi/*.yaml` |
 
 - **`runtimes/*/tox.ini` are based on `tox.runtime.ini`.** Most are exact
-  copies; a few (e.g. alibi-detect) add runtime-specific env vars. For shared
-  test config, edit the root template only.
+  copies; some add runtime-specific env vars. For shared test config, edit the
+  root template only.
 - **Do not modify without explicit request:** `.tekton/`, `.github/workflows/`,
   `OWNERS`, release/sync automation. These control the supply chain — unauthorized
   edits risk pipeline injection, secrets exposure, privilege escalation, or release

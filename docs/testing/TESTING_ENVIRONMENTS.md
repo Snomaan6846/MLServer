@@ -67,8 +67,6 @@ export GITHUB_SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
 export GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-opendatahub-io/MLServer}"
 export GITHUB_REF="${GITHUB_REF:-refs/heads/master}"
 
-# Required for all-runtimes only (alibi-explain, alibi-detect)
-export TF_USE_LEGACY_KERAS=1
 ```
 
 Then run the tests in two steps. Some test directories (`metrics`, `kafka`, `parallel`, `grpc`, `env`, `cli`) are flaky when running in parallel, so they run sequentially in a separate step.
@@ -99,7 +97,6 @@ source .venv/bin/activate
 
 # Step 1: Run most tests in parallel
 USE_CONDA=false python -m pytest -n auto tests/ \
-    runtimes/alibi-explain/ runtimes/alibi-detect/ \
     runtimes/sklearn/ runtimes/xgboost/ runtimes/lightgbm/ \
     runtimes/onnx/ \
     --ignore=tests/metrics --ignore=tests/kafka --ignore=tests/parallel \
@@ -161,8 +158,7 @@ The project defines separate Poetry dependency groups for runtime packages:
 | `odh-runtimes` | sklearn, xgboost, lightgbm, onnx | ODH-shipped runtimes used for production builds and constraints |
 | `odh-runtimes-cuda` | onnx (cuda extra) | CUDA-accelerated ONNX runtime. Requires GPU hardware for CUDA tests. Run via `make test-cuda` or `tox -c ./runtimes/onnx -e cuda`. CPU tests run automatically in CI via `tox -c ./runtimes/onnx`. |
 | `odh-runtimes-cuda-dev` | nvidia-cublas-cu12, nvidia-cudnn-cu12, nvidia-cuda-runtime-cu12, etc. | NVIDIA CUDA shared libraries installed via pip for dev/test on bare metal (no system CUDA toolkit required). Included automatically by `make install-dev-odh-cuda`. |
-| `all-runtimes` | All of the above + alibi-explain, alibi-detect | Full upstream set used for testing |
-| `all-runtimes-dev` | Dev dependencies required by upstream runtimes |
+| `all-runtimes` | All of the above (sklearn, xgboost, lightgbm, onnx) | Full set used for testing |
 
 ---
 
