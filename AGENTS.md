@@ -3,7 +3,7 @@
 V2 Inference Protocol (KFServing) server for multi-model ML serving over
 REST (FastAPI) and gRPC. ODH midstream fork of `SeldonIO/MLServer` with
 Konflux builds, runtime security hardening, and release automation.
-Poetry-only monorepo: core `mlserver` + 7 runtime packages under `runtimes/`.
+Poetry-only monorepo: core `mlserver` + 6 runtime packages under `runtimes/`.
 
 - **Python:** 3.10–3.12 (all branches)
 - **Package manager:** Poetry (always use Poetry, never pip install directly)
@@ -106,7 +106,7 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
    Log the configuration at DEBUG level. Most runtimes configure the
    framework there directly; when log settings must be passed at object
    construction, store a mapped value on `self` and apply it in `load()`
-   (e.g. catboost, onnx).
+   (e.g. onnx).
 
 10. **Requirements generation**: The workflow matrix is derived dynamically from
     `hack/requirements-config.json` (no hardcoded variant list). The `"platforms"`

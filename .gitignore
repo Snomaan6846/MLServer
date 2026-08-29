@@ -53,9 +53,6 @@ mlruns
 dataset
 lightning_logs
 
-# Runtime: CatBoost
-catboost_info/
-
 # Sphinx documentation
 docs/_build/
 

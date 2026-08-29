@@ -1215,10 +1215,6 @@ def test_canonicalize_runtime_import_path_builtins():
         == "mlserver_alibi_explain.AlibiExplainRuntime"
     )
     assert (
-        canonicalize_runtime_import_path("mlserver_catboost.catboost.CatboostModel")
-        == "mlserver_catboost.CatboostModel"
-    )
-    assert (
         canonicalize_runtime_import_path("mlserver_onnx.onnx.OnnxModel")
         == "mlserver_onnx.OnnxModel"
     )

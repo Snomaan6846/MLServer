@@ -153,7 +153,6 @@ mlserver-lightgbm = {path = "./runtimes/lightgbm", develop = true}
 mlserver-onnx = {path = "./runtimes/onnx", develop = true, extras = ["cpu"]}
 mlserver-alibi-explain = {path = "./runtimes/alibi-explain", develop = true}
 mlserver-alibi-detect = {path = "./runtimes/alibi-detect", develop = true}
-mlserver-catboost = {path = "./runtimes/catboost", develop = true}
 
 [tool.poetry.group.all-runtimes-dev]
 optional = true

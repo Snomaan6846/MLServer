@@ -6,9 +6,9 @@ installed, so the suite works in core-only CI as well as full-runtimes CI.
 
 Tests cover:
   - Base class hook contract (no-op, called in __init__, polymorphic dispatch)
-  - Level-mapping dicts (XGBoost, ONNX, CatBoost)
+  - Level-mapping dicts (XGBoost, ONNX)
   - _configure_framework_logger() side-effects for each runtime
-  - Deferred application in load() where required (CatBoost, ONNX)
+  - Deferred application in load() where required (ONNX)
   - Level captured once as ``self._mlserver_log_level`` on ``MLModel.__init__``
 """
 
@@ -475,87 +475,6 @@ class TestOnnxProviderFallbackLogging:
 
         assert "loaded with execution providers" in caplog.text
         assert "CPUExecutionProvider" in caplog.text
-
-
-# ---------------------------------------------------------------------------
-# CatBoost log-level mapping
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skipif(
-    not _can_import("mlserver_catboost"),
-    reason="mlserver-catboost not installed",
-)
-class TestCatBoostLogLevelMapping:
-    @pytest.fixture(autouse=True)
-    def _mapping(self):
-        from mlserver_catboost.catboost import _CB_LOG_LEVEL
-
-        self.mapping = _CB_LOG_LEVEL
-
-    @pytest.mark.parametrize(
-        "level,expected",
-        [
-            (logging.DEBUG, "Debug"),
-            (logging.INFO, "Info"),
-            (logging.WARNING, "Verbose"),
-            (logging.ERROR, "Silent"),
-            (logging.CRITICAL, "Silent"),
-        ],
-    )
-    def test_mapping_values(self, level: int, expected: str):
-        assert self.mapping[level] == expected
-
-    def test_verbosity_decreases_as_level_rises(self):
-        scale = ["Silent", "Verbose", "Info", "Debug"]
-        info_idx = scale.index(self.mapping[logging.INFO])
-        warn_idx = scale.index(self.mapping[logging.WARNING])
-        assert info_idx > warn_idx
-
-    def test_configure_stores_correct_level_at_warning(self):
-        from mlserver_catboost.catboost import CatboostModel
-
-        _set_mlserver_level(logging.WARNING)
-        model = CatboostModel(settings=_make_settings())
-        assert model._catboost_log_level == "Verbose"
-
-    def test_configure_stores_correct_level_at_debug(self):
-        from mlserver_catboost.catboost import CatboostModel
-
-        _set_mlserver_level(logging.DEBUG)
-        model = CatboostModel(settings=_make_settings())
-        assert model._catboost_log_level == "Debug"
-
-    @pytest.mark.parametrize("unmapped_level", [25, 15, 5])
-    def test_configure_stores_info_for_unmapped_level(self, unmapped_level):
-        from mlserver_catboost.catboost import CatboostModel
-
-        _set_mlserver_level(unmapped_level)
-        model = CatboostModel(settings=_make_settings())
-        assert model._catboost_log_level == "Info"
-
-    @pytest.mark.asyncio
-    async def test_load_passes_stored_logging_level_to_classifier(self):
-        from mlserver_catboost.catboost import CatboostModel
-        from mlserver.settings import ModelParameters
-
-        _set_mlserver_level(logging.WARNING)
-        settings = _make_settings(
-            parameters=ModelParameters(uri="/fake/model.cbm"),
-        )
-        model = CatboostModel(settings)
-
-        with patch(
-            "mlserver_catboost.catboost.get_model_uri",
-            new_callable=AsyncMock,
-            return_value="/fake/model.cbm",
-        ), patch("mlserver_catboost.catboost.CatBoostClassifier") as mock_cls:
-            mock_instance = MagicMock()
-            mock_cls.return_value = mock_instance
-            await model.load()
-
-        mock_cls.assert_called_once_with(logging_level="Verbose")
-        mock_instance.load_model.assert_called_once_with("/fake/model.cbm")
 
 
 # ---------------------------------------------------------------------------

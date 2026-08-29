@@ -27,7 +27,6 @@ class in your `model-settings.json` file.
 | Scikit-Learn | `mlserver-sklearn`      | `mlserver_sklearn.SKLearnModel`            | [Scikit-Learn example](../examples/sklearn/README.md)      | [MLServer SKLearn](./sklearn)                                    |
 | XGBoost      | `mlserver-xgboost`      | `mlserver_xgboost.XGBoostModel`            | [XGBoost example](../examples/xgboost/README.md)           | [MLServer XGBoost](./xgboost)                                    |
 | LightGBM     | `mlserver-lightgbm`     | `mlserver_lightgbm.LightGBMModel`          | [LightGBM example](../examples/lightgbm/README.md)         | [MLServer LightGBM](./lightgbm)                                  |
-| CatBoost     | `mlserver-catboost`     | `mlserver_catboost.CatboostModel`          | [CatBoost example](../examples/catboost/README.md)         | [MLServer CatBoost](./catboost)                                  |
 | ONNX         | `mlserver-onnx[cpu]` or `mlserver-onnx[cuda]` | `mlserver_onnx.OnnxModel`                  | [ONNX example](../examples/onnx/README.md)                 | [MLServer ONNX](./onnx)                                  |
 | Tempo        | `tempo`                 | `tempo.mlserver.InferenceRuntime`          | [Tempo example](../examples/tempo/README.md)               | [`github.com/SeldonIO/tempo`](https://github.com/SeldonIO/tempo) |
 | Alibi-Detect | `mlserver-alibi-detect` | `mlserver_alibi_detect.AlibiDetectRuntime` | [Alibi-detect example](../examples/alibi-detect/README.md) | [MLServer Alibi-Detect](./alibi-detect)                          |
@@ -40,7 +39,6 @@ SKLearn <./sklearn>
 XGBoost <./xgboost>
 Tempo <https://tempo.readthedocs.io>
 LightGBM <./lightgbm>
-Catboost <./catboost>
 ONNX <./onnx>
 Alibi-Detect <./alibi-detect>
 Alibi-Explain <./alibi-explain>

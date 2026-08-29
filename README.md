@@ -220,7 +220,6 @@ via `pip` or baked into custom images with `mlserver build`:
 
 | Framework | Package | Documentation |
 |-----------|---------|---------------|
-| CatBoost | `mlserver-catboost` | [Docs](./runtimes/catboost) |
 | Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
 | Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
 
@@ -267,7 +266,6 @@ To see MLServer in action, check out the [full list of examples](./docs/examples
 | [Serving a scikit-learn model](./docs/examples/sklearn/README.md) | Scikit-Learn |
 | [Serving an XGBoost model](./docs/examples/xgboost/README.md) | XGBoost |
 | [Serving a LightGBM model](./docs/examples/lightgbm/README.md) | LightGBM |
-| [Serving a CatBoost model](./docs/examples/catboost/README.md) | CatBoost |
 | [Serving an ONNX model](./docs/examples/onnx/README.md) | ONNX Runtime |
 | [Serving a custom model](./docs/examples/custom/README.md) | Custom runtime |
 | [Serving an Alibi Detect model](./docs/examples/alibi-detect/README.md) | Alibi Detect |
