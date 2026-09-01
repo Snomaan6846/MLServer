@@ -1,191 +1,332 @@
-# MLServer
+<p align="center">
+  <img src="./docs/assets/mlserver-logo.png" alt="MLServer" width="400" />
+</p>
 
-An open source inference server for your machine learning models.
+<p align="center">
+  <strong>An open source inference server for your machine learning models.</strong>
+</p>
 
-[![video_play_icon](https://user-images.githubusercontent.com/10466106/151803854-75d17c32-541c-4eee-b589-d45b07ea486d.png)](https://www.youtube.com/watch?v=aZHe3z-8C_w)
+<p align="center">
+  <a href="https://pypi.org/project/mlserver"><img alt="PyPI" src="https://img.shields.io/pypi/v/mlserver?color=blue&label=PyPI"></a>
+  <a href="https://pypi.org/project/mlserver"><img alt="Python" src="https://img.shields.io/pypi/pyversions/mlserver?color=green"></a>
+  <a href="https://github.com/opendatahub-io/MLServer/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/opendatahub-io/MLServer?color=orange"></a>
+  <a href="https://github.com/opendatahub-io/MLServer/actions/workflows/tests.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/opendatahub-io/MLServer/tests.yml?label=tests"></a>
+  <a href="https://github.com/opendatahub-io/MLServer/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/opendatahub-io/MLServer?style=social"></a>
+</p>
 
-## Overview
+---
 
-MLServer aims to provide an easy way to start serving your machine learning
-models through a REST and gRPC interface, fully compliant with [KFServing's V2
-Dataplane](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html)
-spec. Watch a quick video introducing the project [here](https://www.youtube.com/watch?v=aZHe3z-8C_w).
+## Table of Contents
 
-- Multi-model serving, letting users run multiple models within the same
-  process.
-- Ability to run [inference in parallel for vertical
-  scaling](https://mlserver.readthedocs.io/en/latest/user-guide/parallel-inference.html)
-  across multiple models through a pool of inference workers.
-- Support for [adaptive
-  batching](https://mlserver.readthedocs.io/en/latest/user-guide/adaptive-batching.html),
-  to group inference requests together on the fly.
-- Scalability with deployment in Kubernetes native frameworks, including
-  [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/latest/graph/protocols.html#v2-kfserving-protocol) and
-  [KServe (formerly known as KFServing)](https://kserve.github.io/website/modelserving/v1beta1/sklearn/v2/), where
-  MLServer is the core Python inference server used to serve machine learning
-  models.
-- Support for the standard [V2 Inference Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html) on
-  both the gRPC and REST flavours, which has been standardised and adopted by
-  various model serving frameworks.
+- [Why MLServer?](#why-mlserver)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Inference Runtimes](#inference-runtimes)
+- [How MLServer Compares](#how-mlserver-compares)
+- [Examples](#examples)
+- [Engineering Documentation](#engineering-documentation)
+- [Contributing & Community](#contributing--community)
+- [Developer Guide](#developer-guide)
+- [License](#license)
 
-You can read more about the goals of this project on the [initial design
-document](https://docs.google.com/document/d/1C2uf4SaAtwLTlBCciOhvdiKQ2Eay4U72VxAD4bXe7iU/edit?usp=sharing).
+---
 
-## Usage
+## Why MLServer?
 
-You can install the `mlserver` package running:
+You've trained a model. Now what?
+
+Getting a model from a Jupyter notebook into a production API that's reliable,
+observable, and secure is harder than it should be. Most teams end up writing
+custom Flask or FastAPI wrappers, re-inventing health checks, batching, metrics,
+and multi-model routing from scratch every time.
+
+**MLServer gives you all of that out of the box**, with a standardised wire
+format that works across frameworks:
+
+- **One server, many models** — serve scikit-learn, XGBoost, HuggingFace,
+  ONNX, and custom models side by side in a single process. No per-model
+  containers needed.
+- **Production-grade by default** — health probes, Prometheus metrics,
+  adaptive batching, parallel workers, and response caching are built in,
+  not bolted on.
+- **Standards-based** — implements the
+  [V2 Inference Protocol](https://kserve.github.io/website/latest/modelserving/data_plane/v2_protocol/)
+  over both REST and gRPC, so your clients work with MLServer, NVIDIA Triton,
+  TorchServe, or any other V2-compliant server without code changes.
+- **Kubernetes native** — the core Python runtime behind
+  [KServe](https://kserve.github.io/website/) InferenceServices, with
+  first-class support for readiness probes, model lifecycle, and rolling
+  deployments.
+
+---
+
+## Quick Start
+
+### 1. Install
 
 ```bash
-pip install mlserver
+pip install mlserver mlserver-sklearn
 ```
 
-Note that to use any of the optional [inference runtimes](#inference-runtimes),
-you'll need to install the relevant package.
-For example, to serve a `scikit-learn` model, you would need to install the
-`mlserver-sklearn` package:
+### 2. Train and save a model
+
+```python
+# train.py
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+import joblib
+
+X, y = load_iris(return_X_y=True)
+model = LogisticRegression(max_iter=200).fit(X, y)
+joblib.dump(model, "model.joblib")
+```
+
+### 3. Create a model settings file
+
+```json
+{
+  "name": "iris",
+  "implementation": "mlserver_sklearn.SKLearnModel",
+  "parameters": {
+    "uri": "./model.joblib",
+    "version": "v1"
+  }
+}
+```
+
+Save this as `model-settings.json` in the same directory.
+
+### 4. Start serving
 
 ```bash
-pip install mlserver-sklearn
+mlserver start .
 ```
 
-For further information on how to use MLServer, you can check any of the
-[available examples](#examples).
+### 5. Make a prediction
+
+```bash
+curl -s localhost:8080/v2/models/iris/infer \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "inputs": [{
+      "name": "predict",
+      "shape": [1, 4],
+      "datatype": "FP32",
+      "data": [[5.1, 3.5, 1.4, 0.2]]
+    }]
+  }' | python -m json.tool
+```
+
+```json
+{
+  "model_name": "iris",
+  "model_version": "v1",
+  "id": "...",
+  "outputs": [{
+    "name": "predict",
+    "shape": [1, 1],
+    "datatype": "INT64",
+    "data": [0]
+  }]
+}
+```
+
+That's it. You now have a model behind a V2-compliant REST + gRPC API with
+health checks, Prometheus metrics, and Swagger UI at
+[localhost:8080/v2/docs](http://localhost:8080/v2/docs).
+
+---
+
+## Features
+
+| Feature | What it does | Why it matters |
+|---------|-------------|----------------|
+| **Multi-model serving** | Run multiple models in a single server with independent versioning and lifecycle | Reduce infrastructure overhead; no per-model container sprawl |
+| **Parallel inference** | Bypass the Python GIL via multiprocessing worker pools | True CPU-parallel prediction for throughput-sensitive workloads |
+| **Adaptive batching** | Transparently group incoming requests into batches by size or time threshold | Higher GPU/CPU utilization without client-side batching logic |
+| **Response caching** | LRU cache keyed on request payload | Avoid redundant computation for repeated inputs |
+| **Streaming inference** | Server-Sent Events (REST) and bidirectional streaming (gRPC) | Token-by-token generation for LLMs and iterative models |
+| **Runtime security** | DEVELOPMENT / PRODUCTION dual-mode allowlist | Prevent arbitrary code execution in production images |
+| **V2 Inference Protocol** | REST + gRPC wire format standard | Client portability across serving frameworks |
+| **Prometheus metrics** | Request count, latency, and failure counters per model | Production observability out of the box |
+| **OpenTelemetry tracing** | Distributed trace propagation via OTLP | End-to-end request tracing across microservices |
+| **Codec system** | Two-level type conversion (InputCodec + RequestCodec) | Automatic NumPy, Pandas, string, datetime conversion |
+| **Custom runtimes** | Subclass `MLModel` with `load()` and `predict()` | Serve any model framework in under 20 lines of Python |
+
+---
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "External"
+        Client["Client"]
+        Prometheus["Prometheus"]
+    end
+
+    subgraph "MLServer"
+        REST["REST Server :8080"]
+        GRPC["gRPC Server :8081"]
+        Metrics["Metrics Server :8082"]
+        DP["DataPlane"]
+        Registry["MultiModelRegistry"]
+        Pool["InferencePool"]
+    end
+
+    Client -->|HTTP| REST
+    Client -->|gRPC| GRPC
+    Prometheus -->|scrape| Metrics
+    REST --> DP
+    GRPC --> DP
+    DP --> Registry
+    Registry --> Pool
+```
+
+Both REST and gRPC transports converge on a single **DataPlane** handler that
+manages inference middleware, Prometheus instrumentation, and response caching.
+The **MultiModelRegistry** maps model names to versioned instances, and the
+**InferencePool** dispatches work to parallel workers when configured.
+
+For detailed architecture documentation including component diagrams,
+sequence flows, and design decisions, see the
+[Architecture Guide](./docs/engineering/architecture.md).
+
+---
 
 ## Inference Runtimes
 
-Inference runtimes allow you to define how your model should be used within
-MLServer.
-You can think of them as the **backend glue** between MLServer and your machine
-learning framework of choice.
-You can read more about [inference runtimes in their documentation
-page](./docs/runtimes/index.md).
+Inference runtimes are the backend glue between MLServer and your ML framework.
+You can [write custom runtimes](./docs/runtimes/custom.md) by subclassing
+`MLModel`.
 
-Out of the box, MLServer comes with a set of pre-packaged runtimes which let
-you interact with a subset of common frameworks.
-This allows you to start serving models saved in these frameworks straight
-away.
-However, it's also possible to **[write custom
-runtimes](./docs/runtimes/custom.md)**.
+### Shipped Runtimes (included in production images)
 
-Out of the box, MLServer provides support for:
+These runtimes are installed in the ODH midstream container images and
+covered by the default trusted runtimes allowlist:
 
-| Framework     | Supported | Documentation                                                    |
-| ------------- | --------- | ---------------------------------------------------------------- |
-| Scikit-Learn  | ✅        | [MLServer SKLearn](./runtimes/sklearn)                           |
-| XGBoost       | ✅        | [MLServer XGBoost](./runtimes/xgboost)                           |
-| Spark MLlib   | ✅        | [MLServer MLlib](./runtimes/mllib)                               |
-| LightGBM      | ✅        | [MLServer LightGBM](./runtimes/lightgbm)                         |
-| CatBoost      | ✅        | [MLServer CatBoost](./runtimes/catboost)                         |
-| ONNX          | ✅        | [MLServer ONNX](./runtimes/onnx)                                 |
-| Tempo         | ✅        | [`github.com/SeldonIO/tempo`](https://github.com/SeldonIO/tempo) |
-| MLflow        | ✅        | [MLServer MLflow](./runtimes/mlflow)                             |
-| Alibi-Detect  | ✅        | [MLServer Alibi Detect](./runtimes/alibi-detect)                 |
-| Alibi-Explain | ✅        | [MLServer Alibi Explain](./runtimes/alibi-explain)               |
-| HuggingFace   | ✅        | [MLServer HuggingFace](./runtimes/huggingface)                   |
+| Framework | Package | Image | Documentation |
+|-----------|---------|-------|---------------|
+| Scikit-Learn | `mlserver-sklearn` | CPU | [Docs](./runtimes/sklearn) |
+| XGBoost | `mlserver-xgboost` | CPU | [Docs](./runtimes/xgboost) |
+| LightGBM | `mlserver-lightgbm` | CPU | [Docs](./runtimes/lightgbm) |
+| ONNX Runtime | `mlserver-onnx` | CPU + CUDA | [Docs](./runtimes/onnx) |
 
-### Runtime Security Maintainer Note
+### Community Runtimes (source available, not shipped)
 
-MLServer enforces a trusted runtime implementation allowlist in
-`mlserver/settings.py` (`ALLOWED_MODEL_IMPLEMENTATIONS`) when resolving model
-implementations from `model-settings.json` and
-`MLSERVER_MODEL_IMPLEMENTATION`.
+These runtimes have source code and tests in this repository but are **not**
+included in the production container images. They can be installed separately
+via `pip` or baked into custom images with `mlserver build`:
 
-If you add a new core runtime implementation shipped by this repository, you
-must also:
+| Framework | Package | Documentation |
+|-----------|---------|---------------|
+| CatBoost | `mlserver-catboost` | [Docs](./runtimes/catboost) |
+| MLflow | `mlserver-mlflow` | [Docs](./runtimes/mlflow) |
+| HuggingFace | `mlserver-huggingface` | [Docs](./runtimes/huggingface) |
+| Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
+| Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
+| Spark MLlib | `mlserver-mllib` | [Docs](./runtimes/mllib) |
 
-1. Add the runtime import path to `ALLOWED_MODEL_IMPLEMENTATIONS`.
-2. Add or update tests validating allowlist behavior.
-3. Keep runtime docs/examples aligned with the implementation import path.
+### Supported Python Versions
 
-For third-party or project-specific custom runtimes, do not extend the global
-allowlist. Use the image-scoped runtime workflow with `mlserver build`:
+| Python | Status |
+|--------|--------|
+| 3.10 | Supported |
+| 3.11 | Supported |
+| 3.12 | Supported |
 
-**Building Images with Custom Runtimes:**
+Python 3.9 and earlier are no longer supported. Python 3.13 is not yet tested.
 
-```bash
-# PRODUCTION mode (production): Allowlist specific custom runtimes
-mlserver build . -t my-image \
-  --allow-runtime models.MyRuntime \
-  --runtime-path models.py
+---
 
-# DEVELOPMENT mode (development): Allow any runtime
-mlserver build . -t my-dev-image --dev
-```
+## How MLServer Compares
 
-### Runtime Security Modes
+| Capability | MLServer | NVIDIA Triton | TorchServe | BentoML |
+|-----------|----------|---------------|------------|---------|
+| V2 Inference Protocol | REST + gRPC | REST + gRPC | REST + gRPC | REST (custom) |
+| Multi-model serving | Built-in | Built-in | Limited | Built-in |
+| Adaptive batching | Built-in | Built-in | Built-in | Built-in |
+| Parallel inference (Python) | Multiprocessing pool | C++ backends | Java workers | Runner workers |
+| Custom Python runtimes | Subclass `MLModel` | Python backend | Handler class | Service class |
+| KServe integration | Native runtime | Supported | Supported | Supported |
+| Response caching | Built-in | External | External | External |
+| Streaming inference | SSE + gRPC | gRPC | Not built-in | SSE |
+| Runtime security modes | Built-in allowlist | Model control | Not built-in | Not built-in |
+| Language | Python | C++ / Python | Java / Python | Python |
 
-MLServer operates in one of two security modes for loading custom runtimes:
+MLServer is purpose-built for **Python ML frameworks** with a focus on
+standards compliance, security, and Kubernetes-native deployment. If your
+workload is Python models served on Kubernetes via KServe, MLServer is the
+natural fit.
 
-**PRODUCTION Mode (Production):**
-- Enforced when a trusted runtimes allowlist file exists in the image
-- Only explicitly allowlisted runtimes can be loaded
-- Custom runtimes must be baked into the image with `--allow-runtime` and `--runtime-path`
-- Provides strong security guarantees for production deployments
-
-**DEVELOPMENT Mode (Development):**
-- Active when no allowlist file exists (e.g., running `mlserver start` directly)
-- Supports dynamic loading of custom runtimes directly from model folders
-- Simply place your custom runtime `.py` file next to `model-settings.json`
-- Convenient for rapid local development and testing
-- **WARNING:** Should NEVER be used in production - allows arbitrary code execution
-
-You can query the current security mode through the `/v2/runtimes` REST endpoint
-or `RuntimeSecurity` gRPC method. See the [model-settings reference](./docs/reference/model-settings.md#querying-runtime-security-configuration)
-and [custom runtimes guide](./docs/user-guide/custom.md) for details.
-
-MLServer is licensed under the Apache License, Version 2.0. However please note that software used in conjunction with, or alongside, MLServer may be licensed under different terms. For example, Alibi Detect and Alibi Explain are both licensed under the Business Source License 1.1. For more information about the legal terms of products that are used in conjunction with or alongside MLServer, please refer to their respective documentation.
-
-## Supported Python Versions
-
-🔴 Unsupported
-
-🟠 Deprecated: To be removed in a future version
-
-🟢 Supported
-
-🔵 Untested
-
-| Python Version | Status |
-| -------------- | ------ |
-| 3.7            | 🔴     |
-| 3.8            | 🔴     |
-| 3.9            | 🔴     |
-| 3.10           | 🟢     |
-| 3.11           | 🟢     |
-| 3.12           | 🟢     |
-| 3.13           | 🔴     |
+---
 
 ## Examples
 
-To see MLServer in action, check out [our full list of
-examples](./docs/examples/index.md).
-You can find below a few selected examples showcasing how you can leverage
-MLServer to start serving your machine learning models.
+To see MLServer in action, check out the [full list of examples](./docs/examples/index.md):
 
-- [Serving a `scikit-learn` model](./docs/examples/sklearn/README.md)
-- [Serving a `xgboost` model](./docs/examples/xgboost/README.md)
-- [Serving a `lightgbm` model](./docs/examples/lightgbm/README.md)
-- [Serving a `catboost` model](./docs/examples/catboost/README.md)
-- [Serving an `onnx` model](./docs/examples/onnx/README.md)
-- [Serving a `tempo` pipeline](./docs/examples/tempo/README.md)
-- [Serving a custom model](./docs/examples/custom/README.md)
-- [Serving an `alibi-detect` model](./docs/examples/alibi-detect/README.md)
-- [Serving a `HuggingFace` model](./docs/examples/huggingface/README.md)
-- [Multi-Model Serving with multiple frameworks](./docs/examples/mms/README.md)
-- [Loading / unloading models from a model repository](./docs/examples/model-repository/README.md)
+| Example | Framework |
+|---------|-----------|
+| [Serving a scikit-learn model](./docs/examples/sklearn/README.md) | Scikit-Learn |
+| [Serving an XGBoost model](./docs/examples/xgboost/README.md) | XGBoost |
+| [Serving a LightGBM model](./docs/examples/lightgbm/README.md) | LightGBM |
+| [Serving a CatBoost model](./docs/examples/catboost/README.md) | CatBoost |
+| [Serving an ONNX model](./docs/examples/onnx/README.md) | ONNX Runtime |
+| [Serving a custom model](./docs/examples/custom/README.md) | Custom runtime |
+| [Serving an Alibi Detect model](./docs/examples/alibi-detect/README.md) | Alibi Detect |
+| [Serving a HuggingFace model](./docs/examples/huggingface/README.md) | HuggingFace |
+| [Multi-model serving](./docs/examples/mms/README.md) | Multiple frameworks |
+| [Model repository management](./docs/examples/model-repository/README.md) | Dynamic load/unload |
+
+---
+
+## Engineering Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](./docs/engineering/architecture.md) | System design with 8 Mermaid diagrams |
+| [API Reference](./docs/engineering/api.md) | REST, gRPC, and Kafka endpoint reference |
+| [ADRs](./docs/engineering/adr/) | Architecture Decision Records |
+| [Deployment](./docs/engineering/deployment.md) | Container images, Kubernetes, health checks |
+| [Security](./docs/engineering/security.md) | Runtime security model reference |
+| [Onboarding](./docs/engineering/onboarding.md) | New developer setup guide |
+| [FAQ](./docs/engineering/faq.md) | Common questions and troubleshooting |
+
+---
+
+## Contributing & Community
+
+We welcome contributions of all kinds. Whether you're fixing a typo, adding a
+runtime, or improving documentation, here's how to get involved:
+
+- **[Contributing Guide](./CONTRIBUTING.md)** — development setup, code style,
+  commit conventions, and PR process
+- **[Good first issues](https://github.com/opendatahub-io/MLServer/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** —
+  curated issues for new contributors
+- **[Open issues](https://github.com/opendatahub-io/MLServer/issues)** —
+  report bugs or request features
+
+### Runtime Security Maintainer Note
+
+If you add a new core runtime shipped by this repository:
+
+1. Add the runtime import path to `ALLOWED_MODEL_IMPLEMENTATIONS` in
+   `mlserver/settings.py`.
+2. Add or update tests validating allowlist behavior.
+3. Keep runtime docs/examples aligned with the implementation import path.
+
+For third-party custom runtimes, use the image-scoped workflow with
+`mlserver build` instead of extending the global allowlist. See the
+[Security Guide](./docs/engineering/security.md) for details.
+
+---
 
 ## Developer Guide
 
 ### Versioning
 
-Both the main `mlserver` package and the [inference runtimes
-packages](./docs/runtimes/index.md) try to follow the same versioning schema.
-To bump the version across all of them, you can use the
-[`./hack/update-version.sh`](./hack/update-version.sh) script.
-
-We generally keep the version as a placeholder for an upcoming version.
-
-For example:
+Both the main `mlserver` package and the [inference runtimes](./docs/runtimes/index.md)
+follow the same versioning schema. To bump the version across all packages:
 
 ```bash
 ./hack/update-version.sh 0.2.0.dev1
@@ -193,14 +334,25 @@ For example:
 
 ### Testing
 
-To run all of the tests for MLServer and the runtimes, use:
-
 ```bash
+# Run all tests
 make test
-```
 
-To run run tests for a single file, use something like:
-
-```bash
+# Run tests for a single file
 tox -e py3 -- tests/batch_processing/test_rest.py
 ```
+
+See the [Onboarding Guide](./docs/engineering/onboarding.md) for full
+development environment setup.
+
+---
+
+## License
+
+MLServer is licensed under the
+[Apache License, Version 2.0](./LICENSE).
+
+Note that some inference runtimes used alongside MLServer may be licensed under
+different terms. For example, Alibi Detect and Alibi Explain are licensed under
+the Business Source License 1.1. Refer to each runtime's documentation for
+details.

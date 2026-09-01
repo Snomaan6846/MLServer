@@ -67,3 +67,7 @@ runtimes/alibi-explain/tests/.data/**
 
 # Docker metadata
 .docker/
+
+# Diagram build artifacts
+docs/diagrams/.manim-venv/
+docs/diagrams/media/
