@@ -1,627 +1,533 @@
 # Changelog
 
 
-<a id="1.7.0"></a>
-## [1.7.0](https://github.com/SeldonIO/MLServer/releases/tag/1.7.0) - 2025-04-11
+<a id="v1.7.1+rhai14"></a>
+## [AIPCC release for MLServer v1.7.1+rhai14 for rhoai-3.3](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai14) - 2026-09-02
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.7.0 -->
-
-## Overview
-
-### Features
-* MLServer has now support for Python 3.11 and 3.12 by [@shivakrishnaah](https://github.com/shivakrishnaah) in ([#1951](https://github.com/SeldonIO/MLServer/issues/1951))
-* MLServer now supports enabling assignment of models to dedicated inference pool groups to avoid risk of starvation by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in (#[#2040](https://github.com/SeldonIO/MLServer/issues/2040))
-* MLServer now includes compatibility with additional column types available in the MLflow runtime such as: [Array](https://mlflow.org/docs/latest/api_reference/python_api/mlflow.types.html#mlflow.types.schema.Array), [Map](https://mlflow.org/docs/latest/api_reference/python_api/mlflow.types.html#mlflow.types.schema.Map), [Object](https://mlflow.org/docs/latest/api_reference/python_api/mlflow.types.html#mlflow.types.schema.Object), [Any](https://mlflow.org/docs/latest/api_reference/python_api/mlflow.types.html#mlflow.types.schema.Map) by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in ([#2080](https://github.com/SeldonIO/MLServer/issues/2080))
-
-### Fixes
-* Relaxing Pydantic dependencies by [@lemonhead94](https://github.com/lemonhead94) in ([#1928](https://github.com/SeldonIO/MLServer/issues/1928))
-* Adjusted the version range for FastAPI  to ensure compatibility with future releases by [@sergioave](https://github.com/sergioave)  in ([#1954](https://github.com/SeldonIO/MLServer/issues/1954))
-* Forward rest parameters to model [@idlefella](https://github.com/idlefella) in ([#1921](https://github.com/SeldonIO/MLServer/issues/1921))
-* Force clean up env fix by [@sakoush](https://github.com/sakoush) in ([#2029](https://github.com/SeldonIO/MLServer/issues/2029))
-* PandasCodec improperly encoding columns of numeric lists fix by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in ([#2080](https://github.com/SeldonIO/MLServer/issues/2080))
-* Opentelemetry dependency mismatch fix by [@lawrence-c](https://github.com/lawrence-c) in ([#2088](https://github.com/SeldonIO/MLServer/issues/2088))
-* AdaptiveBatcher timeout calculation fix by [@hanlaur](https://github.com/hanlaur) in ([#2093](https://github.com/SeldonIO/MLServer/issues/2093))
+<!-- Release notes generated using configuration in .github/release.yml at release-rhoai-3.3 -->
 
 ## What's Changed
-* Update CHANGELOG by [@github-actions](https://github.com/github-actions) in [#1905](https://github.com/SeldonIO/MLServer/pull/1905)
-* docs: add docs for gitbook by [@sakoush](https://github.com/sakoush) in [#1919](https://github.com/SeldonIO/MLServer/pull/1919)
-* Relaxing Pydantic dependencies by [@lemonhead94](https://github.com/lemonhead94) in [#1928](https://github.com/SeldonIO/MLServer/pull/1928)
-* build(deps): Upgrade fastapi and starlette by [@sakoush](https://github.com/sakoush) in [#1934](https://github.com/SeldonIO/MLServer/pull/1934)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1935](https://github.com/SeldonIO/MLServer/pull/1935)
-* Update FastAPI version constraint by [@sergioave](https://github.com/sergioave) in [#1954](https://github.com/SeldonIO/MLServer/pull/1954)
-* Forward rest parameters to model by [@idlefella](https://github.com/idlefella) in [#1921](https://github.com/SeldonIO/MLServer/pull/1921)
-* Revert "build(deps): bump mlflow from 2.18.0 to 2.19.0 in /runtimes/mlflow" by [@sakoush](https://github.com/sakoush) in [#1988](https://github.com/SeldonIO/MLServer/pull/1988)
-* Added dependency upgrades for python3.12 support by [@shivakrishnaah](https://github.com/shivakrishnaah) in [#1951](https://github.com/SeldonIO/MLServer/pull/1951)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1991](https://github.com/SeldonIO/MLServer/pull/1991)
-* Further CI fixes for py312 support by [@sakoush](https://github.com/sakoush) in [#1992](https://github.com/SeldonIO/MLServer/pull/1992)
-* Revert "build(deps): bump python-multipart from 0.0.9 to 0.0.18 in /runtimes/alibi-detect" by [@sakoush](https://github.com/sakoush) in [#1994](https://github.com/SeldonIO/MLServer/pull/1994)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#2027](https://github.com/SeldonIO/MLServer/pull/2027)
-* Force clean up env (for py 3.12) by [@sakoush](https://github.com/sakoush) in [#2029](https://github.com/SeldonIO/MLServer/pull/2029)
-* Pinned preflight to latest version by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2041](https://github.com/SeldonIO/MLServer/pull/2041)
-* Bump gevent to 24.11.1 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2042](https://github.com/SeldonIO/MLServer/pull/2042)
-* Bumped python-multipart to 0.0.20 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2043](https://github.com/SeldonIO/MLServer/pull/2043)
-* Bumped python-multipart-0.0.20 on alibi-explain runtime by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2044](https://github.com/SeldonIO/MLServer/pull/2044)
-* Included separate inference pool by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2040](https://github.com/SeldonIO/MLServer/pull/2040)
-* Wrote docs for inference_pool_gid by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2045](https://github.com/SeldonIO/MLServer/pull/2045)
-* Update lightgbm in alibi runtime to 4.6 by [@sakoush](https://github.com/sakoush) in [#2081](https://github.com/SeldonIO/MLServer/pull/2081)
-* Fix pandas codec by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2080](https://github.com/SeldonIO/MLServer/pull/2080)
-* Fix interceptors insert tuple -> list by [@lawrence-c](https://github.com/lawrence-c) in [#2088](https://github.com/SeldonIO/MLServer/pull/2088)
-* Fix AdaptiveBatcher timeout calculation by [@hanlaur](https://github.com/hanlaur) in [#2093](https://github.com/SeldonIO/MLServer/pull/2093)
-* Fix onnxruntime version by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2100](https://github.com/SeldonIO/MLServer/pull/2100)
-* Included labels for preflight checks by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2101](https://github.com/SeldonIO/MLServer/pull/2101)
-* Bumped poetry to 2.1.1 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2103](https://github.com/SeldonIO/MLServer/pull/2103)
-* Add installation for poetry export plugin by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2104](https://github.com/SeldonIO/MLServer/pull/2104)
-* ci: Merge change for release 1.7.0 [4] by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#2107](https://github.com/SeldonIO/MLServer/pull/2107)
+* chore: update version to 1.7.1+rhai14 by [@Snomaan6846](https://github.com/Snomaan6846) in [#305](https://github.com/opendatahub-io/MLServer/pull/305)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.14...v1.7.1+rhai14
+
+[Changes][v1.7.1+rhai14]
+
+
+<a id="odh-v3.6-EA1"></a>
+## [odh-v3.6-EA1](https://github.com/opendatahub-io/MLServer/releases/tag/odh-v3.6-EA1) - 2026-09-01
+
+<!-- Release notes generated using configuration in .github/release.yml at odh-v3.6-EA1 -->
+
+## What's Changed
+* Update OWNERS File by [@brettmthompson](https://github.com/brettmthompson) in [#3](https://github.com/opendatahub-io/MLServer/pull/3)
+* Refactor Dockerfile to remove non-required runtimes from MLServer image by [@Snomaan6846](https://github.com/Snomaan6846) in [#1](https://github.com/opendatahub-io/MLServer/pull/1)
+* Adding Workflow To Merge Release Branches to rhoai-staging Branch by [@brettmthompson](https://github.com/brettmthompson) in [#2](https://github.com/opendatahub-io/MLServer/pull/2)
+* Stabilize CI Tests by [@brettmthompson](https://github.com/brettmthompson) in [#5](https://github.com/opendatahub-io/MLServer/pull/5)
+* updating owners aliases file by [@brettmthompson](https://github.com/brettmthompson) in [#10](https://github.com/opendatahub-io/MLServer/pull/10)
+* Remove conda reference from Dockerfile by [@Snomaan6846](https://github.com/Snomaan6846) in [#6](https://github.com/opendatahub-io/MLServer/pull/6)
+* Adding Required Workflows by [@brettmthompson](https://github.com/brettmthompson) in [#12](https://github.com/opendatahub-io/MLServer/pull/12)
+* Add build arguments to parameterize Dockerfile base images by [@Snomaan6846](https://github.com/Snomaan6846) in [#13](https://github.com/opendatahub-io/MLServer/pull/13)
+* Sync master to release-1.7.x by [@brettmthompson](https://github.com/brettmthompson) in [#18](https://github.com/opendatahub-io/MLServer/pull/18)
+* preserving commit history in the release to staging sync workflow by [@brettmthompson](https://github.com/brettmthompson) in [#19](https://github.com/opendatahub-io/MLServer/pull/19)
+* Revert "Sync master to release-1.7.x ([#18](https://github.com/opendatahub-io/MLServer/issues/18))" by [@brettmthompson](https://github.com/brettmthompson) in [#21](https://github.com/opendatahub-io/MLServer/pull/21)
+* Sync master to release-1.7.x by [@brettmthompson](https://github.com/brettmthompson) in [#22](https://github.com/opendatahub-io/MLServer/pull/22)
+* improvements to sync workflow by [@brettmthompson](https://github.com/brettmthompson) in [#25](https://github.com/opendatahub-io/MLServer/pull/25)
+* Cherry-pick from master to release branch by [@Snomaan6846](https://github.com/Snomaan6846) in [#30](https://github.com/opendatahub-io/MLServer/pull/30)
+* Downgrade odh release version to 3.2 by [@Snomaan6846](https://github.com/Snomaan6846) in [#34](https://github.com/opendatahub-io/MLServer/pull/34)
+* Harden Event Loop Logic by [@brettmthompson](https://github.com/brettmthompson) in [#35](https://github.com/opendatahub-io/MLServer/pull/35)
+* converting all occurences of get_event_loop to get_running_loop ([#35](https://github.com/opendatahub-io/MLServer/issues/35)) by [@brettmthompson](https://github.com/brettmthompson) in [#36](https://github.com/opendatahub-io/MLServer/pull/36)
+* Update Tekton files to version odh-v3.2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#37](https://github.com/opendatahub-io/MLServer/pull/37)
+* chore(konflux): Bump release tag to odh-v3.3 by [@github-actions](https://github.com/github-actions)[bot] in [#39](https://github.com/opendatahub-io/MLServer/pull/39)
+* Upgrade sklearn images used in testing to the latest version by [@brettmthompson](https://github.com/brettmthompson) in [#44](https://github.com/opendatahub-io/MLServer/pull/44)
+* Disable Security Scan In ODH by [@brettmthompson](https://github.com/brettmthompson) in [#45](https://github.com/opendatahub-io/MLServer/pull/45)
+* Podman Support for MLServer Tests by [@brettmthompson](https://github.com/brettmthompson) in [#43](https://github.com/opendatahub-io/MLServer/pull/43)
+* Cherry pick chores to release by [@brettmthompson](https://github.com/brettmthompson) in [#46](https://github.com/opendatahub-io/MLServer/pull/46)
+* add pipelineruns for odh ci builds by [@MohammadiIram](https://github.com/MohammadiIram) in [#66](https://github.com/opendatahub-io/MLServer/pull/66)
+* Making poetry version configurable in tests workflow by [@brettmthompson](https://github.com/brettmthompson) in [#72](https://github.com/opendatahub-io/MLServer/pull/72)
+* fix: XGBoost model loading issue with modelcar by [@Snomaan6846](https://github.com/Snomaan6846) in [#70](https://github.com/opendatahub-io/MLServer/pull/70)
+* fix: XGBoost model loading issue with modelcar ([#70](https://github.com/opendatahub-io/MLServer/issues/70)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#78](https://github.com/opendatahub-io/MLServer/pull/78)
+* Make permissions explicit in merge workflow by [@brettmthompson](https://github.com/brettmthompson) in [#76](https://github.com/opendatahub-io/MLServer/pull/76)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) by [@Snomaan6846](https://github.com/Snomaan6846) in [#73](https://github.com/opendatahub-io/MLServer/pull/73)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) ([#73](https://github.com/opendatahub-io/MLServer/issues/73)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#84](https://github.com/opendatahub-io/MLServer/pull/84)
+* CI: Add AIPCC wheels requirements file generation script and github workflow by [@Snomaan6846](https://github.com/Snomaan6846) in [#88](https://github.com/opendatahub-io/MLServer/pull/88)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#95](https://github.com/opendatahub-io/MLServer/pull/95)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#98](https://github.com/opendatahub-io/MLServer/pull/98)
+* updating push job to create odh-v3.4-EA1 tag by [@brettmthompson](https://github.com/brettmthompson) in [#101](https://github.com/opendatahub-io/MLServer/pull/101)
+* updating push job to create odh-v3.4-EA2 tag by [@brettmthompson](https://github.com/brettmthompson) in [#102](https://github.com/opendatahub-io/MLServer/pull/102)
+* bumping tag in tekton push job to odh-v3.4 by [@brettmthompson](https://github.com/brettmthompson) in [#103](https://github.com/opendatahub-io/MLServer/pull/103)
+* Add mlserver-onnx to requirements-config.json by [@Snomaan6846](https://github.com/Snomaan6846) in [#107](https://github.com/opendatahub-io/MLServer/pull/107)
+* Various improvements to how MLServer gets built by [@RH-steve-grubb](https://github.com/RH-steve-grubb) in [#94](https://github.com/opendatahub-io/MLServer/pull/94)
+* chore(renovate): add renovate config for aipcc base image updates on rhoai-staging by [@Snomaan6846](https://github.com/Snomaan6846) in [#111](https://github.com/opendatahub-io/MLServer/pull/111)
+* chore: Use single reference of base image by [@Snomaan6846](https://github.com/Snomaan6846) in [#113](https://github.com/opendatahub-io/MLServer/pull/113)
+* chore(renovate): Update renovate config to remove includePaths config by [@Snomaan6846](https://github.com/Snomaan6846) in [#114](https://github.com/opendatahub-io/MLServer/pull/114)
+* chore(renovate): add daily schedule for dockerfile manager for renovate by [@Snomaan6846](https://github.com/Snomaan6846) in [#115](https://github.com/opendatahub-io/MLServer/pull/115)
+* fix: ONNX model loading failure with KServe Modelcar symlinks by [@Jooho](https://github.com/Jooho) in [#117](https://github.com/opendatahub-io/MLServer/pull/117)
+* [release-1.7.x] fix: ONNX model loading failure with KServe Modelcar symlinks by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#118](https://github.com/opendatahub-io/MLServer/pull/118)
+* Cherry pick from master to release 1.7.x by [@Snomaan6846](https://github.com/Snomaan6846) in [#122](https://github.com/opendatahub-io/MLServer/pull/122)
+* chore(ci): harden release-to-staging sync workflow merge and policy handling by [@Snomaan6846](https://github.com/Snomaan6846) in [#123](https://github.com/opendatahub-io/MLServer/pull/123)
+* [release-1.7.x] chore(ci): harden release-to-staging sync workflow merge and policy handling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#124](https://github.com/opendatahub-io/MLServer/pull/124)
+* chore(ci): require manual pyproject sync policy acknowledgement in release sync workflow by [@Snomaan6846](https://github.com/Snomaan6846) in [#126](https://github.com/opendatahub-io/MLServer/pull/126)
+* [release-1.7.x] chore(ci): require manual pyproject sync policy acknowledgement in release sync workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#127](https://github.com/opendatahub-io/MLServer/pull/127)
+* Make runtime allowlist flexible by [@brettmthompson](https://github.com/brettmthompson) in [#110](https://github.com/opendatahub-io/MLServer/pull/110)
+* chore: install mlserver wheel prior to runtime wheels by [@Snomaan6846](https://github.com/Snomaan6846) in [#131](https://github.com/opendatahub-io/MLServer/pull/131)
+* Sync master to release by [@Snomaan6846](https://github.com/Snomaan6846) in [#130](https://github.com/opendatahub-io/MLServer/pull/130)
+* master to release sync and lock the poetry.lock files of MLServer and Runtimes to 1.7.1 version by [@Snomaan6846](https://github.com/Snomaan6846) in [#135](https://github.com/opendatahub-io/MLServer/pull/135)
+* [release-1.7.x] chore(ci): add tide/merge-method-merge label for PRs generated by release to rhoai-staging sync workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#140](https://github.com/opendatahub-io/MLServer/pull/140)
+* [release-1.7.x] fix: prevent redundant InferencePool spawning for same inference_pool by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#145](https://github.com/opendatahub-io/MLServer/pull/145)
+* [release-1.7.x] chore: drop Python 3.9 support and modernize to 3.10+ syntax by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#152](https://github.com/opendatahub-io/MLServer/pull/152)
+* update tag in push job to 3.5-EA1 by [@brettmthompson](https://github.com/brettmthompson) in [#160](https://github.com/opendatahub-io/MLServer/pull/160)
+* updating tag regex to allow for -EA* suffix ([#159](https://github.com/opendatahub-io/MLServer/issues/159)) by [@brettmthompson](https://github.com/brettmthompson) in [#162](https://github.com/opendatahub-io/MLServer/pull/162)
+* chore(konflux): Bump release tag to odh-v3.5-EA2 by [@github-actions](https://github.com/github-actions)[bot] in [#164](https://github.com/opendatahub-io/MLServer/pull/164)
+* [release-1.7.x] chore(CI): enable all runtime test execution by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#167](https://github.com/opendatahub-io/MLServer/pull/167)
+* [release-1.7.x] chore: split runtime dependency groups into ODH-shipped and test-only by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#171](https://github.com/opendatahub-io/MLServer/pull/171)
+* [release-1.7.x] hardening workflows against variable command injection by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#178](https://github.com/opendatahub-io/MLServer/pull/178)
+* [release-1.7.x] Fix model loading race conditions by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#179](https://github.com/opendatahub-io/MLServer/pull/179)
+* [release-1.7.x] Fix MultiModelRegistry Startup Complete Encapsulation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#186](https://github.com/opendatahub-io/MLServer/pull/186)
+* [release-1.7.x] RHOAIENG-64894/RHOAIENG-64927: fix CVE-2026-48710 by upgrading Starlette to >= 1.0.1 and FastAPI to >= 0.134.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#187](https://github.com/opendatahub-io/MLServer/pull/187)
+* [release-1.7.x] RHOAIENG-63912/RHOAIENG-64531: fix CVE-2026-44432 and CVE-2026-44431 by upgrading urllib3 to >= 2.7.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#200](https://github.com/opendatahub-io/MLServer/pull/200)
+* [release-1.7.x] feat: Add AGENTS.md for MLServer repo by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#202](https://github.com/opendatahub-io/MLServer/pull/202)
+* [release-1.7.x] RHOAIENG-65968/RHOAIENG-66024: fix CVE-2026-34993 by upgrading aiohttp to >= 3.14.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#206](https://github.com/opendatahub-io/MLServer/pull/206)
+* [release-1.7.x] Harden prow-merge-release-to-staging workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#207](https://github.com/opendatahub-io/MLServer/pull/207)
+* [release-1.7.x] RHOAIENG-71848: fix CVE-2026-42561 by upgrading python-multipart to >= 0.0.27 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#210](https://github.com/opendatahub-io/MLServer/pull/210)
+* [release-1.7.x] Add ppc64le support to requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#214](https://github.com/opendatahub-io/MLServer/pull/214)
+* feat: Add Onnx CUDA GPU support ([#218](https://github.com/opendatahub-io/MLServer/issues/218)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#220](https://github.com/opendatahub-io/MLServer/pull/220)
+* [release-1.7.x] chore: Add Slack notifications for PR by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#225](https://github.com/opendatahub-io/MLServer/pull/225)
+* [release-1.7.x] feat: Harden ONNX CUDA GPU support with tests, Dockerfile fixes, and dev tooling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#229](https://github.com/opendatahub-io/MLServer/pull/229)
+* [release-1.7.x] Renovate and konflux Dockerfile updates by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#234](https://github.com/opendatahub-io/MLServer/pull/234)
+* Release: Tekton pipelines → odh-v3.5-EA2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#228](https://github.com/opendatahub-io/MLServer/pull/228)
+* chore: remove redundent .tekton/mlserver-push.yaml file by [@Snomaan6846](https://github.com/Snomaan6846) in [#238](https://github.com/opendatahub-io/MLServer/pull/238)
+* [release-1.7.x] feat: Decouple access logging from debug mode, add log_level setting, and propagate log verbosity to all runtimes by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#239](https://github.com/opendatahub-io/MLServer/pull/239)
+* [release-1.7.x] fix(hack): add per-variant platform config and fix race condition in requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#242](https://github.com/opendatahub-io/MLServer/pull/242)
+* [release-1.7.x] chore: Add recreateWhen rule to always for renovate config by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#253](https://github.com/opendatahub-io/MLServer/pull/253)
+* [release-1.7.x] feat: version-aware root packages in requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#276](https://github.com/opendatahub-io/MLServer/pull/276)
+* [release-1.7.x] RHOAIENG-79409,RHOAIENG-80719: fix CVEs by upgrading aiohttp, starlet… by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#286](https://github.com/opendatahub-io/MLServer/pull/286)
+* chore: update version to 1.7.1 by [@Snomaan6846](https://github.com/Snomaan6846) in [#289](https://github.com/opendatahub-io/MLServer/pull/289)
+* [release-1.7.x] fix: stage all update-version.sh outputs in prow-merge sync by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#292](https://github.com/opendatahub-io/MLServer/pull/292)
 
 ## New Contributors
-* [@lemonhead94](https://github.com/lemonhead94) made their first contribution in [#1928](https://github.com/SeldonIO/MLServer/pull/1928)
-* [@sergioave](https://github.com/sergioave) made their first contribution in [#1954](https://github.com/SeldonIO/MLServer/pull/1954)
-* [@shivakrishnaah](https://github.com/shivakrishnaah) made their first contribution in [#1951](https://github.com/SeldonIO/MLServer/pull/1951)
-* [@lawrence-c](https://github.com/lawrence-c) made their first contribution in [#2088](https://github.com/SeldonIO/MLServer/pull/2088)
-* [@hanlaur](https://github.com/hanlaur) made their first contribution in [#2093](https://github.com/SeldonIO/MLServer/pull/2093)
+* [@MohammadiIram](https://github.com/MohammadiIram) made their first contribution in [#66](https://github.com/opendatahub-io/MLServer/pull/66)
+* [@RH-steve-grubb](https://github.com/RH-steve-grubb) made their first contribution in [#94](https://github.com/opendatahub-io/MLServer/pull/94)
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.6.1...1.7.0
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/commits/odh-v3.6-EA1
 
-[Changes][1.7.0]
+[Changes][odh-v3.6-EA1]
 
 
-<a id="1.6.1"></a>
-## [1.6.1](https://github.com/SeldonIO/MLServer/releases/tag/1.6.1) - 2024-09-10
+<a id="v1.7.1+rhaiv.15"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.15 for rhoai-3.4](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.15) - 2026-08-27
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.6.1 -->
-
-## Overview
-
-### Features
-MLServer now offers an option to use pre-existing Python environments by specifying a path to the environment to be used - by [@idlefella](https://github.com/idlefella) in ([#1891](https://github.com/SeldonIO/MLServer/issues/1891))
-
-### Releases
-MLServer released catboost runtime which allows serving [catboost](https://catboost.ai/) models with MLServer - by [@sakoush](https://github.com/sakoush) in ([#1839](https://github.com/SeldonIO/MLServer/issues/1839))
-
-### Fixes
-* Kafka json byte encoding fix to match rest server by [@DerTiedemann](https://github.com/DerTiedemann) and [@sakoush](https://github.com/sakoush) in ([#1622](https://github.com/SeldonIO/MLServer/issues/1622))
-* Prometheus interceptor fix for gRPC streaming by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in ([#1858](https://github.com/SeldonIO/MLServer/issues/1858))
-
+<!-- Release notes generated using configuration in .github/release.yml at release-rhoai-3.4 -->
 
 ## What's Changed
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1812](https://github.com/SeldonIO/MLServer/pull/1812)
-* Update CHANGELOG by [@github-actions](https://github.com/github-actions) in [#1830](https://github.com/SeldonIO/MLServer/pull/1830)
-* Update release.yml to include catboost by [@sakoush](https://github.com/sakoush) in [#1839](https://github.com/SeldonIO/MLServer/pull/1839)
-* Fix kafka json byte encoding to match rest server by [@DerTiedemann](https://github.com/DerTiedemann) in [#1622](https://github.com/SeldonIO/MLServer/pull/1622)
-* Included Prometheus interceptor support for gRPC streaming by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1858](https://github.com/SeldonIO/MLServer/pull/1858)
-* Run gRPC test serially by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1872](https://github.com/SeldonIO/MLServer/pull/1872)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1886](https://github.com/SeldonIO/MLServer/pull/1886)
-* Feature/support existing environments by [@idlefella](https://github.com/idlefella) in [#1891](https://github.com/SeldonIO/MLServer/pull/1891)
-* Fix tensorflow upperbound macos by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1901](https://github.com/SeldonIO/MLServer/pull/1901)
-* ci: Merge change for release 1.6.1  by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1902](https://github.com/SeldonIO/MLServer/pull/1902)
-* Bump preflight to 1.10.0 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1903](https://github.com/SeldonIO/MLServer/pull/1903)
-* ci: Merge change for release 1.6.1 [2] by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1904](https://github.com/SeldonIO/MLServer/pull/1904)
+* chore: update version to 1.7.1+rhaiv.15 by [@Snomaan6846](https://github.com/Snomaan6846) in [#294](https://github.com/opendatahub-io/MLServer/pull/294)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.12...v1.7.1+rhaiv.15
+
+[Changes][v1.7.1+rhaiv.15]
+
+
+<a id="v1.7.1+rhaiv.14"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.14 for rhoai-3.3](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.14) - 2026-08-27
+
+<!-- Release notes generated using configuration in .github/release.yml at release-rhoai-3.3 -->
+
+## What's Changed
+* chore: update version to 1.7.1+rhaiv.14 by [@Snomaan6846](https://github.com/Snomaan6846) in [#295](https://github.com/opendatahub-io/MLServer/pull/295)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.13...v1.7.1+rhaiv.14
+
+[Changes][v1.7.1+rhaiv.14]
+
+
+<a id="v1.7.1+rhaiv.13"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.13 for rhoai-3.3](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.13) - 2026-08-26
+
+<!-- Release notes generated using configuration in .github/release.yml at release-rhoai-3.3 -->
+
+## What's Changed
+* RHOAIENG-79409,RHOAIENG-80719: fix CVEs by upgrading aiohttp, starlet… by [@Snomaan6846](https://github.com/Snomaan6846) in [#271](https://github.com/opendatahub-io/MLServer/pull/271)
+* feat: add version-pinned requirements with hash verification by [@Snomaan6846](https://github.com/Snomaan6846) in [#273](https://github.com/opendatahub-io/MLServer/pull/273)
+* chore: regenerate pinned requirements for release-rhoai-3.3 by [@github-actions](https://github.com/github-actions)[bot] in [#277](https://github.com/opendatahub-io/MLServer/pull/277)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai5...v1.7.1+rhaiv.13
+
+[Changes][v1.7.1+rhaiv.13]
+
+
+<a id="v1.7.1+rhaiv.12"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.12 for rhoai-3.4](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.12) - 2026-08-26
+
+<!-- Release notes generated using configuration in .github/release.yml at release-rhoai-3.4 -->
+
+## What's Changed
+* RHOAIENG-79409,RHOAIENG-80719: fix CVEs by upgrading aiohttp, starlet… by [@Snomaan6846](https://github.com/Snomaan6846) in [#272](https://github.com/opendatahub-io/MLServer/pull/272)
+* feat: add version-pinned requirements with hash verification by [@Snomaan6846](https://github.com/Snomaan6846) in [#274](https://github.com/opendatahub-io/MLServer/pull/274)
+* chore: regenerate pinned requirements for release-rhoai-3.4 by [@github-actions](https://github.com/github-actions)[bot] in [#278](https://github.com/opendatahub-io/MLServer/pull/278)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.8...v1.7.1+rhaiv.12
+
+[Changes][v1.7.1+rhaiv.12]
+
+
+<a id="v1.7.1+rhaiv.11"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.11](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.11) - 2026-07-30
+
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
+
+## What's Changed
+* [release-1.7.x] Renovate and konflux Dockerfile updates by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#234](https://github.com/opendatahub-io/MLServer/pull/234)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#235](https://github.com/opendatahub-io/MLServer/pull/235)
+* chore: renmae Dockerfile.cuda.konflux -> Dockerfile.konflux.cuda by [@Snomaan6846](https://github.com/Snomaan6846) in [#236](https://github.com/opendatahub-io/MLServer/pull/236)
+* chore(deps): update quay.io/aipcc/base-images/cpu docker tag to v3.5 by [@red-hat-konflux](https://github.com/red-hat-konflux)[bot] in [#237](https://github.com/opendatahub-io/MLServer/pull/237)
+* Release: Tekton pipelines → odh-v3.5-EA2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#228](https://github.com/opendatahub-io/MLServer/pull/228)
+* chore: remove redundent .tekton/mlserver-push.yaml file by [@Snomaan6846](https://github.com/Snomaan6846) in [#238](https://github.com/opendatahub-io/MLServer/pull/238)
+* chore: Update AIPCC cuda base image version to 3.5 by [@Snomaan6846](https://github.com/Snomaan6846) in [#240](https://github.com/opendatahub-io/MLServer/pull/240)
+* [release-1.7.x] feat: Decouple access logging from debug mode, add log_level setting, and propagate log verbosity to all runtimes by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#239](https://github.com/opendatahub-io/MLServer/pull/239)
+* [release-1.7.x] fix(hack): add per-variant platform config and fix race condition in requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#242](https://github.com/opendatahub-io/MLServer/pull/242)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#243](https://github.com/opendatahub-io/MLServer/pull/243)
+* chore: regenerate pinned requirements for rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#244](https://github.com/opendatahub-io/MLServer/pull/244)
+* chore: regenerate pinned requirements for rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#247](https://github.com/opendatahub-io/MLServer/pull/247)
+* chore: regenerate pinned requirements for rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#248](https://github.com/opendatahub-io/MLServer/pull/248)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#254](https://github.com/opendatahub-io/MLServer/pull/254)
+* Update MLServer and Runtimes version to 1.7.1+rhaiv.11 by [@Snomaan6846](https://github.com/Snomaan6846) in [#257](https://github.com/opendatahub-io/MLServer/pull/257)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.10...v1.7.1+rhaiv.11
+
+[Changes][v1.7.1+rhaiv.11]
+
+
+<a id="odh-v3.5"></a>
+## [odh-v3.5](https://github.com/opendatahub-io/MLServer/releases/tag/odh-v3.5) - 2026-07-27
+
+<!-- Release notes generated using configuration in .github/release.yml at odh-v3.5 -->
+
+## What's Changed
+* chore(konflux): Bump release tag to odh-v3.5-EA2 by [@github-actions](https://github.com/github-actions)[bot] in [#164](https://github.com/opendatahub-io/MLServer/pull/164)
+* [release-1.7.x] chore(CI): enable all runtime test execution by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#167](https://github.com/opendatahub-io/MLServer/pull/167)
+* [release-1.7.x] chore: split runtime dependency groups into ODH-shipped and test-only by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#171](https://github.com/opendatahub-io/MLServer/pull/171)
+* [release-1.7.x] hardening workflows against variable command injection by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#178](https://github.com/opendatahub-io/MLServer/pull/178)
+* [release-1.7.x] Fix model loading race conditions by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#179](https://github.com/opendatahub-io/MLServer/pull/179)
+* [release-1.7.x] Fix MultiModelRegistry Startup Complete Encapsulation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#186](https://github.com/opendatahub-io/MLServer/pull/186)
+* [release-1.7.x] RHOAIENG-64894/RHOAIENG-64927: fix CVE-2026-48710 by upgrading Starlette to >= 1.0.1 and FastAPI to >= 0.134.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#187](https://github.com/opendatahub-io/MLServer/pull/187)
+* [release-1.7.x] RHOAIENG-63912/RHOAIENG-64531: fix CVE-2026-44432 and CVE-2026-44431 by upgrading urllib3 to >= 2.7.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#200](https://github.com/opendatahub-io/MLServer/pull/200)
+* [release-1.7.x] feat: Add AGENTS.md for MLServer repo by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#202](https://github.com/opendatahub-io/MLServer/pull/202)
+* [release-1.7.x] RHOAIENG-65968/RHOAIENG-66024: fix CVE-2026-34993 by upgrading aiohttp to >= 3.14.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#206](https://github.com/opendatahub-io/MLServer/pull/206)
+* [release-1.7.x] Harden prow-merge-release-to-staging workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#207](https://github.com/opendatahub-io/MLServer/pull/207)
+* [release-1.7.x] RHOAIENG-71848: fix CVE-2026-42561 by upgrading python-multipart to >= 0.0.27 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#210](https://github.com/opendatahub-io/MLServer/pull/210)
+* [release-1.7.x] Add ppc64le support to requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#214](https://github.com/opendatahub-io/MLServer/pull/214)
+* feat: Add Onnx CUDA GPU support ([#218](https://github.com/opendatahub-io/MLServer/issues/218)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#220](https://github.com/opendatahub-io/MLServer/pull/220)
+* [release-1.7.x] chore: Add Slack notifications for PR by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#225](https://github.com/opendatahub-io/MLServer/pull/225)
+* [release-1.7.x] feat: Harden ONNX CUDA GPU support with tests, Dockerfile fixes, and dev tooling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#229](https://github.com/opendatahub-io/MLServer/pull/229)
+* [release-1.7.x] Renovate and konflux Dockerfile updates by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#234](https://github.com/opendatahub-io/MLServer/pull/234)
+* Release: Tekton pipelines → odh-v3.5-EA2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#228](https://github.com/opendatahub-io/MLServer/pull/228)
+* chore: remove redundent .tekton/mlserver-push.yaml file by [@Snomaan6846](https://github.com/Snomaan6846) in [#238](https://github.com/opendatahub-io/MLServer/pull/238)
+* [release-1.7.x] feat: Decouple access logging from debug mode, add log_level setting, and propagate log verbosity to all runtimes by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#239](https://github.com/opendatahub-io/MLServer/pull/239)
+* [release-1.7.x] fix(hack): add per-variant platform config and fix race condition in requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#242](https://github.com/opendatahub-io/MLServer/pull/242)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/odh-v3.5-EA1...odh-v3.5
+
+[Changes][odh-v3.5]
+
+
+<a id="v1.7.1+rhaiv.10"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.10](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.10) - 2026-07-11
+
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
+
+## What's Changed
+* [release-1.7.x] chore: split runtime dependency groups into ODH-shipped and test-only by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#171](https://github.com/opendatahub-io/MLServer/pull/171)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#175](https://github.com/opendatahub-io/MLServer/pull/175)
+* chore(deps): update quay.io/aipcc/base-images/cpu docker tag to v3.5.0-ea.2 by [@red-hat-konflux](https://github.com/red-hat-konflux)[bot] in [#176](https://github.com/opendatahub-io/MLServer/pull/176)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#177](https://github.com/opendatahub-io/MLServer/pull/177)
+* [release-1.7.x] hardening workflows against variable command injection by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#178](https://github.com/opendatahub-io/MLServer/pull/178)
+* [release-1.7.x] Fix model loading race conditions by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#179](https://github.com/opendatahub-io/MLServer/pull/179)
+* [release-1.7.x] Fix MultiModelRegistry Startup Complete Encapsulation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#186](https://github.com/opendatahub-io/MLServer/pull/186)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#180](https://github.com/opendatahub-io/MLServer/pull/180)
+* [release-1.7.x] RHOAIENG-64894/RHOAIENG-64927: fix CVE-2026-48710 by upgrading Starlette to >= 1.0.1 and FastAPI to >= 0.134.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#187](https://github.com/opendatahub-io/MLServer/pull/187)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#189](https://github.com/opendatahub-io/MLServer/pull/189)
+* chore : Manual sync for pyproject.toml files and generate lock files by [@Snomaan6846](https://github.com/Snomaan6846) in [#190](https://github.com/opendatahub-io/MLServer/pull/190)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#191](https://github.com/opendatahub-io/MLServer/pull/191)
+* chore(deps): update quay.io/aipcc/base-images/cpu docker tag to v3.5.0 by [@red-hat-konflux](https://github.com/red-hat-konflux)[bot] in [#193](https://github.com/opendatahub-io/MLServer/pull/193)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#196](https://github.com/opendatahub-io/MLServer/pull/196)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#198](https://github.com/opendatahub-io/MLServer/pull/198)
+* [release-1.7.x] RHOAIENG-63912/RHOAIENG-64531: fix CVE-2026-44432 and CVE-2026-44431 by upgrading urllib3 to >= 2.7.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#200](https://github.com/opendatahub-io/MLServer/pull/200)
+* [release-1.7.x] feat: Add AGENTS.md for MLServer repo by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#202](https://github.com/opendatahub-io/MLServer/pull/202)
+* [release-1.7.x] RHOAIENG-65968/RHOAIENG-66024: fix CVE-2026-34993 by upgrading aiohttp to >= 3.14.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#206](https://github.com/opendatahub-io/MLServer/pull/206)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#201](https://github.com/opendatahub-io/MLServer/pull/201)
+* [release-1.7.x] Harden prow-merge-release-to-staging workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#207](https://github.com/opendatahub-io/MLServer/pull/207)
+* [release-1.7.x] RHOAIENG-71848: fix CVE-2026-42561 by upgrading python-multipart to >= 0.0.27 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#210](https://github.com/opendatahub-io/MLServer/pull/210)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#211](https://github.com/opendatahub-io/MLServer/pull/211)
+* [release-1.7.x] Add ppc64le support to requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#214](https://github.com/opendatahub-io/MLServer/pull/214)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#215](https://github.com/opendatahub-io/MLServer/pull/215)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#217](https://github.com/opendatahub-io/MLServer/pull/217)
+* feat: Add Onnx CUDA GPU support ([#218](https://github.com/opendatahub-io/MLServer/issues/218)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#220](https://github.com/opendatahub-io/MLServer/pull/220)
+* [release-1.7.x] chore: Add Slack notifications for PR by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#225](https://github.com/opendatahub-io/MLServer/pull/225)
+* [release-1.7.x] feat: Harden ONNX CUDA GPU support with tests, Dockerfile fixes, and dev tooling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#229](https://github.com/opendatahub-io/MLServer/pull/229)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#230](https://github.com/opendatahub-io/MLServer/pull/230)
+* feat: Add Dockerfile.cuda.konflux for MLServer CUDA and Update MLServer and Runtimes version to 1.7.1+rhaiv.10 by [@Snomaan6846](https://github.com/Snomaan6846) in [#231](https://github.com/opendatahub-io/MLServer/pull/231)
+
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.9...v1.7.1+rhaiv.10
+
+[Changes][v1.7.1+rhaiv.10]
+
+
+<a id="v1.7.1+rhaiv.9"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.9](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.9) - 2026-05-08
+
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
+
+## What's Changed
+* Update OWNERS File by [@brettmthompson](https://github.com/brettmthompson) in [#3](https://github.com/opendatahub-io/MLServer/pull/3)
+* Refactor Dockerfile to remove non-required runtimes from MLServer image by [@Snomaan6846](https://github.com/Snomaan6846) in [#1](https://github.com/opendatahub-io/MLServer/pull/1)
+* Adding Workflow To Merge Release Branches to rhoai-staging Branch by [@brettmthompson](https://github.com/brettmthompson) in [#2](https://github.com/opendatahub-io/MLServer/pull/2)
+* Stabilize CI Tests by [@brettmthompson](https://github.com/brettmthompson) in [#5](https://github.com/opendatahub-io/MLServer/pull/5)
+* updating owners aliases file by [@brettmthompson](https://github.com/brettmthompson) in [#10](https://github.com/opendatahub-io/MLServer/pull/10)
+* Remove conda reference from Dockerfile by [@Snomaan6846](https://github.com/Snomaan6846) in [#6](https://github.com/opendatahub-io/MLServer/pull/6)
+* remove unnecessary files and add ignore files for sync by [@Jooho](https://github.com/Jooho) in [#17](https://github.com/opendatahub-io/MLServer/pull/17)
+* Adding Required Workflows by [@brettmthompson](https://github.com/brettmthompson) in [#12](https://github.com/opendatahub-io/MLServer/pull/12)
+* Add build arguments to parameterize Dockerfile base images by [@Snomaan6846](https://github.com/Snomaan6846) in [#13](https://github.com/opendatahub-io/MLServer/pull/13)
+* Sync master to release-1.7.x by [@brettmthompson](https://github.com/brettmthompson) in [#18](https://github.com/opendatahub-io/MLServer/pull/18)
+* preserving commit history in the release to staging sync workflow by [@brettmthompson](https://github.com/brettmthompson) in [#19](https://github.com/opendatahub-io/MLServer/pull/19)
+* Revert "Sync master to release-1.7.x ([#18](https://github.com/opendatahub-io/MLServer/issues/18))" by [@brettmthompson](https://github.com/brettmthompson) in [#21](https://github.com/opendatahub-io/MLServer/pull/21)
+* Sync master to release-1.7.x by [@brettmthompson](https://github.com/brettmthompson) in [#22](https://github.com/opendatahub-io/MLServer/pull/22)
+* Fix merging conflict for syncing from release-1.7.x to  rhoai-staging by [@Jooho](https://github.com/Jooho) in [#23](https://github.com/opendatahub-io/MLServer/pull/23)
+* Cleanup rhoai-staging by [@brettmthompson](https://github.com/brettmthompson) in [#24](https://github.com/opendatahub-io/MLServer/pull/24)
+* improvements to sync workflow by [@brettmthompson](https://github.com/brettmthompson) in [#25](https://github.com/opendatahub-io/MLServer/pull/25)
+* Cherry-pick from master to release branch by [@Snomaan6846](https://github.com/Snomaan6846) in [#30](https://github.com/opendatahub-io/MLServer/pull/30)
+* Cherry-pick from master to rhoai-staging branch by [@Snomaan6846](https://github.com/Snomaan6846) in [#31](https://github.com/opendatahub-io/MLServer/pull/31)
+* Downgrade odh release version to 3.2 by [@Snomaan6846](https://github.com/Snomaan6846) in [#34](https://github.com/opendatahub-io/MLServer/pull/34)
+* Harden Event Loop Logic by [@brettmthompson](https://github.com/brettmthompson) in [#35](https://github.com/opendatahub-io/MLServer/pull/35)
+* converting all occurences of get_event_loop to get_running_loop ([#35](https://github.com/opendatahub-io/MLServer/issues/35)) by [@brettmthompson](https://github.com/brettmthompson) in [#36](https://github.com/opendatahub-io/MLServer/pull/36)
+* Update Tekton files to version odh-v3.2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#37](https://github.com/opendatahub-io/MLServer/pull/37)
+* cherry-pick-event-loop-changes by [@brettmthompson](https://github.com/brettmthompson) in [#38](https://github.com/opendatahub-io/MLServer/pull/38)
+* chore(konflux): Bump release tag to odh-v3.3 by [@github-actions](https://github.com/github-actions)[bot] in [#39](https://github.com/opendatahub-io/MLServer/pull/39)
+* Update MLServer and Runtimes version to 1.7.1+rhai4 by [@Snomaan6846](https://github.com/Snomaan6846) in [#41](https://github.com/opendatahub-io/MLServer/pull/41)
+* Upgrade sklearn images used in testing to the latest version by [@brettmthompson](https://github.com/brettmthompson) in [#44](https://github.com/opendatahub-io/MLServer/pull/44)
+* Disable Security Scan In ODH by [@brettmthompson](https://github.com/brettmthompson) in [#45](https://github.com/opendatahub-io/MLServer/pull/45)
+* Podman Support for MLServer Tests by [@brettmthompson](https://github.com/brettmthompson) in [#43](https://github.com/opendatahub-io/MLServer/pull/43)
+* Cherry pick chores to release by [@brettmthompson](https://github.com/brettmthompson) in [#46](https://github.com/opendatahub-io/MLServer/pull/46)
+* Cherry pick chores to staging by [@brettmthompson](https://github.com/brettmthompson) in [#47](https://github.com/opendatahub-io/MLServer/pull/47)
+* Update MLServer and Runtimes version to 1.7.1+rhai5 by [@Snomaan6846](https://github.com/Snomaan6846) in [#48](https://github.com/opendatahub-io/MLServer/pull/48)
+* Add Dockerfile.konflux for rhoai releases by [@Snomaan6846](https://github.com/Snomaan6846) in [#50](https://github.com/opendatahub-io/MLServer/pull/50)
+* add pipelineruns for odh ci builds by [@MohammadiIram](https://github.com/MohammadiIram) in [#66](https://github.com/opendatahub-io/MLServer/pull/66)
+* Making poetry version configurable in tests workflow by [@brettmthompson](https://github.com/brettmthompson) in [#72](https://github.com/opendatahub-io/MLServer/pull/72)
+* fix: XGBoost model loading issue with modelcar by [@Snomaan6846](https://github.com/Snomaan6846) in [#70](https://github.com/opendatahub-io/MLServer/pull/70)
+* fix: XGBoost model loading issue with modelcar ([#70](https://github.com/opendatahub-io/MLServer/issues/70)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#78](https://github.com/opendatahub-io/MLServer/pull/78)
+* Cherry pick rhoaieng 46109 by [@Snomaan6846](https://github.com/Snomaan6846) in [#79](https://github.com/opendatahub-io/MLServer/pull/79)
+* Make permissions explicit in merge workflow by [@brettmthompson](https://github.com/brettmthompson) in [#76](https://github.com/opendatahub-io/MLServer/pull/76)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) by [@Snomaan6846](https://github.com/Snomaan6846) in [#73](https://github.com/opendatahub-io/MLServer/pull/73)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) ([#73](https://github.com/opendatahub-io/MLServer/issues/73)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#84](https://github.com/opendatahub-io/MLServer/pull/84)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) ([#73](https://github.com/opendatahub-io/MLServer/issues/73)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#85](https://github.com/opendatahub-io/MLServer/pull/85)
+* Update MLServer and Runtimes version to 1.7.1+rhai6 by [@Snomaan6846](https://github.com/Snomaan6846) in [#86](https://github.com/opendatahub-io/MLServer/pull/86)
+* CI: Add AIPCC wheels requirements file generation script and github workflow by [@Snomaan6846](https://github.com/Snomaan6846) in [#88](https://github.com/opendatahub-io/MLServer/pull/88)
+* ci: Add AIPCC wheels requirements file generation script and github w… by [@Snomaan6846](https://github.com/Snomaan6846) in [#91](https://github.com/opendatahub-io/MLServer/pull/91)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#92](https://github.com/opendatahub-io/MLServer/pull/92)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#95](https://github.com/opendatahub-io/MLServer/pull/95)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#99](https://github.com/opendatahub-io/MLServer/pull/99)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#98](https://github.com/opendatahub-io/MLServer/pull/98)
+* updating push job to create odh-v3.4-EA1 tag by [@brettmthompson](https://github.com/brettmthompson) in [#101](https://github.com/opendatahub-io/MLServer/pull/101)
+* updating push job to create odh-v3.4-EA2 tag by [@brettmthompson](https://github.com/brettmthompson) in [#102](https://github.com/opendatahub-io/MLServer/pull/102)
+* bumping tag in tekton push job to odh-v3.4 by [@brettmthompson](https://github.com/brettmthompson) in [#103](https://github.com/opendatahub-io/MLServer/pull/103)
+* Add mlserver-onnx to requirements-config.json by [@Snomaan6846](https://github.com/Snomaan6846) in [#107](https://github.com/opendatahub-io/MLServer/pull/107)
+* Add support for onnx model format for in Dockerfile by [@Snomaan6846](https://github.com/Snomaan6846) in [#106](https://github.com/opendatahub-io/MLServer/pull/106)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#108](https://github.com/opendatahub-io/MLServer/pull/108)
+* update dockerfile.konflux to include labels ([#66](https://github.com/opendatahub-io/MLServer/issues/66)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#109](https://github.com/opendatahub-io/MLServer/pull/109)
+* Various improvements to how MLServer gets built by [@RH-steve-grubb](https://github.com/RH-steve-grubb) in [#94](https://github.com/opendatahub-io/MLServer/pull/94)
+* chore(renovate): add renovate config for aipcc base image updates on rhoai-staging by [@Snomaan6846](https://github.com/Snomaan6846) in [#111](https://github.com/opendatahub-io/MLServer/pull/111)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#112](https://github.com/opendatahub-io/MLServer/pull/112)
+* chore: Use single reference of base image by [@Snomaan6846](https://github.com/Snomaan6846) in [#113](https://github.com/opendatahub-io/MLServer/pull/113)
+* chore(renovate): Update renovate config to remove includePaths config by [@Snomaan6846](https://github.com/Snomaan6846) in [#114](https://github.com/opendatahub-io/MLServer/pull/114)
+* chore(renovate): add daily schedule for dockerfile manager for renovate by [@Snomaan6846](https://github.com/Snomaan6846) in [#115](https://github.com/opendatahub-io/MLServer/pull/115)
+* fix: ONNX model loading failure with KServe Modelcar symlinks by [@Jooho](https://github.com/Jooho) in [#117](https://github.com/opendatahub-io/MLServer/pull/117)
+* [release-1.7.x] fix: ONNX model loading failure with KServe Modelcar symlinks by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#118](https://github.com/opendatahub-io/MLServer/pull/118)
+* [rhoai-staging] fix: ONNX model loading failure with KServe Modelcar symlinks by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#119](https://github.com/opendatahub-io/MLServer/pull/119)
+* Align Dockerfile.konflux improvements and  update aipcc base image for 3.4.0 release by [@Snomaan6846](https://github.com/Snomaan6846) in [#120](https://github.com/opendatahub-io/MLServer/pull/120)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#121](https://github.com/opendatahub-io/MLServer/pull/121)
+* Cherry pick from master to release 1.7.x by [@Snomaan6846](https://github.com/Snomaan6846) in [#122](https://github.com/opendatahub-io/MLServer/pull/122)
+* chore(ci): harden release-to-staging sync workflow merge and policy handling by [@Snomaan6846](https://github.com/Snomaan6846) in [#123](https://github.com/opendatahub-io/MLServer/pull/123)
+* [release-1.7.x] chore(ci): harden release-to-staging sync workflow merge and policy handling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#124](https://github.com/opendatahub-io/MLServer/pull/124)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#125](https://github.com/opendatahub-io/MLServer/pull/125)
+* chore(ci): require manual pyproject sync policy acknowledgement in release sync workflow by [@Snomaan6846](https://github.com/Snomaan6846) in [#126](https://github.com/opendatahub-io/MLServer/pull/126)
+* [release-1.7.x] chore(ci): require manual pyproject sync policy acknowledgement in release sync workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#127](https://github.com/opendatahub-io/MLServer/pull/127)
+* Make runtime allowlist flexible by [@brettmthompson](https://github.com/brettmthompson) in [#110](https://github.com/opendatahub-io/MLServer/pull/110)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#128](https://github.com/opendatahub-io/MLServer/pull/128)
+* chore: install mlserver wheel prior to runtime wheels by [@Snomaan6846](https://github.com/Snomaan6846) in [#131](https://github.com/opendatahub-io/MLServer/pull/131)
+* Sync master to release by [@Snomaan6846](https://github.com/Snomaan6846) in [#130](https://github.com/opendatahub-io/MLServer/pull/130)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#132](https://github.com/opendatahub-io/MLServer/pull/132)
+* master to release sync and lock the poetry.lock files of MLServer and Runtimes to 1.7.1 version by [@Snomaan6846](https://github.com/Snomaan6846) in [#135](https://github.com/opendatahub-io/MLServer/pull/135)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#136](https://github.com/opendatahub-io/MLServer/pull/136)
+* chore: align konflux Dockerfile and bump MLServer/runtimes to 1.7.1+rhaiv.8 by [@Snomaan6846](https://github.com/Snomaan6846) in [#133](https://github.com/opendatahub-io/MLServer/pull/133)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#138](https://github.com/opendatahub-io/MLServer/pull/138)
+* [release-1.7.x] chore(ci): add tide/merge-method-merge label for PRs generated by release to rhoai-staging sync workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#140](https://github.com/opendatahub-io/MLServer/pull/140)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#141](https://github.com/opendatahub-io/MLServer/pull/141)
+* [release-1.7.x] fix: prevent redundant InferencePool spawning for same inference_pool by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#145](https://github.com/opendatahub-io/MLServer/pull/145)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#146](https://github.com/opendatahub-io/MLServer/pull/146)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#151](https://github.com/opendatahub-io/MLServer/pull/151)
+* [release-1.7.x] chore: drop Python 3.9 support and modernize to 3.10+ syntax by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#152](https://github.com/opendatahub-io/MLServer/pull/152)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#154](https://github.com/opendatahub-io/MLServer/pull/154)
+* chore(deps): update quay.io/aipcc/base-images/cpu docker tag to v3.5.0-ea.1 by [@red-hat-konflux](https://github.com/red-hat-konflux)[bot] in [#153](https://github.com/opendatahub-io/MLServer/pull/153)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#156](https://github.com/opendatahub-io/MLServer/pull/156)
+* chore : Manual sync for pyproject.toml files and generate lock files by [@Snomaan6846](https://github.com/Snomaan6846) in [#157](https://github.com/opendatahub-io/MLServer/pull/157)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#158](https://github.com/opendatahub-io/MLServer/pull/158)
+* update tag in push job to 3.5-EA1 by [@brettmthompson](https://github.com/brettmthompson) in [#160](https://github.com/opendatahub-io/MLServer/pull/160)
+* updating tag regex to allow for -EA* suffix ([#159](https://github.com/opendatahub-io/MLServer/issues/159)) by [@brettmthompson](https://github.com/brettmthompson) in [#162](https://github.com/opendatahub-io/MLServer/pull/162)
+* chore(konflux): Bump release tag to odh-v3.5-EA2 by [@github-actions](https://github.com/github-actions)[bot] in [#164](https://github.com/opendatahub-io/MLServer/pull/164)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#165](https://github.com/opendatahub-io/MLServer/pull/165)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#166](https://github.com/opendatahub-io/MLServer/pull/166)
+* [release-1.7.x] chore(CI): enable all runtime test execution by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#167](https://github.com/opendatahub-io/MLServer/pull/167)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#168](https://github.com/opendatahub-io/MLServer/pull/168)
+* chore : Manual sync for pyproject.toml files and generate lock files by [@Snomaan6846](https://github.com/Snomaan6846) in [#169](https://github.com/opendatahub-io/MLServer/pull/169)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#172](https://github.com/opendatahub-io/MLServer/pull/172)
 
 ## New Contributors
-* [@DerTiedemann](https://github.com/DerTiedemann) made their first contribution in [#1622](https://github.com/SeldonIO/MLServer/pull/1622)
-* [@idlefella](https://github.com/idlefella) made their first contribution in [#1891](https://github.com/SeldonIO/MLServer/pull/1891)
+* [@Jooho](https://github.com/Jooho) made their first contribution in [#17](https://github.com/opendatahub-io/MLServer/pull/17)
+* [@github-actions](https://github.com/github-actions)[bot] made their first contribution in [#39](https://github.com/opendatahub-io/MLServer/pull/39)
+* [@MohammadiIram](https://github.com/MohammadiIram) made their first contribution in [#66](https://github.com/opendatahub-io/MLServer/pull/66)
+* [@RH-steve-grubb](https://github.com/RH-steve-grubb) made their first contribution in [#94](https://github.com/opendatahub-io/MLServer/pull/94)
+* [@red-hat-konflux](https://github.com/red-hat-konflux)[bot] made their first contribution in [#153](https://github.com/opendatahub-io/MLServer/pull/153)
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.6.0...1.6.1
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/commits/v1.7.1+rhaiv.9
 
-[Changes][1.6.1]
-
-
-<a id="1.6.0"></a>
-## [1.6.0](https://github.com/SeldonIO/MLServer/releases/tag/1.6.0) - 2024-06-26
-
- ## Overview
+[Changes][v1.7.1+rhaiv.9]
 
 
-### Upgrades
- MLServer supports Pydantic V2. 
+<a id="v1.7.1+rhaiv.8"></a>
+## [AIPCC release for MLServer v1.7.1+rhaiv.8](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhaiv.8) - 2026-04-08
 
-### Features
- MLServer supports streaming data to and from your models. 
-
- Streaming support is available for both the REST and gRPC servers: 
- * for the REST server is limited only to server streaming. This means that the client sends a single request to the server, and the server responds with a stream of data. 
- * for the gRPC server is available for both client and server streaming. This means that the client sends a stream of data to the server, and the server responds with a stream of data.
-
- See our [docs](https://mlserver.readthedocs.io/en/1.6.0/user-guide/streaming.html) and [example](https://mlserver.readthedocs.io/en/1.6.0/examples/streaming/README.html) for more details.
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
 
 ## What's Changed
-* fix(ci): fix typo in CI name by [@sakoush](https://github.com/sakoush) in [#1623](https://github.com/SeldonIO/MLServer/pull/1623)
-* Update CHANGELOG by [@github-actions](https://github.com/github-actions) in [#1624](https://github.com/SeldonIO/MLServer/pull/1624)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1634](https://github.com/SeldonIO/MLServer/pull/1634)
-* Fix mlserver_huggingface settings device type by [@geodavic](https://github.com/geodavic) in [#1486](https://github.com/SeldonIO/MLServer/pull/1486)
-* fix: Adjust HF tests post-merge of PR [#1486](https://github.com/SeldonIO/MLServer/issues/1486) by [@sakoush](https://github.com/sakoush) in [#1635](https://github.com/SeldonIO/MLServer/pull/1635)
-* Update README.md w licensing clarification by [@paulb-seldon](https://github.com/paulb-seldon) in [#1636](https://github.com/SeldonIO/MLServer/pull/1636)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1642](https://github.com/SeldonIO/MLServer/pull/1642)
-* fix(ci): optimise disk space for GH workers by [@sakoush](https://github.com/sakoush) in [#1644](https://github.com/SeldonIO/MLServer/pull/1644)
-* build: Update maintainers by [@jesse-c](https://github.com/jesse-c) in [#1659](https://github.com/SeldonIO/MLServer/pull/1659)
-* fix: Missing f-string directives by [@jesse-c](https://github.com/jesse-c) in [#1677](https://github.com/SeldonIO/MLServer/pull/1677)
-* build: Add Catboost runtime to Dependabot by [@jesse-c](https://github.com/jesse-c) in [#1689](https://github.com/SeldonIO/MLServer/pull/1689)
-* Fix JSON input shapes by [@ReveStobinson](https://github.com/ReveStobinson) in [#1679](https://github.com/SeldonIO/MLServer/pull/1679)
-* build(deps): bump alibi-detect from 0.11.5 to 0.12.0 by [@jesse-c](https://github.com/jesse-c) in [#1702](https://github.com/SeldonIO/MLServer/pull/1702)
-* build(deps): bump alibi from 0.9.5 to 0.9.6 by [@jesse-c](https://github.com/jesse-c) in [#1704](https://github.com/SeldonIO/MLServer/pull/1704)
-* Docs correction - Updated README.md in mlflow to match column names order by [@vivekk0903](https://github.com/vivekk0903) in [#1703](https://github.com/SeldonIO/MLServer/pull/1703)
-* fix(runtimes): Remove unused Pydantic dependencies by [@jesse-c](https://github.com/jesse-c) in [#1725](https://github.com/SeldonIO/MLServer/pull/1725)
-* test: Detect generate failures by [@jesse-c](https://github.com/jesse-c) in [#1729](https://github.com/SeldonIO/MLServer/pull/1729)
-* build: Add granularity in types generation by [@jesse-c](https://github.com/jesse-c) in [#1749](https://github.com/SeldonIO/MLServer/pull/1749)
-* Migrate to Pydantic v2 by [@jesse-c](https://github.com/jesse-c) in [#1748](https://github.com/SeldonIO/MLServer/pull/1748)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1753](https://github.com/SeldonIO/MLServer/pull/1753)
-* Revert "build(deps): bump uvicorn from 0.28.0 to 0.29.0" by [@jesse-c](https://github.com/jesse-c) in [#1758](https://github.com/SeldonIO/MLServer/pull/1758)
-* refactor(pydantic): Remaining migrations for deprecated functions by [@jesse-c](https://github.com/jesse-c) in [#1757](https://github.com/SeldonIO/MLServer/pull/1757)
-* Fixed openapi dataplane.yaml by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1752](https://github.com/SeldonIO/MLServer/pull/1752)
-* fix(pandas): Use Pydantic v2 compatible type by [@jesse-c](https://github.com/jesse-c) in [#1760](https://github.com/SeldonIO/MLServer/pull/1760)
-* Fix Pandas codec decoding from numpy arrays by [@lhnwrk](https://github.com/lhnwrk) in [#1751](https://github.com/SeldonIO/MLServer/pull/1751)
-* build: Bump versions for Read the Docs by [@jesse-c](https://github.com/jesse-c) in [#1761](https://github.com/SeldonIO/MLServer/pull/1761)
-* docs: Remove quotes around local TOC by [@jesse-c](https://github.com/jesse-c) in [#1764](https://github.com/SeldonIO/MLServer/pull/1764)
-* Spawn worker in custom environment by [@lhnwrk](https://github.com/lhnwrk) in [#1739](https://github.com/SeldonIO/MLServer/pull/1739)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1767](https://github.com/SeldonIO/MLServer/pull/1767)
-* basic contributing guide on contributing and opening a PR by [@bohemia420](https://github.com/bohemia420) in [#1773](https://github.com/SeldonIO/MLServer/pull/1773)
-* Inference streaming support by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1750](https://github.com/SeldonIO/MLServer/pull/1750)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1779](https://github.com/SeldonIO/MLServer/pull/1779)
-* build: Lock GitHub runners' OS by [@jesse-c](https://github.com/jesse-c) in [#1765](https://github.com/SeldonIO/MLServer/pull/1765)
-* Removed text-model form benchmarking by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1790](https://github.com/SeldonIO/MLServer/pull/1790)
-* Bumped mlflow to 2.13.1 and gunicorn to 22.0.0 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1791](https://github.com/SeldonIO/MLServer/pull/1791)
-* Build(deps): Update to poetry version 1.8.3 in docker build by [@sakoush](https://github.com/sakoush) in [#1792](https://github.com/SeldonIO/MLServer/pull/1792)
-* Bumped werkzeug to 3.0.3 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1793](https://github.com/SeldonIO/MLServer/pull/1793)
-* Docs streaming by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1789](https://github.com/SeldonIO/MLServer/pull/1789)
-* Bump uvicorn 0.30.1 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1795](https://github.com/SeldonIO/MLServer/pull/1795)
-* Fixes for all-runtimes by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1794](https://github.com/SeldonIO/MLServer/pull/1794)
-* Fix BaseSettings import for pydantic v2 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1798](https://github.com/SeldonIO/MLServer/pull/1798)
-* Bumped preflight version to 1.9.7 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1797](https://github.com/SeldonIO/MLServer/pull/1797)
-* build: Install dependencies only in Tox environments  by [@jesse-c](https://github.com/jesse-c) in [#1785](https://github.com/SeldonIO/MLServer/pull/1785)
-* Bumped to 1.6.0.dev2 by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1803](https://github.com/SeldonIO/MLServer/pull/1803)
-* Fix CI/CD macos-huggingface by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1805](https://github.com/SeldonIO/MLServer/pull/1805)
-* Fixed macos kafka CI by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1807](https://github.com/SeldonIO/MLServer/pull/1807)
-* Update poetry lock by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1808](https://github.com/SeldonIO/MLServer/pull/1808)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1813](https://github.com/SeldonIO/MLServer/pull/1813)
-* Fix/macos all runtimes by [@RobertSamoilescu](https://github.com/RobertSamoilescu) in [#1823](https://github.com/SeldonIO/MLServer/pull/1823)
-* fix: Update stale reviewer in licenses.yml workflow by [@sakoush](https://github.com/sakoush) in [#1824](https://github.com/SeldonIO/MLServer/pull/1824)
-* ci: Merge changes from master to release branch by [@sakoush](https://github.com/sakoush) in [#1825](https://github.com/SeldonIO/MLServer/pull/1825)
-
-## New Contributors
-* [@paulb-seldon](https://github.com/paulb-seldon) made their first contribution in [#1636](https://github.com/SeldonIO/MLServer/pull/1636)
-* [@ReveStobinson](https://github.com/ReveStobinson) made their first contribution in [#1679](https://github.com/SeldonIO/MLServer/pull/1679)
-* [@vivekk0903](https://github.com/vivekk0903) made their first contribution in [#1703](https://github.com/SeldonIO/MLServer/pull/1703)
-* [@RobertSamoilescu](https://github.com/RobertSamoilescu) made their first contribution in [#1752](https://github.com/SeldonIO/MLServer/pull/1752)
-* [@lhnwrk](https://github.com/lhnwrk) made their first contribution in [#1751](https://github.com/SeldonIO/MLServer/pull/1751)
-* [@bohemia420](https://github.com/bohemia420) made their first contribution in [#1773](https://github.com/SeldonIO/MLServer/pull/1773)
-
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.5.0...1.6.0
-
-[Changes][1.6.0]
+* Add support for onnx model format for in Dockerfile by [@Snomaan6846](https://github.com/Snomaan6846) in [#106](https://github.com/opendatahub-io/MLServer/pull/106)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#108](https://github.com/opendatahub-io/MLServer/pull/108)
+* update dockerfile.konflux to include labels ([#66](https://github.com/opendatahub-io/MLServer/issues/66)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#109](https://github.com/opendatahub-io/MLServer/pull/109)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#112](https://github.com/opendatahub-io/MLServer/pull/112)
+* [rhoai-staging] fix: ONNX model loading failure with KServe Modelcar symlinks by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#119](https://github.com/opendatahub-io/MLServer/pull/119)
+* Align Dockerfile.konflux improvements and  update aipcc base image for 3.4.0 release by [@Snomaan6846](https://github.com/Snomaan6846) in [#120](https://github.com/opendatahub-io/MLServer/pull/120)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#121](https://github.com/opendatahub-io/MLServer/pull/121)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#125](https://github.com/opendatahub-io/MLServer/pull/125)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#128](https://github.com/opendatahub-io/MLServer/pull/128)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#132](https://github.com/opendatahub-io/MLServer/pull/132)
+* Sync release-1.7.x to rhoai-staging by [@github-actions](https://github.com/github-actions)[bot] in [#136](https://github.com/opendatahub-io/MLServer/pull/136)
+* chore: align konflux Dockerfile and bump MLServer/runtimes to 1.7.1+rhaiv.8 by [@Snomaan6846](https://github.com/Snomaan6846) in [#133](https://github.com/opendatahub-io/MLServer/pull/133)
 
 
-<a id="1.5.0"></a>
-## [1.5.0](https://github.com/SeldonIO/MLServer/releases/tag/1.5.0) - 2024-03-05
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai7...v1.7.1+rhaiv.8
+
+[Changes][v1.7.1+rhaiv.8]
+
+
+<a id="v1.7.1+rhai7"></a>
+## [AIPCC release for MLServer v1.7.1+rhai7](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai7) - 2026-03-02
+
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
 
 ## What's Changed
-
-* Update CHANGELOG by [@github-actions](https://github.com/github-actions) in [#1592](https://github.com/SeldonIO/MLServer/pull/1592)
-* build: Migrate away from Node v16 actions by [@jesse-c](https://github.com/jesse-c) in [#1596](https://github.com/SeldonIO/MLServer/pull/1596)
-* build: Bump version and improve release doc by [@jesse-c](https://github.com/jesse-c) in [#1602](https://github.com/SeldonIO/MLServer/pull/1602)
-* build: Upgrade stale packages (fastapi, starlette, tensorflow, torch) by [@sakoush](https://github.com/sakoush) in [#1603](https://github.com/SeldonIO/MLServer/pull/1603)
-* fix(ci): tests and security workflow fixes by [@sakoush](https://github.com/sakoush) in [#1608](https://github.com/SeldonIO/MLServer/pull/1608)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1612](https://github.com/SeldonIO/MLServer/pull/1612)
-* fix(ci): Missing quote in CI test for all_runtimes by [@sakoush](https://github.com/sakoush) in [#1617](https://github.com/SeldonIO/MLServer/pull/1617)
-* build(docker): Bump dependencies by [@jesse-c](https://github.com/jesse-c) in [#1618](https://github.com/SeldonIO/MLServer/pull/1618)
-* docs: List supported Python versions  by [@jesse-c](https://github.com/jesse-c) in [#1591](https://github.com/SeldonIO/MLServer/pull/1591)
-* fix(ci): Have separate smaller tasks for release by [@sakoush](https://github.com/sakoush) in [#1619](https://github.com/SeldonIO/MLServer/pull/1619)
+* ci: Add AIPCC wheels requirements file generation script and github w… by [@Snomaan6846](https://github.com/Snomaan6846) in [#91](https://github.com/opendatahub-io/MLServer/pull/91)
+* Regenerate pinned requirements by [@github-actions](https://github.com/github-actions)[bot] in [#92](https://github.com/opendatahub-io/MLServer/pull/92)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#99](https://github.com/opendatahub-io/MLServer/pull/99)
 
 
-## Notes
-* We remove support for python 3.8, check [#1603](https://github.com/SeldonIO/MLServer/pull/1603) for more info. Docker images for mlserver are already using python 3.10.
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai6...v1.7.1+rhai7
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.4.0...1.5.0
-
-[Changes][1.5.0]
+[Changes][v1.7.1+rhai7]
 
 
-<a id="1.4.0"></a>
-## [1.4.0](https://github.com/SeldonIO/MLServer/releases/tag/1.4.0) - 2024-02-28
+<a id="v1.7.1+rhai6"></a>
+## [AIPCC release for MLServer v1.7.1+rhai6](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai6) - 2026-02-19
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.4.0 -->
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
 
 ## What's Changed
-* Free up some space for GH actions by [@adriangonz](https://github.com/adriangonz) in [#1282](https://github.com/SeldonIO/MLServer/pull/1282)
-* Introduce tracing with OpenTelemetry by [@vtaskow](https://github.com/vtaskow) in [#1281](https://github.com/SeldonIO/MLServer/pull/1281)
-* Update release CI to use Poetry by [@adriangonz](https://github.com/adriangonz) in [#1283](https://github.com/SeldonIO/MLServer/pull/1283)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1284](https://github.com/SeldonIO/MLServer/pull/1284)
-* Add support for white-box explainers to alibi-explain runtime by [@ascillitoe](https://github.com/ascillitoe) in [#1279](https://github.com/SeldonIO/MLServer/pull/1279)
-* Update CHANGELOG by [@github-actions](https://github.com/github-actions) in [#1294](https://github.com/SeldonIO/MLServer/pull/1294)
-* Fix build-wheels.sh error when copying to output path by [@lc525](https://github.com/lc525) in [#1286](https://github.com/SeldonIO/MLServer/pull/1286)
-* Fix typo by [@strickvl](https://github.com/strickvl) in [#1289](https://github.com/SeldonIO/MLServer/pull/1289)
-* feat(logging): Distinguish logs from different models by [@vtaskow](https://github.com/vtaskow) in [#1302](https://github.com/SeldonIO/MLServer/pull/1302)
-* Make sure we use our Response class by [@adriangonz](https://github.com/adriangonz) in [#1314](https://github.com/SeldonIO/MLServer/pull/1314)
-* Adding Quick-Start Guide to docs by [@ramonpzg](https://github.com/ramonpzg) in [#1315](https://github.com/SeldonIO/MLServer/pull/1315)
-* feat(logging): Provide JSON-formatted structured logging as option by [@vtaskow](https://github.com/vtaskow) in [#1308](https://github.com/SeldonIO/MLServer/pull/1308)
-* Bump in conda version and mamba solver  by [@dtpryce](https://github.com/dtpryce) in [#1298](https://github.com/SeldonIO/MLServer/pull/1298)
-* feat(huggingface): Merge model settings by [@jesse-c](https://github.com/jesse-c) in [#1337](https://github.com/SeldonIO/MLServer/pull/1337)
-* feat(huggingface): Load local artefacts in HuggingFace runtime by [@vtaskow](https://github.com/vtaskow) in [#1319](https://github.com/SeldonIO/MLServer/pull/1319)
-* Document and test behaviour around NaN by [@adriangonz](https://github.com/adriangonz) in [#1346](https://github.com/SeldonIO/MLServer/pull/1346)
-* Address flakiness on 'mlserver build' tests by [@adriangonz](https://github.com/adriangonz) in [#1363](https://github.com/SeldonIO/MLServer/pull/1363)
-* Bump Poetry and lockfiles by [@adriangonz](https://github.com/adriangonz) in [#1369](https://github.com/SeldonIO/MLServer/pull/1369)
-* Bump Miniforge3 to 23.3.1 by [@adriangonz](https://github.com/adriangonz) in [#1372](https://github.com/SeldonIO/MLServer/pull/1372)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1373](https://github.com/SeldonIO/MLServer/pull/1373)
-* Improved huggingface batch logic by [@ajsalow](https://github.com/ajsalow) in [#1336](https://github.com/SeldonIO/MLServer/pull/1336)
-* Add inference params support to MLFlow's custom invocation endpoint (… by [@M4nouel](https://github.com/M4nouel) in [#1375](https://github.com/SeldonIO/MLServer/pull/1375)
-* Increase build space for runtime builds by [@adriangonz](https://github.com/adriangonz) in [#1385](https://github.com/SeldonIO/MLServer/pull/1385)
-* Fix minor typo in `sklearn` README by [@krishanbhasin-gc](https://github.com/krishanbhasin-gc) in [#1402](https://github.com/SeldonIO/MLServer/pull/1402)
-* Add catboost classifier support by [@krishanbhasin-gc](https://github.com/krishanbhasin-gc) in [#1403](https://github.com/SeldonIO/MLServer/pull/1403)
-* added model_kwargs to huggingface model by [@nanbo-liu](https://github.com/nanbo-liu) in [#1417](https://github.com/SeldonIO/MLServer/pull/1417)
-* Re-generate License Info by [@github-actions](https://github.com/github-actions) in [#1456](https://github.com/SeldonIO/MLServer/pull/1456)
-* Local response cache implementation by [@SachinVarghese](https://github.com/SachinVarghese) in [#1440](https://github.com/SeldonIO/MLServer/pull/1440)
-* fix link to custom runtimes by [@kretes](https://github.com/kretes) in [#1467](https://github.com/SeldonIO/MLServer/pull/1467)
-* Improve typing on `Environment` class by [@krishanbhasin-gc](https://github.com/krishanbhasin-gc) in [#1469](https://github.com/SeldonIO/MLServer/pull/1469)
-* build(dependabot): Change reviewers by [@jesse-c](https://github.com/jesse-c) in [#1548](https://github.com/SeldonIO/MLServer/pull/1548)
-* MLServer changes from internal fork - deps and CI updates by [@sakoush](https://github.com/sakoush) in [#1588](https://github.com/SeldonIO/MLServer/pull/1588)
+* Cherry pick rhoaieng 46109 by [@Snomaan6846](https://github.com/Snomaan6846) in [#79](https://github.com/opendatahub-io/MLServer/pull/79)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) ([#73](https://github.com/opendatahub-io/MLServer/issues/73)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#85](https://github.com/opendatahub-io/MLServer/pull/85)
+* Update MLServer and Runtimes version to 1.7.1+rhai6 by [@Snomaan6846](https://github.com/Snomaan6846) in [#86](https://github.com/opendatahub-io/MLServer/pull/86)
 
-## New Contributors
-* [@vtaskow](https://github.com/vtaskow) made their first contribution in [#1281](https://github.com/SeldonIO/MLServer/pull/1281)
-* [@lc525](https://github.com/lc525) made their first contribution in [#1286](https://github.com/SeldonIO/MLServer/pull/1286)
-* [@strickvl](https://github.com/strickvl) made their first contribution in [#1289](https://github.com/SeldonIO/MLServer/pull/1289)
-* [@ramonpzg](https://github.com/ramonpzg) made their first contribution in [#1315](https://github.com/SeldonIO/MLServer/pull/1315)
-* [@jesse-c](https://github.com/jesse-c) made their first contribution in [#1337](https://github.com/SeldonIO/MLServer/pull/1337)
-* [@ajsalow](https://github.com/ajsalow) made their first contribution in [#1336](https://github.com/SeldonIO/MLServer/pull/1336)
-* [@M4nouel](https://github.com/M4nouel) made their first contribution in [#1375](https://github.com/SeldonIO/MLServer/pull/1375)
-* [@nanbo-liu](https://github.com/nanbo-liu) made their first contribution in [#1417](https://github.com/SeldonIO/MLServer/pull/1417)
-* [@kretes](https://github.com/kretes) made their first contribution in [#1467](https://github.com/SeldonIO/MLServer/pull/1467)
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.3.5...1.4.0
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai5...v1.7.1+rhai6
 
-[Changes][1.4.0]
+[Changes][v1.7.1+rhai6]
 
 
-<a id="1.3.5"></a>
-## [1.3.5](https://github.com/SeldonIO/MLServer/releases/tag/1.3.5) - 2023-07-10
+<a id="v1.7.1+rhai5"></a>
+## [AIPCC release for MLServer v1.7.1+rhai5](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai5) - 2025-12-21
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.3.5 -->
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
 
-### What's Changed
+## What's Changed
+* Cherry pick chores to staging by [@brettmthompson](https://github.com/brettmthompson) in [#47](https://github.com/opendatahub-io/MLServer/pull/47)
+* Update MLServer and Runtimes version to 1.7.1+rhai5 by [@Snomaan6846](https://github.com/Snomaan6846) in [#48](https://github.com/opendatahub-io/MLServer/pull/48)
+* Add Dockerfile.konflux for rhoai releases by [@Snomaan6846](https://github.com/Snomaan6846) in [#50](https://github.com/opendatahub-io/MLServer/pull/50)
 
-* Rename HF codec to `hf` by [@adriangonz](https://github.com/adriangonz)  in [#1268](https://github.com/SeldonIO/MLServer/pull/1268)
-* Publish is_drift metric to Prom by [@joshsgoldstein](https://github.com/joshsgoldstein)  in [#1263](https://github.com/SeldonIO/MLServer/pull/1263)
 
-### New Contributors
-* [@joshsgoldstein](https://github.com/joshsgoldstein) made their first contribution in [#1263](https://github.com/SeldonIO/MLServer/pull/1263)
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai4...v1.7.1+rhai5
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.3.4...1.3.5
+[Changes][v1.7.1+rhai5]
 
-[Changes][1.3.5]
 
+<a id="v1.7.1+rhai4"></a>
+## [AIPCC release for MLServer v1.7.1+rhai4](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai4) - 2025-12-17
 
-<a id="1.3.4"></a>
-## [1.3.4](https://github.com/SeldonIO/MLServer/releases/tag/1.3.4) - 2023-06-21
+<!-- Release notes generated using configuration in .github/release.yml at rhoai-staging -->
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.3.4 -->
+## What's Changed
+* Update MLServer and Runtimes version to 1.7.1+rhai4 by [@Snomaan6846](https://github.com/Snomaan6846) in [#41](https://github.com/opendatahub-io/MLServer/pull/41)
 
-### What's Changed
 
-* Silent logging by [@dtpryce](https://github.com/dtpryce) in [#1230](https://github.com/SeldonIO/MLServer/pull/1230)
-* Fix `mlserver infer` with `BYTES` by [@RafalSkolasinski](https://github.com/RafalSkolasinski) in [#1213](https://github.com/SeldonIO/MLServer/pull/1213)
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai3...v1.7.1+rhai4
 
-### New Contributors
-* [@dtpryce](https://github.com/dtpryce) made their first contribution in [#1230](https://github.com/SeldonIO/MLServer/pull/1230)
+[Changes][v1.7.1+rhai4]
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.3.3...1.3.4
 
-[Changes][1.3.4]
+<a id="v1.7.1+rhai3"></a>
+## [AIPCC release for MLServer v1.7.1+rhai3](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai3) - 2025-12-17
 
 
-<a id="1.3.3"></a>
-## [1.3.3](https://github.com/SeldonIO/MLServer/releases/tag/1.3.3) - 2023-06-05
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.3.3 -->
+[Changes][v1.7.1+rhai3]
 
-### What's Changed
 
-* Add default LD_LIBRARY_PATH env var by [@adriangonz](https://github.com/adriangonz) in [#1120](https://github.com/SeldonIO/MLServer/pull/1120)
-* Adding cassava tutorial (mlserver + seldon core) by [@edshee](https://github.com/edshee) in [#1156](https://github.com/SeldonIO/MLServer/pull/1156)
-* Add docs around converting to / from JSON by [@adriangonz](https://github.com/adriangonz) in [#1165](https://github.com/SeldonIO/MLServer/pull/1165)
-* Document SKLearn available outputs by [@adriangonz](https://github.com/adriangonz) in [#1167](https://github.com/SeldonIO/MLServer/pull/1167) 
-* Fix minor typo in `alibi-explain` tests by [@ascillitoe](https://github.com/ascillitoe) in [#1170](https://github.com/SeldonIO/MLServer/pull/1170)
-* Add support for `.ubj` models and improve XGBoost docs by [@adriangonz](https://github.com/adriangonz) in  [#1168](https://github.com/SeldonIO/MLServer/pull/1168)
-* Fix content type annotations for pandas codecs by [@adriangonz](https://github.com/adriangonz) in  [#1162](https://github.com/SeldonIO/MLServer/pull/1162)
-* Added option to configure the grpc histogram by [@cristiancl25](https://github.com/cristiancl25) in [#1143](https://github.com/SeldonIO/MLServer/pull/1143)
-* Add OS classifiers to project's metadata by [@adriangonz](https://github.com/adriangonz) in [#1171](https://github.com/SeldonIO/MLServer/pull/1171)
-* Don't use `qsize` for parallel worker queue by [@adriangonz](https://github.com/adriangonz) in [#1169](https://github.com/SeldonIO/MLServer/pull/1169)
-* Fix small typo in Python API docs by [@krishanbhasin-gc](https://github.com/krishanbhasin-gc)  in [#1174](https://github.com/SeldonIO/MLServer/pull/1174)
-* Fix star import in `mlserver.codecs.*` by [@adriangonz](https://github.com/adriangonz) in [#1172](https://github.com/SeldonIO/MLServer/pull/1172)
+<a id="v1.7.1+rhai2"></a>
+## [AIPCC release for MLServer v1.7.1+rhai2](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai2) - 2025-12-15
 
-### New Contributors
-* [@cristiancl25](https://github.com/cristiancl25) made their first contribution in [#1143](https://github.com/SeldonIO/MLServer/pull/1143)
-* [@krishanbhasin-gc](https://github.com/krishanbhasin-gc) made their first contribution in [#1174](https://github.com/SeldonIO/MLServer/pull/1174)
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.3.2...1.3.3
 
-[Changes][1.3.3]
+[Changes][v1.7.1+rhai2]
 
 
-<a id="1.3.2"></a>
-## [1.3.2](https://github.com/SeldonIO/MLServer/releases/tag/1.3.2) - 2023-05-10
+<a id="v1.7.1+rhai1"></a>
+## [AIPCC release for MLServer 1.7.1 (v1.7.1+rhai1)](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai1) - 2025-12-15
 
-<!-- Release notes generated using configuration in .github/release.yml at 1.4.0.dev2 -->
 
-### What's Changed
-* Use default initialiser if not using a custom env by [@adriangonz](https://github.com/adriangonz) in [#1104](https://github.com/SeldonIO/MLServer/pull/1104)
-* Add support for online drift detectors by [@ascillitoe](https://github.com/ascillitoe) in [#1108](https://github.com/SeldonIO/MLServer/pull/1108)
-* added intera and inter op parallelism parameters to the hugggingface … by [@saeid93](https://github.com/saeid93) in [#1081](https://github.com/SeldonIO/MLServer/pull/1081)
-* Fix settings reference in runtime docs by [@adriangonz](https://github.com/adriangonz) in [#1109](https://github.com/SeldonIO/MLServer/pull/1109)
-* Bump Alibi libs requirements by [@adriangonz](https://github.com/adriangonz) in [#1121](https://github.com/SeldonIO/MLServer/pull/1121)
-* Add default LD_LIBRARY_PATH env var by [@adriangonz](https://github.com/adriangonz) in [#1120](https://github.com/SeldonIO/MLServer/pull/1120)
-* Ignore both .metrics and .envs folders by [@adriangonz](https://github.com/adriangonz) in [#1132](https://github.com/SeldonIO/MLServer/pull/1132)
 
-### New Contributors
-* [@ascillitoe](https://github.com/ascillitoe) made their first contribution in [#1108](https://github.com/SeldonIO/MLServer/pull/1108)
+[Changes][v1.7.1+rhai1]
 
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.3.1...1.3.2
 
-[Changes][1.3.2]
+[v1.7.1+rhai14]: https://github.com/opendatahub-io/MLServer/compare/odh-v3.6-EA1...v1.7.1+rhai14
+[odh-v3.6-EA1]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.15...odh-v3.6-EA1
+[v1.7.1+rhaiv.15]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.14...v1.7.1+rhaiv.15
+[v1.7.1+rhaiv.14]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.13...v1.7.1+rhaiv.14
+[v1.7.1+rhaiv.13]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.12...v1.7.1+rhaiv.13
+[v1.7.1+rhaiv.12]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.11...v1.7.1+rhaiv.12
+[v1.7.1+rhaiv.11]: https://github.com/opendatahub-io/MLServer/compare/odh-v3.5...v1.7.1+rhaiv.11
+[odh-v3.5]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.10...odh-v3.5
+[v1.7.1+rhaiv.10]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.9...v1.7.1+rhaiv.10
+[v1.7.1+rhaiv.9]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.8...v1.7.1+rhaiv.9
+[v1.7.1+rhaiv.8]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai7...v1.7.1+rhaiv.8
+[v1.7.1+rhai7]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai6...v1.7.1+rhai7
+[v1.7.1+rhai6]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai5...v1.7.1+rhai6
+[v1.7.1+rhai5]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai4...v1.7.1+rhai5
+[v1.7.1+rhai4]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai3...v1.7.1+rhai4
+[v1.7.1+rhai3]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai2...v1.7.1+rhai3
+[v1.7.1+rhai2]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai1...v1.7.1+rhai2
+[v1.7.1+rhai1]: https://github.com/opendatahub-io/MLServer/tree/v1.7.1+rhai1
 
-
-<a id="1.3.1"></a>
-## [1.3.1](https://github.com/SeldonIO/MLServer/releases/tag/1.3.1) - 2023-04-27
-
-### What's Changed
-
-- Move OpenAPI schemas into Python package ([#1095](https://github.com/SeldonIO/MLServer/issues/1095))
-
-[Changes][1.3.1]
-
-
-<a id="1.3.0"></a>
-## [1.3.0](https://github.com/SeldonIO/MLServer/releases/tag/1.3.0) - 2023-04-27
-
-> WARNING :warning: : The `1.3.0` has been yanked from PyPi due to a packaging issue. This should have been now resolved in `>= 1.3.1`. 
-
-### What's Changed
-
-#### Custom Model Environments
-
-More often that not, your custom runtimes will depend on external 3rd party dependencies which are not included within the main MLServer package - or different versions of the same package (e.g. `scikit-learn==1.1.0` vs `scikit-learn==1.2.0`). In these cases, to load your custom runtime, MLServer will need access to these dependencies.
-
-In MLServer `1.3.0`, it is now [possible to load this custom set of dependencies by providing them](https://mlserver.readthedocs.io/en/latest/user-guide/custom.html#loading-a-custom-python-environment), through an [environment tarball](https://mlserver.readthedocs.io/en/latest/examples/conda/README.html), whose path can be specified within your `model-settings.json` file. This custom environment will get provisioned on the fly after loading a model - alongside the default environment and any other custom environments.
-
-Under the hood, each of these environments will run their own separate pool of workers.
-
-![image](https://user-images.githubusercontent.com/1577620/234797983-aa52c353-2d2f-4261-a078-06bfe62cae87.png)
-
-#### Custom Metrics
-
-The MLServer framework now includes a simple interface that allows you to register and keep track of any [custom metrics](https://mlserver.readthedocs.io/en/latest/user-guide/metrics.html#custom-metrics):
-
-- `[mlserver.register()](https://mlserver.readthedocs.io/en/latest/reference/api/metrics.html#mlserver.register)`: Register a new metric.
-- `[mlserver.log()](https://mlserver.readthedocs.io/en/latest/reference/api/metrics.html#mlserver.log)`: Log a new set of metric / value pairs.
-
-Custom metrics will generally be registered in the `[load()](https://mlserver.readthedocs.io/en/latest/reference/api/model.html#mlserver.MLModel.load)` method and then used in the `[predict()](https://mlserver.readthedocs.io/en/latest/reference/api/model.html#mlserver.MLModel.predict)` method of your [custom runtime](https://mlserver.readthedocs.io/en/latest/user-guide/custom.html). These metrics can then be polled and queried via [Prometheus](https://mlserver.readthedocs.io/en/latest/user-guide/metrics.html#settings).
-
-![image](https://user-images.githubusercontent.com/1577620/234798211-9e538439-4914-4aa6-9c3f-539a66e3ce54.png)
-
-#### OpenAPI
-
-MLServer `1.3.0` now includes an autogenerated Swagger UI which can be used to interact dynamically with the Open Inference Protocol.
-
-The autogenerated Swagger UI can be accessed under the `/v2/docs` endpoint.
-
-![https://mlserver.readthedocs.io/en/latest/_images/swagger-ui.png](https://mlserver.readthedocs.io/en/latest/_images/swagger-ui.png)
-
-Alongside the [general API documentation](https://mlserver.readthedocs.io/en/latest/user-guide/openapi.html#Swagger-UI), MLServer also exposes now a set of API docs tailored to individual models, showing the specific endpoints available for each one.
-
-The model-specific autogenerated Swagger UI can be accessed under the following endpoints:
-
-- `/v2/models/{model_name}/docs`
-- `/v2/models/{model_name}/versions/{model_version}/docs`
-
-#### HuggingFace Improvements
-
-MLServer now includes improved Codec support for all the main different types that can be returned by HugginFace models - ensuring that the values returned via the Open Inference Protocol are more semantic and meaningful.
-
-Massive thanks to [@pepesi](https://github.com/pepesi)  for taking the lead on improving the HuggingFace runtime!
-
-#### Support for Custom Model Repositories
-
-Internally, MLServer leverages a Model Repository implementation which is used to discover and find different models (and their versions) available to load. The latest version of MLServer will now allow you to swap this for your own model repository implementation - letting you integrate against your own model repository workflows. 
-
-This is exposed via the [model_repository_implementation](https://mlserver.readthedocs.io/en/latest/reference/settings.html#mlserver.settings.Settings.model_repository_implementation) flag of your `settings.json` configuration file. 
-
-Thanks to [@jgallardorama](https://github.com/jgallardorama)  (aka [@jgallardorama-itx](https://github.com/jgallardorama-itx) ) for his effort contributing this feature!
-
-#### Batch and Worker Queue Metrics
-
-MLServer `1.3.0` introduces a [new set of metrics](https://mlserver.readthedocs.io/en/latest/user-guide/metrics.html#default-metrics) to increase visibility around two of its internal queues:
-
-- [Adaptive batching](https://mlserver.readthedocs.io/en/latest/user-guide/adaptive-batching.html) queue: used to accumulate request batches on the fly.
-- [Parallel inference](https://mlserver.readthedocs.io/en/latest/user-guide/parallel-inference.html) queue: used to send over requests to the inference worker pool.
-
-Many thanks to [@alvarorsant](https://github.com/alvarorsant)  for taking the time to implement this highly requested feature!
-
-#### Image Size Optimisations
-
-The latest version of MLServer includes a few optimisations around image size, which help reduce the size of the official set of images by more than ~60% - making them more convenient to use and integrate within your workloads. In the case of the full `seldonio/mlserver:1.3.0` image (including all runtimes and dependencies), this means going from 10GB down to ~3GB.
-
-#### Python API Documentation
-
-Alongside its built-in inference runtimes, MLServer also exposes a Python framework that you can use to extend MLServer and write your own codecs and inference runtimes. The MLServer official docs now include a [reference page](https://mlserver.readthedocs.io/en/latest/reference/api/index.html) documenting the main components of this framework in more detail.
-
-### New Contributors
-* [@rio](https://github.com/rio) made their first contribution in [#864](https://github.com/SeldonIO/MLServer/pull/864)
-* [@pepesi](https://github.com/pepesi) made their first contribution in [#692](https://github.com/SeldonIO/MLServer/pull/692)
-* [@jgallardorama](https://github.com/jgallardorama) made their first contribution in [#849](https://github.com/SeldonIO/MLServer/pull/849)
-* [@alvarorsant](https://github.com/alvarorsant) made their first contribution in [#860](https://github.com/SeldonIO/MLServer/pull/860)
-* [@gawsoftpl](https://github.com/gawsoftpl) made their first contribution in [#950](https://github.com/SeldonIO/MLServer/pull/950)
-* [@stephen37](https://github.com/stephen37) made their first contribution in [#1033](https://github.com/SeldonIO/MLServer/pull/1033)
-* [@sauerburger](https://github.com/sauerburger) made their first contribution in [#1064](https://github.com/SeldonIO/MLServer/pull/1064)
-
-[Changes][1.3.0]
-
-
-<a id="1.2.4"></a>
-## [1.2.4](https://github.com/SeldonIO/MLServer/releases/tag/1.2.4) - 2023-03-10
-
-<!-- Release notes generated using configuration in .github/release.yml at 1.2.4 -->
-
-
-
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.2.3...1.2.4
-
-[Changes][1.2.4]
-
-
-<a id="1.2.3"></a>
-## [1.2.3](https://github.com/SeldonIO/MLServer/releases/tag/1.2.3) - 2023-01-16
-
-<!-- Release notes generated using configuration in .github/release.yml at 1.2.3 -->
-
-
-
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.2.2...1.2.3
-
-[Changes][1.2.3]
-
-
-<a id="1.2.2"></a>
-## [1.2.2](https://github.com/SeldonIO/MLServer/releases/tag/1.2.2) - 2023-01-16
-
-<!-- Release notes generated using configuration in .github/release.yml at 1.2.2 -->
-
-
-
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.2.1...1.2.2
-
-[Changes][1.2.2]
-
-
-<a id="1.2.1"></a>
-## [1.2.1](https://github.com/SeldonIO/MLServer/releases/tag/1.2.1) - 2022-12-19
-
-<!-- Release notes generated using configuration in .github/release.yml at 1.2.1 -->
-
-
-
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.2.0...1.2.1
-
-[Changes][1.2.1]
-
-
-<a id="1.2.0"></a>
-## [1.2.0](https://github.com/SeldonIO/MLServer/releases/tag/1.2.0) - 2022-11-25
-
-<!-- Release notes generated using configuration in .github/release.yml at 1.2.0 -->
-
-### What's Changed
-
-#### Simplified Interface for Custom Runtimes
-
-MLServer now exposes an alternative [_“simplified”_ interface](https://mlserver.readthedocs.io/en/latest/user-guide/custom.html#simplified-interface) which can be used to write custom runtimes. This interface can be enabled by decorating your predict() method with the `mlserver.codecs.decode_args` decorator, and it lets you specify in the method signature both how you want your request payload to be decoded and how to encode the response back.
-
-Based on the information provided in the method signature, MLServer will automatically decode the request payload into the different inputs specified as keyword arguments. Under the hood, this is implemented through [MLServer’s codecs and content types system](https://mlserver.readthedocs.io/en/latest/user-guide/content-type.html).
-
-```python
-from mlserver import MLModel
-from mlserver.codecs import decode_args
-
-class MyCustomRuntime(MLModel):
-
-  async def load(self) -> bool:
-    # TODO: Replace for custom logic to load a model artifact
-    self._model = load_my_custom_model()
-    self.ready = True
-    return self.ready
-
-  @decode_args
-  async def predict(self, questions: List[str], context: List[str]) -> np.ndarray:
-    # TODO: Replace for custom logic to run inference
-    return self._model.predict(questions, context)
-```
-
-#### Built-in Templates for Custom Runtimes
-
-To make it easier to write your own custom runtimes, MLServer now ships with a `mlserver init` command that will generate a templated project. This project will include a skeleton with folders, unit tests, Dockerfiles, etc. for you to fill.
-
-![image1](https://user-images.githubusercontent.com/1577620/203810614-f4daa32e-8b1d-4bea-9b02-959b1d054596.gif)
-
-#### Dynamic Loading of Custom Runtimes
-
-MLServer now lets you [load custom runtimes dynamically](https://mlserver.readthedocs.io/en/latest/user-guide/custom.html#loading-a-custom-mlserver-runtime) into a running instance of MLServer. Once you have your custom runtime ready, all you need to do is to move it to your model folder, next to your `model-settings.json` configuration file.
-
-For example, if we assume a flat model repository where each folder represents a model, you would end up with a folder structure like the one below:
-
-```
-.
-├── models
-│   └── sum-model
-│       ├── model-settings.json
-│       ├── models.py
-```
-
-#### Batch Inference Client
-
-This release of MLServer introduces a new [`mlserver infer`](https://mlserver.readthedocs.io/en/latest/reference/cli.html#mlserver-infer) command, which will let you run inference over a large batch of input data on the client side. Under the hood, this command will stream a large set of inference requests from specified input file, arrange them in microbatches, orchestrate the request / response lifecycle, and will finally write back the obtained responses into output file.
-
-#### Parallel Inference Improvements
-
-The `1.2.0` release of MLServer, includes a number of fixes around the parallel inference pool focused on improving the architecture to optimise memory usage and reduce latency. These changes include (but are not limited to):
-
-- The main MLServer process won’t load an extra replica of the model anymore. Instead, all computing will occur on the parallel inference pool.
-- The worker pool will now ensure that all requests are executed on each worker’s AsyncIO loop, thus optimising compute time vs IO time.
-- Several improvements around logging from the inference workers. 
-
-#### Dropped support for Python 3.7
-
-MLServer has now dropped support for Python `3.7`. Going forward, only `3.8`, `3.9` and `3.10` will be supported (with `3.8` being used in our official set of images).
-
-#### Move to UBI Base Images
-
-The official set of MLServer images has now moved to use [UBI 9](https://www.redhat.com/en/blog/introducing-red-hat-universal-base-image) as a base image. This ensures support to run MLServer in OpenShift clusters, as well as a well-maintained baseline for our images. 
-
-#### Support for MLflow 2.0
-
-In line with MLServer’s close relationship with the MLflow team, this release of MLServer introduces support for the recently released MLflow 2.0. This introduces changes to the drop-in MLflow “scoring protocol” support, in the MLflow runtime for MLServer, to ensure it’s aligned with MLflow 2.0.  
-
-MLServer is also shipped as a dependency of MLflow, therefore you can try it out today by installing MLflow as:
-
-```bash
-$ pip install mlflow[extras]
-```
-
-To learn more about how to use MLServer directly from the MLflow CLI, check out the [MLflow docs](https://www.mlflow.org/docs/latest/models.html#serving-with-mlserver).
-
-
-### New Contributors
-* [@johnpaulett](https://github.com/johnpaulett) made their first contribution in [#633](https://github.com/SeldonIO/MLServer/pull/633)
-* [@saeid93](https://github.com/saeid93) made their first contribution in [#711](https://github.com/SeldonIO/MLServer/pull/711)
-* [@RafalSkolasinski](https://github.com/RafalSkolasinski) made their first contribution in [#720](https://github.com/SeldonIO/MLServer/pull/720)
-* [@dumaas](https://github.com/dumaas) made their first contribution in [#742](https://github.com/SeldonIO/MLServer/pull/742)
-* [@Salehbigdeli](https://github.com/Salehbigdeli) made their first contribution in [#776](https://github.com/SeldonIO/MLServer/pull/776)
-* [@regen100](https://github.com/regen100) made their first contribution in [#839](https://github.com/SeldonIO/MLServer/pull/839)
-
-**Full Changelog**: https://github.com/SeldonIO/MLServer/compare/1.1.0...1.2.0
-
-[Changes][1.2.0]
-
-
-<a id="1.1.0"></a>
-## [v1.1.0](https://github.com/SeldonIO/MLServer/releases/tag/1.1.0) - 2022-08-01
-
-
-
-[Changes][1.1.0]
-
-
-[1.7.0]: https://github.com/SeldonIO/MLServer/compare/1.6.1...1.7.0
-[1.6.1]: https://github.com/SeldonIO/MLServer/compare/1.6.0...1.6.1
-[1.6.0]: https://github.com/SeldonIO/MLServer/compare/1.5.0...1.6.0
-[1.5.0]: https://github.com/SeldonIO/MLServer/compare/1.4.0...1.5.0
-[1.4.0]: https://github.com/SeldonIO/MLServer/compare/1.3.5...1.4.0
-[1.3.5]: https://github.com/SeldonIO/MLServer/compare/1.3.4...1.3.5
-[1.3.4]: https://github.com/SeldonIO/MLServer/compare/1.3.3...1.3.4
-[1.3.3]: https://github.com/SeldonIO/MLServer/compare/1.3.2...1.3.3
-[1.3.2]: https://github.com/SeldonIO/MLServer/compare/1.3.1...1.3.2
-[1.3.1]: https://github.com/SeldonIO/MLServer/compare/1.3.0...1.3.1
-[1.3.0]: https://github.com/SeldonIO/MLServer/compare/1.2.4...1.3.0
-[1.2.4]: https://github.com/SeldonIO/MLServer/compare/1.2.3...1.2.4
-[1.2.3]: https://github.com/SeldonIO/MLServer/compare/1.2.2...1.2.3
-[1.2.2]: https://github.com/SeldonIO/MLServer/compare/1.2.1...1.2.2
-[1.2.1]: https://github.com/SeldonIO/MLServer/compare/1.2.0...1.2.1
-[1.2.0]: https://github.com/SeldonIO/MLServer/compare/1.1.0...1.2.0
-[1.1.0]: https://github.com/SeldonIO/MLServer/tree/1.1.0
-
-<!-- Generated by https://github.com/rhysd/changelog-from-release v3.9.0 -->
+<!-- Generated by https://github.com/rhysd/changelog-from-release v3.9.1 -->
