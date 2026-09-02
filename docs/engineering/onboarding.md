@@ -41,13 +41,7 @@ MLServer/
 │   ├── sklearn/             # ← Shipped in production images
 │   ├── xgboost/             # ← Shipped in production images
 │   ├── lightgbm/            # ← Shipped in production images
-│   ├── onnx/                # ← Shipped in production images
-│   ├── huggingface/         # Community (source only, not shipped)
-│   ├── catboost/            # Community (source only, not shipped)
-│   ├── mlflow/              # Community (source only, not shipped)
-│   ├── alibi-detect/        # Community (source only, not shipped)
-│   ├── alibi-explain/       # Community (source only, not shipped)
-│   └── mllib/               # Community (source only, not shipped)
+│   └── onnx/                # ← Shipped in production images
 ├── tests/                   # Test suite (pytest)
 ├── docs/                    # Sphinx documentation + engineering docs
 ├── hack/                    # Build scripts and utilities

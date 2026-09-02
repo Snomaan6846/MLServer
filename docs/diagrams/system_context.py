@@ -10,6 +10,8 @@ Usage:
     python3 system_context.py
 """
 
+import os
+
 from diagrams import Cluster, Diagram, Edge
 from diagrams.onprem.client import Users
 from diagrams.onprem.compute import Server
@@ -33,7 +35,7 @@ graph_attr = {
 
 with Diagram(
     "MLServer — Software Architecture",
-    filename="/Users/imran/Projects/MLServer/docs/diagrams/system_context",
+    filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), "system_context"),
     show=False,
     direction="LR",
     graph_attr=graph_attr,
@@ -79,17 +81,6 @@ with Diagram(
             xgboost = Pod("xgboost\nXGBoostModel")
             lightgbm = Pod("lightgbm\nLightGBMModel")
             onnx = Pod("onnx\nOnnxModel")
-
-        with Cluster(
-            "Community Runtimes (Source Only — Not Shipped)",
-            graph_attr={"style": "dashed", "pencolor": "#888888"},
-        ):
-            catboost = Pod("catboost")
-            mlflow = Pod("mlflow")
-            huggingface = Pod("huggingface")
-            alibi_detect = Pod("alibi-detect")
-            alibi_explain = Pod("alibi-explain")
-            mllib = Pod("mllib")
 
     # ── Client → Transport ─────────────────────────────────────
     client >> Edge(label="HTTP/JSON", color="#2E6EB5", style="bold") >> rest

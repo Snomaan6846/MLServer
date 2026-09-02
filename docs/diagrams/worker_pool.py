@@ -1,5 +1,7 @@
 """MLServer Worker Pool Architecture — Parallel Inference via Multiprocessing."""
 
+import os
+
 from diagrams import Cluster, Diagram, Edge
 from diagrams.onprem.compute import Server
 from diagrams.onprem.client import Users
@@ -17,7 +19,7 @@ graph_attr = {
 
 with Diagram(
     "MLServer — Worker Pool Architecture",
-    filename="/Users/imran/Projects/MLServer/docs/diagrams/worker_pool",
+    filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker_pool"),
     show=False,
     direction="TB",
     graph_attr=graph_attr,

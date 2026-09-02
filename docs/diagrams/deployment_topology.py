@@ -1,5 +1,7 @@
 """MLServer Production Deployment Topology on Kubernetes."""
 
+import os
+
 from diagrams import Cluster, Diagram, Edge
 from diagrams.k8s.compute import Pod, Deployment
 from diagrams.k8s.network import Service, Ingress
@@ -20,7 +22,7 @@ graph_attr = {
 
 with Diagram(
     "MLServer — Production Deployment Topology",
-    filename="/Users/imran/Projects/MLServer/docs/diagrams/deployment_topology",
+    filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), "deployment_topology"),
     show=False,
     direction="TB",
     graph_attr=graph_attr,

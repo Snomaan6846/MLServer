@@ -40,10 +40,8 @@ Key architectural properties:
 - **Adaptive batching** — transparently groups incoming requests into batches
   based on configurable size and time thresholds.
 - **Pluggable runtimes** — model-serving logic is decoupled into runtime
-  plugins (sklearn, xgboost, lightgbm, onnx, etc.) that extend the `MLModel`
-  base class. The ODH midstream images ship four runtimes; additional
-  community runtimes have source in this repository but are not included in
-  production images.
+  plugins (sklearn, xgboost, lightgbm, onnx) that extend the `MLModel`
+  base class. The ODH midstream images ship these four runtimes.
 - **Codec pipeline** — a type-conversion layer that encodes/decodes between
   high-level Python objects (NumPy arrays, Pandas DataFrames) and the
   V2 wire format.
@@ -834,21 +832,6 @@ default trusted runtimes allowlist:
 | XGBoost | `mlserver-xgboost` | `XGBoostModel` | XGBoost |
 | LightGBM | `mlserver-lightgbm` | `LightGBMModel` | LightGBM |
 | ONNX | `mlserver-onnx` | `OnnxModel` | ONNX Runtime |
-
-#### Community Runtimes (source available, not shipped)
-
-These runtimes have source code and tests in this repository but are **not**
-included in the production container images. They can be installed separately
-via `pip` or baked into custom images with `mlserver build`:
-
-| Plugin | Package | MLModel Subclass | Framework |
-|--------|---------|-----------------|-----------|
-| CatBoost | `mlserver-catboost` | `CatboostModel` | CatBoost |
-| MLflow | `mlserver-mlflow` | `MLflowRuntime` | MLflow |
-| Hugging Face | `mlserver-huggingface` | `HuggingFaceRuntime` | Transformers |
-| Alibi Detect | `mlserver-alibi-detect` | `AlibiDetectRuntime` | Alibi Detect |
-| Alibi Explain | `mlserver-alibi-explain` | `AlibiExplainRuntime` | Alibi Explain |
-| Spark MLlib | `mlserver-mllib` | `MLlibModel` | PySpark MLlib |
 
 ### Plugin Contract
 

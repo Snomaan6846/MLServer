@@ -28,20 +28,6 @@ MLServer has runtime plugins for several ML frameworks. Four runtimes are
 | lightgbm | LightGBM | `mlserver_lightgbm.LightGBMModel` |
 | onnx | ONNX Runtime | `mlserver_onnx.OnnxModel` |
 
-Additional **community runtimes** have source code and tests in this
-repository but are **not included in production images**. They can be
-installed separately via `pip` or baked into custom images with
-`mlserver build`:
-
-| Runtime | Framework | Import Path |
-|---------|-----------|-------------|
-| catboost | CatBoost | `mlserver_catboost.CatboostModel` |
-| mlflow | MLflow | `mlserver_mlflow.MLflowRuntime` |
-| huggingface | HuggingFace Transformers | `mlserver_huggingface.HuggingFaceRuntime` |
-| alibi-detect | Alibi Detect | `mlserver_alibi_detect.AlibiDetectRuntime` |
-| alibi-explain | Alibi Explain | `mlserver_alibi_explain.AlibiExplainRuntime` |
-| mllib | Apache Spark MLlib | `mlserver_mllib.MLlibModel` |
-
 You can also write custom runtimes by subclassing `mlserver.MLModel`.
 
 ---
