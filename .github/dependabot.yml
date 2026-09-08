@@ -7,32 +7,7 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "pip"
-    directory: "/runtimes/alibi-detect"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
-    directory: "/runtimes/alibi-explain"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
-    directory: "/runtimes/huggingface"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
     directory: "/runtimes/lightgbm"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
-    directory: "/runtimes/mlflow"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
-    directory: "/runtimes/mllib"
     schedule:
       interval: "weekly"
 
@@ -46,10 +21,6 @@ updates:
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "pip"
-    directory: "/runtimes/catboost"
-    schedule:
-      interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/"

@@ -50,11 +50,7 @@ presence of a trusted runtimes allowlist file.
 ]
 ```
 
-> **Note:** The production images ship with these four runtimes. Community
-> runtimes (catboost, mlflow, huggingface, alibi-detect, alibi-explain,
-> mllib) are **not** included in production images. To use them, bake them
-> into a custom image with `mlserver build` and add their import paths to
-> the allowlist.
+> **Note:** The production images ship with these four runtimes only.
 
 The file is a JSON array of canonical Python import paths. Each entry must:
 

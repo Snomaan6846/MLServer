@@ -250,20 +250,6 @@ html = f"""<!DOCTYPE html>
 {node("pod", "onnx", 685, 565, size=44, sublabel="OnnxModel")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  COMMUNITY RUNTIMES                                    -->
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="200" y="625" width="780" height="95" class="cluster"
-    stroke="#888"/>
-  <text x="590" y="643" class="cluster-title" fill="#888">Community Runtimes (Source Only — Not Shipped)</text>
-
-{node("pod", "catboost", 265, 690, size=38, label_color="#888")}
-{node("pod", "mlflow", 380, 690, size=38, label_color="#888")}
-{node("pod", "huggingface", 510, 690, size=38, label_color="#888")}
-{node("pod", "alibi-detect", 650, 690, size=38, label_color="#888")}
-{node("pod", "alibi-explain", 790, 690, size=38, label_color="#888")}
-{node("pod", "mllib", 910, 690, size=38, label_color="#888")}
-
-  <!-- ═══════════════════════════════════════════════════════ -->
   <!--  ANIMATED FLOW ARROWS                                  -->
   <!-- ═══════════════════════════════════════════════════════ -->
 
@@ -338,8 +324,7 @@ html = f"""<!DOCTYPE html>
     opendatahub-io/MLServer  ·  V2 Inference Protocol  ·  Apache-2.0
   </text>
   <text x="575" y="765" fill="#999" font-size="9" text-anchor="middle">
-    Shipped: sklearn · xgboost · lightgbm · onnx    |
-    Community: catboost · mlflow · huggingface · alibi-detect · alibi-explain · mllib
+    Shipped runtimes: sklearn · xgboost · lightgbm · onnx
   </text>
 
 </svg>

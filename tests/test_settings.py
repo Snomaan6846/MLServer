@@ -1203,36 +1203,6 @@ def test_canonicalize_runtime_import_path_builtins():
         == "mlserver_lightgbm.LightGBMModel"
     )
     assert (
-        canonicalize_runtime_import_path("mlserver_mlflow.runtime.MLflowRuntime")
-        == "mlserver_mlflow.MLflowRuntime"
-    )
-    assert (
-        canonicalize_runtime_import_path(
-            "mlserver_huggingface.runtime.HuggingFaceRuntime"
-        )
-        == "mlserver_huggingface.HuggingFaceRuntime"
-    )
-    assert (
-        canonicalize_runtime_import_path(
-            "mlserver_alibi_detect.runtime.AlibiDetectRuntime"
-        )
-        == "mlserver_alibi_detect.AlibiDetectRuntime"
-    )
-    assert (
-        canonicalize_runtime_import_path(
-            "mlserver_alibi_explain.runtime.AlibiExplainRuntime"
-        )
-        == "mlserver_alibi_explain.AlibiExplainRuntime"
-    )
-    assert (
-        canonicalize_runtime_import_path("mlserver_catboost.catboost.CatboostModel")
-        == "mlserver_catboost.CatboostModel"
-    )
-    assert (
-        canonicalize_runtime_import_path("mlserver_mllib.mllib.MLlibModel")
-        == "mlserver_mllib.MLlibModel"
-    )
-    assert (
         canonicalize_runtime_import_path("mlserver_onnx.onnx.OnnxModel")
         == "mlserver_onnx.OnnxModel"
     )

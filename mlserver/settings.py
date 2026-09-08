@@ -43,9 +43,8 @@ TRUSTED_RUNTIMES_ARTIFACT_PATH = "/etc/mlserver/trusted-runtimes.json"
 # Canonical runtime import-path regex used by runtime and CLI validation.
 # Require explicit dotted paths (`module.ClassName`) and disallow leading
 # underscores on each segment to keep runtime declarations explicit.
-# Hyphens are allowed in module segments (filesystem directories like
-# "alibi-explain" and "alibi-detect" surface as hyphens in __module__)
-# but NOT in the final class-name segment (valid Python identifier).
+# Hyphens are allowed in module segments but NOT in the final class-name
+# segment (which must be a valid Python identifier).
 RUNTIME_IMPORT_PATH_PATTERN = re.compile(
     r"^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z][A-Za-z0-9_-]*)*\.[A-Za-z][A-Za-z0-9_]*$"
 )
@@ -61,35 +60,17 @@ def is_valid_runtime_import_path(value: object) -> bool:
 
 
 ALLOWED_MODEL_IMPLEMENTATIONS = {
-    "mlserver_alibi_detect.AlibiDetectRuntime",
-    "mlserver_alibi_explain.AlibiExplainRuntime",
-    "mlserver_catboost.CatboostModel",
-    "mlserver_huggingface.HuggingFaceRuntime",
     "mlserver_sklearn.SKLearnModel",
     "mlserver_xgboost.XGBoostModel",
     "mlserver_lightgbm.LightGBMModel",
-    "mlserver_mlflow.MLflowRuntime",
-    "mlserver_mllib.MLlibModel",
     "mlserver_onnx.OnnxModel",
 }
 
 
 _BUILTIN_RUNTIME_IMPORT_PATH_ALIASES = {
-    "mlserver_alibi_detect.runtime.AlibiDetectRuntime": (
-        "mlserver_alibi_detect.AlibiDetectRuntime"
-    ),
-    "mlserver_alibi_explain.runtime.AlibiExplainRuntime": (
-        "mlserver_alibi_explain.AlibiExplainRuntime"
-    ),
-    "mlserver_catboost.catboost.CatboostModel": "mlserver_catboost.CatboostModel",
-    "mlserver_huggingface.runtime.HuggingFaceRuntime": (
-        "mlserver_huggingface.HuggingFaceRuntime"
-    ),
     "mlserver_sklearn.sklearn.SKLearnModel": "mlserver_sklearn.SKLearnModel",
     "mlserver_xgboost.xgboost.XGBoostModel": "mlserver_xgboost.XGBoostModel",
     "mlserver_lightgbm.lightgbm.LightGBMModel": "mlserver_lightgbm.LightGBMModel",
-    "mlserver_mlflow.runtime.MLflowRuntime": "mlserver_mlflow.MLflowRuntime",
-    "mlserver_mllib.mllib.MLlibModel": "mlserver_mllib.MLlibModel",
     "mlserver_onnx.onnx.OnnxModel": "mlserver_onnx.OnnxModel",
 }
 

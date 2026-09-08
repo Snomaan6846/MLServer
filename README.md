@@ -44,8 +44,8 @@ and multi-model routing from scratch every time.
 **MLServer gives you all of that out of the box**, with a standardised wire
 format that works across frameworks:
 
-- **One server, many models** — serve scikit-learn, XGBoost, HuggingFace,
-  ONNX, and custom models side by side in a single process. No per-model
+- **One server, many models** — serve scikit-learn, XGBoost, ONNX,
+  and custom models side by side in a single process. No per-model
   containers needed.
 - **Production-grade by default** — health probes, Prometheus metrics,
   adaptive batching, parallel workers, and response caching are built in,
@@ -212,21 +212,6 @@ covered by the default trusted runtimes allowlist:
 | LightGBM | `mlserver-lightgbm` | CPU | [Docs](./runtimes/lightgbm) |
 | ONNX Runtime | `mlserver-onnx` | CPU + CUDA | [Docs](./runtimes/onnx) |
 
-### Community Runtimes (source available, not shipped)
-
-These runtimes have source code and tests in this repository but are **not**
-included in the production container images. They can be installed separately
-via `pip` or baked into custom images with `mlserver build`:
-
-| Framework | Package | Documentation |
-|-----------|---------|---------------|
-| CatBoost | `mlserver-catboost` | [Docs](./runtimes/catboost) |
-| MLflow | `mlserver-mlflow` | [Docs](./runtimes/mlflow) |
-| HuggingFace | `mlserver-huggingface` | [Docs](./runtimes/huggingface) |
-| Alibi Detect | `mlserver-alibi-detect` | [Docs](./runtimes/alibi-detect) |
-| Alibi Explain | `mlserver-alibi-explain` | [Docs](./runtimes/alibi-explain) |
-| Spark MLlib | `mlserver-mllib` | [Docs](./runtimes/mllib) |
-
 ### Supported Python Versions
 
 | Python | Status |
@@ -270,11 +255,8 @@ To see MLServer in action, check out the [full list of examples](./docs/examples
 | [Serving a scikit-learn model](./docs/examples/sklearn/README.md) | Scikit-Learn |
 | [Serving an XGBoost model](./docs/examples/xgboost/README.md) | XGBoost |
 | [Serving a LightGBM model](./docs/examples/lightgbm/README.md) | LightGBM |
-| [Serving a CatBoost model](./docs/examples/catboost/README.md) | CatBoost |
 | [Serving an ONNX model](./docs/examples/onnx/README.md) | ONNX Runtime |
 | [Serving a custom model](./docs/examples/custom/README.md) | Custom runtime |
-| [Serving an Alibi Detect model](./docs/examples/alibi-detect/README.md) | Alibi Detect |
-| [Serving a HuggingFace model](./docs/examples/huggingface/README.md) | HuggingFace |
 | [Multi-model serving](./docs/examples/mms/README.md) | Multiple frameworks |
 | [Model repository management](./docs/examples/model-repository/README.md) | Dynamic load/unload |
 
@@ -352,7 +334,4 @@ development environment setup.
 MLServer is licensed under the
 [Apache License, Version 2.0](./LICENSE).
 
-Note that some inference runtimes used alongside MLServer may be licensed under
-different terms. For example, Alibi Detect and Alibi Explain are licensed under
-the Business Source License 1.1. Refer to each runtime's documentation for
-details.
+

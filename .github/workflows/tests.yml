@@ -136,11 +136,6 @@ jobs:
           - xgboost
           - lightgbm
           - onnx
-          - mlflow
-          - huggingface
-          - alibi-explain
-          - alibi-detect
-          - catboost
         is-pr:
           - ${{ github.event_name == 'pull_request' }}
         exclude:
