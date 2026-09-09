@@ -28,8 +28,8 @@
         "Dockerfile.konflux.cuda"
       ],
       "matchDepNames": [
-        "quay.io/aipcc/base-images/cpu",
-        "quay.io/aipcc/base-images/cuda-12.9-el9.6"
+        "quay.io/aipcc/base-images/cpu-el9.8",
+        "quay.io/aipcc/base-images/cuda-12.9-el9.8"
       ],
       "schedule": [
         "at any time"
