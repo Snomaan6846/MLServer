@@ -297,7 +297,7 @@ Our movies are 98.6691% similar
 Let's decompose what just happened.
 
 The `URL` for our service might seem a bit odd if you've never heard of the
-[V2/Open Inference Protocol (OIP)](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html).
+[V2/Open Inference Protocol (OIP)](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol).
 This protocol is a set of specifications that allows machine learning models to be shared and deployed in a
 standardized way. This protocol enables the use of machine learning models on a variety of platforms and
 devices without requiring changes to the model or its code. The OIP is useful because it allows us
@@ -486,15 +486,11 @@ docker run -it --rm -p 8080:8080 fancy_ml_service
 ```
 
 Now that you have a packaged and fully-functioning microservice with our model, we could deploy our container
-to a production serving platform like [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/latest/#),
+to a production serving platform like [KServe](https://kserve.github.io/website/),
 or via different offerings available through the many cloud providers out there (e.g. AWS Lambda, Google
-Cloud Run, etc.). You could also run this image on KServe, a Kubernetes native tool for model serving, or
-anywhere else where you can bring your docker image with you.
+Cloud Run, etc.). You could also run this image anywhere else where you can bring your docker image with you.
 
 To learn more about MLServer and the different ways in which you can use it, head over to the
 [examples](https://mlserver.readthedocs.io/en/latest/examples/index.html) section
 or the [user guide](https://mlserver.readthedocs.io/en/latest/user-guide/index.html). To learn about
 some of the deployment options available, head over to the docs [here](https://mlserver.readthedocs.io/en/stable/user-guide/deployment/index.html).
-
-To keep up to date with what we are up to at Seldon, make sure you join our
-[Slack community](https://join.slack.com/t/seldondev/shared_invite/zt-vejg6ttd-ksZiQs3O_HOtPQsen_labg).

@@ -21,7 +21,7 @@ import sphinx_material
 project = "MLServer"
 copyright = "2024, Seldon Technologies"
 html_title = "MLServer Documentation"
-author = "Seldon Technologies"
+author = "Seldon Technologies and Open Data Hub"
 
 # The full version, including alpha/beta/rc tags
 release = "1.7.0.dev0"
@@ -78,7 +78,7 @@ if html_theme == "sphinx_material":
         "base_url": "https://mlserver.readthedocs.io",
         "color_primary": "teal",
         "color_accent": "light-blue",
-        "repo_url": "https://github.com/SeldonIO/MLServer/",
+        "repo_url": "https://github.com/opendatahub-io/MLServer/",
         "repo_name": "MLServer",
         "globaltoc_depth": 4,
         "globaltoc_collapse": True,
@@ -87,31 +87,9 @@ if html_theme == "sphinx_material":
         "repo_type": "github",
         "nav_links": [
             {
-                "href": "https://docs.seldon.io",
+                "href": "https://kserve.github.io/website/",
                 "internal": False,
-                "title": "🚀 Our Other Projects & Products:",
-            },
-            {
-                "href": "https://docs.seldon.io/projects/seldon-core/en/latest/",
-                "internal": False,
-                "title": "Seldon Core",
-            },
-            {
-                "href": "https://tempo.readthedocs.io/en/latest/",
-                "internal": False,
-                "title": "Tempo SDK",
-            },
-            {
-                "href": "https://deploy.seldon.io/",
-                "internal": False,
-                "title": "Seldon Deploy (Enterprise)",
-            },
-            {
-                "href": (
-                    "https://github.com/SeldonIO/seldon-deploy-sdk#seldon-deploy-sdk"
-                ),
-                "internal": False,
-                "title": "Seldon Deploy SDK (Enterprise)",
+                "title": "KServe",
             },
         ],
     }

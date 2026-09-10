@@ -6,7 +6,7 @@ Most commonly, this type ranges from _"general purpose"_ NumPy arrays or Pandas
 DataFrames to more granular definitions, like `datetime` objects, `Pillow`
 images, etc.
 Unfortunately, the definition of the [V2 Inference
-Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html) doesn't
+Protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol) doesn't
 cover any of the specific use cases.
 This protocol can be thought of a wider _"lower level"_ spec, which only
 defines what fields a payload should have.
@@ -322,11 +322,11 @@ You can also learn more about building custom extensions for MLServer on the
 
 ```{note}
 The [V2 Inference
-Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html) expects
-that the `data` of each input is sent as a **flat array**.
-Therefore, the `np` content type will expect that tensors are sent flattened.
-The information in the `shape` field will then be used to reshape the vector
-into the right dimensions.
+Protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol)
+allows tensor `data` in JSON as either a **nested array matching the tensor
+shape** or a **flattened** one-dimensional array (row-major).
+The `np` content type always **encodes** tensors as a flattened array.
+On decode, it uses the `shape` field to restore the original dimensions.
 ```
 
 The `np` content type will decode / encode V2 payloads to a NumPy Array, taking
@@ -334,8 +334,8 @@ into account the following:
 
 - The `datatype` field will be matched to the closest [NumPy
   `dtype`](https://numpy.org/doc/stable/reference/arrays.dtypes.html).
-- The `shape` field will be used to reshape the flattened array expected by the
-  V2 protocol into the expected tensor shape.
+- On encode, the array is flattened in row-major order. On decode, the `shape`
+  field is used to restore the tensor dimensions.
 
 ```{note}
 By default, MLServer will always assume that an array with a single-dimensional

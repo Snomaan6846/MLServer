@@ -28,7 +28,6 @@ class in your `model-settings.json` file.
 | XGBoost      | `mlserver-xgboost`      | `mlserver_xgboost.XGBoostModel`            | [XGBoost example](../examples/xgboost/README.md)           | [MLServer XGBoost](./xgboost)                                    |
 | LightGBM     | `mlserver-lightgbm`     | `mlserver_lightgbm.LightGBMModel`          | [LightGBM example](../examples/lightgbm/README.md)         | [MLServer LightGBM](./lightgbm)                                  |
 | ONNX         | `mlserver-onnx[cpu]` or `mlserver-onnx[cuda]` | `mlserver_onnx.OnnxModel`                  | [ONNX example](../examples/onnx/README.md)                 | [MLServer ONNX](./onnx)                                  |
-| Tempo        | `tempo`                 | `tempo.mlserver.InferenceRuntime`          | [Tempo example](../examples/tempo/README.md)               | [`github.com/SeldonIO/tempo`](https://github.com/SeldonIO/tempo) |
 
 ```{toctree}
 :hidden:
@@ -36,7 +35,6 @@ class in your `model-settings.json` file.
 
 SKLearn <./sklearn>
 XGBoost <./xgboost>
-Tempo <https://tempo.readthedocs.io>
 LightGBM <./lightgbm>
 ONNX <./onnx>
 Custom <./custom>

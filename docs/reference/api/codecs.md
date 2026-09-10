@@ -2,7 +2,7 @@
 
 Codecs are used to encapsulate the logic required to encode / decode payloads
 following the [Open Inference
-Protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html)
+Protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol)
 into high-level Python types.
 You can read more about the high-level concepts behind codecs in the
 [](../../user-guide/content-type) section of the docs, as well as how to use

@@ -1,29 +1,43 @@
-# Model Repository API
+# Multi-model serving and the Model Repository API
 
-MLServer supports loading and unloading models dynamically from a models repository.
-This allows you to enable and disable the models accessible by MLServer on demand.
-This extension builds on top of the support for [Multi-Model Serving](../mms/README.md), letting you change at runtime which models is MLServer currently serving.
+A single MLServer process can serve multiple models (and multiple versions of
+the same model) under different paths. This example uses two models:
 
-The API to manage the model repository is modelled after [Triton's Model Repository extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md) to the V2 Dataplane and is thus fully compatible with it.
+| Name               | Framework      | Path                              |
+| ------------------ | -------------- | --------------------------------- |
+| `mnist-svm`        | `scikit-learn` | `./models/mnist-svm/`             |
+| `mushroom-xgboost` | `xgboost`      | `./models/mushroom-xgboost/`     |
 
-This notebook will walk you through an example using the Model Repository API.
+That layout is multi-model serving: both models are loaded at startup and
+reachable on their own inference URLs.
 
+On top of that, MLServer exposes a **Model Repository API** to list, unload,
+and load models at runtime. It follows [Triton's Model Repository
+extension](https://github.com/triton-inference-server/server/blob/master/docs/protocol/extension_model_repository.md)
+to the V2 dataplane.
 
-## Training
+Training for these models is covered in the [Scikit-Learn](../sklearn/README.md)
+and [XGBoost](../xgboost/README.md) examples. This notebook ships the serialised
+artifacts and focuses on serving both together, then managing them through the
+repository API.
 
-First of all, we will need to train some models.
-For that, we will re-use the models we trained previously in the [Multi-Model Serving example](../mms/README.md).
-You can check the details on how they are trained following that notebook.
+## Models
+
+The repository is a folder per model, each with its own `model-settings.json`:
+
+- `settings.json`: server-wide config (ports, log level, …)
+- `models/mnist-svm/model-settings.json`: sklearn runtime for `mnist-svm`
+- `models/mushroom-xgboost/model-settings.json`: xgboost runtime for `mushroom-xgboost`
 
 
 ```python
-!cp -r ../mms/models/* ./models
+!ls -R ./models
 ```
 
 ## Serving
 
-Next up, we will start our `mlserver` inference server.
-Note that, by default, this will **load all our models**.
+Start MLServer from this directory. By default it **loads every model** in the
+repository.
 
 ```shell
 mlserver start .
@@ -31,8 +45,7 @@ mlserver start .
 
 ## List available models
 
-Now that we've got our inference server up and running, and serving 2 different models, we can start using the Model Repository API.
-To get us started, we will first list all available models in the repository.
+Both models should now be `READY`.
 
 
 ```python
@@ -42,22 +55,87 @@ response = requests.post("http://localhost:8080/v2/repository/index", json={})
 response.json()
 ```
 
-As we can, the repository lists 2 models (i.e. `mushroom-xgboost` and `mnist-svm`).
-Note that the state for both is set to `READY`.
-This means that both models are loaded, and thus ready for inference.
+The index lists `mushroom-xgboost` and `mnist-svm`. `READY` means they are
+loaded and available for inference.
 
-## Unloading our `mushroom-xgboost` model
+## Infer against both models
 
-We will now try to unload one of the 2 models, `mushroom-xgboost`.
-This will unload the model from the inference server but will keep it available on our model repository.
+Each model is served on its own V2 path. The payloads below match the test
+samples from the sklearn digits and XGBoost agaricus examples.
+
+
+```python
+import requests
+
+digit = [
+    0.0, 0.0, 1.0, 11.0, 14.0, 15.0, 3.0, 0.0,
+    0.0, 1.0, 13.0, 16.0, 12.0, 16.0, 8.0, 0.0,
+    0.0, 8.0, 16.0, 4.0, 6.0, 16.0, 5.0, 0.0,
+    0.0, 5.0, 15.0, 11.0, 13.0, 14.0, 0.0, 0.0,
+    0.0, 0.0, 2.0, 12.0, 16.0, 13.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 13.0, 16.0, 16.0, 6.0, 0.0,
+    0.0, 0.0, 0.0, 16.0, 16.0, 16.0, 7.0, 0.0,
+    0.0, 0.0, 0.0, 11.0, 13.0, 12.0, 1.0, 0.0,
+]
+
+mnist_request = {
+    "inputs": [
+        {
+            "name": "predict",
+            "shape": [1, 64],
+            "datatype": "FP32",
+            "data": digit,
+        }
+    ]
+}
+
+response = requests.post(
+    "http://localhost:8080/v2/models/mnist-svm/versions/v0.1.0/infer",
+    json=mnist_request,
+)
+response.json()
+```
+
+
+```python
+# First agaricus test row as a dense 126-feature vector. SVMLight files use
+# 1-based indexes; sklearn.load_svmlight_file converts them to 0-based columns.
+mushroom = [0.0] * 126
+for idx in [
+    0, 8, 18, 20, 23, 33, 35, 38, 41, 52, 55, 64,
+    68, 76, 85, 87, 91, 94, 101, 105, 116, 121,
+]:
+    mushroom[idx] = 1.0
+
+xgboost_request = {
+    "inputs": [
+        {
+            "name": "predict",
+            "shape": [1, 126],
+            "datatype": "FP32",
+            "data": mushroom,
+        }
+    ]
+}
+
+response = requests.post(
+    "http://localhost:8080/v2/models/mushroom-xgboost/versions/v0.1.0/infer",
+    json=xgboost_request,
+)
+response.json()
+```
+
+## Unloading `mushroom-xgboost`
+
+Unload one model. It stays on disk in the repository, but it is no longer
+served.
 
 
 ```python
 requests.post("http://localhost:8080/v2/repository/models/mushroom-xgboost/unload")
 ```
 
-If we now try to list the models available in our repository, we will see that the `mushroom-xgboost` model is flagged as `UNAVAILABLE`.
-This means that it's present in the repository but it's not loaded for inference.
+The index should now flag `mushroom-xgboost` as `UNAVAILABLE`.
 
 
 ```python
@@ -65,24 +143,28 @@ response = requests.post("http://localhost:8080/v2/repository/index", json={})
 response.json()
 ```
 
-## Loading our `mushroom-xgboost` model back
+`mnist-svm` remains available. A request to the unloaded model should fail.
 
-We will now load our model back into our inference server.
+
+```python
+response = requests.post(
+    "http://localhost:8080/v2/models/mushroom-xgboost/versions/v0.1.0/infer",
+    json=xgboost_request,
+)
+response.status_code, response.text
+```
+
+## Loading `mushroom-xgboost` back
 
 
 ```python
 requests.post("http://localhost:8080/v2/repository/models/mushroom-xgboost/load")
 ```
 
-If we now try to list the models again, we will see that our `mushroom-xgboost` is back again, ready for inference.
+The index should show both models `READY` again.
 
 
 ```python
 response = requests.post("http://localhost:8080/v2/repository/index", json={})
 response.json()
-```
-
-
-```python
-
 ```
