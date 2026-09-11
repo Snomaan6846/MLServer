@@ -34,7 +34,6 @@ icons = {
     "cm": b64_img("cm.png"),
     "pvc": b64_img("pvc.png"),
     "prometheus": b64_img("prometheus.png"),
-    "kafka": b64_img("kafka.png"),
     "users": b64_img("users.png"),
     "storage": b64_img("storage.png"),
 }
@@ -175,14 +174,13 @@ html = f"""<!DOCTYPE html>
   <text x="575" y="32" fill="#222" font-size="20" font-weight="700"
     text-anchor="middle">MLServer — Software Architecture</text>
   <text x="575" y="50" fill="#666" font-size="11"
-    text-anchor="middle">V2 Inference Protocol  ·  REST + gRPC + Kafka</text>
+    text-anchor="middle">V2 Inference Protocol  ·  REST + gRPC</text>
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  EXTERNAL CLIENTS (left column)                        -->
   <!-- ═══════════════════════════════════════════════════════ -->
 
 {node("users", "Client", 80, 200, sublabel="Applications")}
-{node("kafka", "Kafka", 80, 380, sublabel="Message Bus")}
 {node("prometheus", "Prometheus", 80, 520, sublabel="Scrape /metrics")}
 {node("cm", "Security", 80, 650, sublabel="Trusted Runtimes")}
 
@@ -196,7 +194,6 @@ html = f"""<!DOCTYPE html>
 {box("REST API", 195, 160, 160, 50, "#2E6EB5", ":8080 · HTTP/JSON")}
 {box("gRPC API", 195, 230, 160, 50, "#2E6EB5", ":8081 · HTTP/2+Protobuf")}
 {box("Metrics", 195, 300, 160, 50, "#D4880F", ":8082 · Prometheus")}
-{box("Kafka Consumer", 195, 370, 160, 50, "#7D3C98", "CloudEvents")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  CORE ENGINE                                           -->
@@ -262,12 +259,6 @@ html = f"""<!DOCTYPE html>
 {arrow("M 357,185 L 423,185", "arrow-green", "flow-right", "ah-green")}
   <!-- gRPC → DataPlane (right then up) -->
 {arrow("M 357,255 L 390,255 L 390,190 L 423,190", "arrow-green", "flow-right", "ah-green")}
-
-  <!-- Kafka → Kafka Consumer (horizontal) -->
-{arrow("M 112,380 L 193,380", "arrow-purple", "flow-right", "ah-purple")}
-  <!-- Kafka Consumer → Middleware (right then up) -->
-{arrow("M 357,395 L 390,395 L 390,255 L 423,255", "arrow-purple", "flow-right", "ah-purple",
-       "CloudEvents", 390, 320)}
 
   <!-- Prometheus → Metrics (right then up) -->
 {arrow("M 112,520 L 155,520 L 155,330 L 193,330", "arrow-red", "flow-left", "ah-red",

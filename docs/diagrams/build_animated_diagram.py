@@ -33,7 +33,6 @@ icons = {
     "deploy": b64_img("deploy.png"),
     "prometheus": b64_img("prometheus.png"),
     "grafana": b64_img("grafana.png"),
-    "kafka": b64_img("kafka.png"),
     "users": b64_img("users.png"),
     "storage": b64_img("storage.png"),
 }
@@ -157,7 +156,7 @@ html = f"""<!DOCTYPE html>
   <text x="550" y="32" fill="#222" font-size="20" font-weight="700"
     text-anchor="middle">MLServer — Production Deployment Topology</text>
   <text x="550" y="50" fill="#666" font-size="11"
-    text-anchor="middle">V2 Inference Protocol  ·  REST + gRPC + Kafka  ·  Kubernetes Native</text>
+    text-anchor="middle">V2 Inference Protocol  ·  REST + gRPC  ·  Kubernetes Native</text>
 
   <!-- ═══ INFERENCE CLIENTS (external) ═══ -->
 {node("users", "Inference Clients", 65, 100)}
@@ -180,11 +179,6 @@ html = f"""<!DOCTYPE html>
   <text x="785" y="112" class="cluster-title" fill="#C0392B">Observability</text>
 {node("prometheus", "Prometheus", 750, 165)}
 {node("grafana", "Grafana", 830, 165, size=46)}
-
-  <!-- ═══ Messaging ═══ -->
-  <rect x="895" y="95" width="115" height="115" class="cluster" stroke="#7D3C98"/>
-  <text x="952" y="112" class="cluster-title" fill="#7D3C98">Messaging (optional)</text>
-{node("kafka", "Kafka Broker", 952, 165)}
 
   <!-- ═══ Security ═══ -->
   <rect x="895" y="225" width="165" height="95" class="cluster" stroke="#C0392B"/>
@@ -262,10 +256,6 @@ html = f"""<!DOCTYPE html>
 
   <!-- Prometheus → Grafana (horizontal) -->
 {arrow("M 780,165 L 805,165", "arrow-red", "flow-right", "ah-red")}
-
-  <!-- Kafka → MLServer (down then left) -->
-{arrow("M 952,200 L 952,425 L 445,425", "arrow-purple", "flow-slow", "ah-purple",
-       "consume / produce", 700, 415)}
 
   <!-- Security ConfigMap → MLServer (left then down) -->
 {arrow("M 895,282 L 680,282 L 680,425 L 448,425", "arrow-red", "flow-left", "ah-red",

@@ -13,7 +13,6 @@ from .batching import load_batching, unload_batching
 from .rest import RESTServer
 from .grpc import GRPCServer
 from .metrics import MetricsServer
-from .kafka import KafkaServer
 from .utils import logger
 
 HANDLED_SIGNALS = [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT]
@@ -99,10 +98,6 @@ class MLServer:
             self._settings, self._data_plane, self._model_repository_handlers
         )
 
-        self._kafka_server = None
-        if self._settings.kafka_enabled:
-            self._kafka_server = KafkaServer(self._settings, self._data_plane)
-
     async def start(self, models_settings: list[ModelSettings] = []):
         # Validate runtime security configuration before starting servers to prevent
         # a window where endpoints are accessible but security hasn't been verified
@@ -118,9 +113,6 @@ class MLServer:
         servers = [self._rest_server.start(), self._grpc_server.start()]
         if self._metrics_server:
             servers.append(self._metrics_server.start())
-
-        if self._kafka_server:
-            servers.append(self._kafka_server.start())
 
         servers_task = asyncio.gather(*servers)
 
@@ -159,8 +151,6 @@ class MLServer:
 
     async def add_custom_handlers(self, model: MLModel) -> MLModel:
         await self._rest_server.add_custom_handlers(model)
-        if self._kafka_server:
-            await self._kafka_server.add_custom_handlers(model)
 
         # TODO: Add support for custom gRPC endpoints
         # self._grpc_server.add_custom_handlers(handlers)
@@ -169,8 +159,6 @@ class MLServer:
 
     async def remove_custom_handlers(self, model: MLModel) -> MLModel:
         await self._rest_server.delete_custom_handlers(model)
-        if self._kafka_server:
-            await self._kafka_server.delete_custom_handlers(model)
 
         # TODO: Add support for custom gRPC endpoints
         # self._grpc_server.delete_custom_handlers(handlers)
@@ -193,12 +181,6 @@ class MLServer:
     async def stop(self, sig: int | None = None):
         # Best effort cleanup
         stop_errors = []
-        if self._kafka_server:
-            try:
-                await self._kafka_server.stop()
-            except Exception as e:
-                logger.error("Failed to stop Kafka server", exc_info=True)
-                stop_errors.append(e)
 
         if self._grpc_server:
             try:

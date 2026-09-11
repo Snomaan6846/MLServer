@@ -16,7 +16,6 @@ from diagrams import Cluster, Diagram, Edge
 from diagrams.onprem.client import Users
 from diagrams.onprem.compute import Server
 from diagrams.onprem.monitoring import Prometheus
-from diagrams.onprem.queue import Kafka
 from diagrams.programming.framework import FastAPI
 from diagrams.generic.storage import Storage
 from diagrams.generic.compute import Rack
@@ -43,7 +42,6 @@ with Diagram(
 ):
     # ── External actors (left) ─────────────────────────────────
     client = Users("Client\nApplications")
-    kafka_ext = Kafka("Kafka\nMessage Bus")
     prometheus = Prometheus("Prometheus\nScrape /metrics")
     security = ConfigMap("Security\nTrusted Runtimes")
 
@@ -60,7 +58,6 @@ with Diagram(
             rest = FastAPI("REST API\n:8080 · HTTP/JSON")
             grpc = Server("gRPC API\n:8081 · HTTP/2+Protobuf")
             metrics = FastAPI("Metrics\n:8082 · Prometheus")
-            kafka_srv = Server("Kafka Consumer\nCloudEvents")
 
         with Cluster("Core Engine"):
             dataplane = Rack("DataPlane\nInference Orchestration")
@@ -86,13 +83,6 @@ with Diagram(
     client >> Edge(label="HTTP/JSON", color="#2E6EB5", style="bold") >> rest
     client >> Edge(label="HTTP/2+Protobuf", color="#2E6EB5", style="bold") >> grpc
 
-    # ── Kafka external → Kafka Consumer ────────────────────────
-    (
-        kafka_ext
-        >> Edge(label="consume / produce", color="#7D3C98", style="dashed")
-        >> kafka_srv
-    )
-
     # ── Prometheus → Metrics ───────────────────────────────────
     (
         prometheus
@@ -106,7 +96,6 @@ with Diagram(
     # ── Transport → Core Engine ────────────────────────────────
     rest >> Edge(color="#4B9A1E") >> dataplane
     grpc >> Edge(color="#4B9A1E") >> dataplane
-    kafka_srv >> Edge(label="CloudEvents", color="#7D3C98") >> middleware
 
     # ── Core Engine internal ───────────────────────────────────
     dataplane >> Edge(color="#4B9A1E") >> middleware

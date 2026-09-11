@@ -267,7 +267,7 @@ To see MLServer in action, check out the [full list of examples](./docs/examples
 | Document | Description |
 |----------|-------------|
 | [Architecture](./docs/engineering/architecture.md) | System design with 8 Mermaid diagrams |
-| [API Reference](./docs/engineering/api.md) | REST, gRPC, and Kafka endpoint reference |
+| [API Reference](./docs/engineering/api.md) | REST and gRPC endpoint reference |
 | [ADRs](./docs/engineering/adr/) | Architecture Decision Records |
 | [Deployment](./docs/engineering/deployment.md) | Container images, Kubernetes, health checks |
 | [Security](./docs/engineering/security.md) | Runtime security model reference |

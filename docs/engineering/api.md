@@ -1,7 +1,6 @@
 # API Reference
 
 MLServer implements the [V2 Inference Protocol](https://kserve.github.io/website/latest/modelserving/data_plane/v2_protocol/) over both REST (HTTP/1.1) and gRPC (HTTP/2) transports.
-An optional Kafka transport is also available for event-driven inference.
 
 ---
 
@@ -12,7 +11,6 @@ An optional Kafka transport is also available for event-driven inference.
 | REST | 8080 | HTTP/1.1 + JSON | Always enabled |
 | gRPC | 8081 | HTTP/2 + Protobuf | Always enabled |
 | Metrics | 8082 | HTTP/1.1 (Prometheus) | `metrics_endpoint` setting |
-| Kafka | — | Kafka topics | `kafka_enabled` setting |
 
 ---
 
@@ -301,27 +299,6 @@ HTTP headers are propagated through gRPC metadata:
 
 ---
 
-## Kafka Transport
-
-When `kafka_enabled: true`, MLServer consumes inference requests from `kafka_topic_input` and publishes responses to `kafka_topic_output`.
-
-### Configuration
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `kafka_enabled` | `false` | Enable Kafka transport |
-| `kafka_servers` | `localhost:9092` | Kafka bootstrap servers |
-| `kafka_topic_input` | `mlserver-input` | Topic to consume requests from |
-| `kafka_topic_output` | `mlserver-output` | Topic to publish responses to |
-
-### Message Format
-
-Kafka messages use the same V2 Inference Protocol JSON format as REST.
-The model name and version are extracted from the `ce-modelid` CloudEvents header.
-Responses include a `ce-requestid` header correlating back to the original request.
-
----
-
 ## Streaming Inference (SSE)
 
 The REST streaming endpoints (`/infer_stream`, `/generate_stream`) use Server-Sent Events (SSE) to deliver incremental responses.
@@ -450,8 +427,6 @@ class MyModel(MLModel):
 | `log_level` | string | `INFO` | Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
 | `access_log` | bool | `true` | Enable REST/gRPC access logging |
 | `use_structured_logging` | bool | `false` | Use JSON structured logs |
-| `kafka_enabled` | bool | `false` | Enable Kafka transport |
-| `kafka_servers` | string | `localhost:9092` | Kafka bootstrap servers |
 | `tracing_server` | string | null | OpenTelemetry collector endpoint |
 | `cors_settings` | object | null | CORS configuration (see below) |
 

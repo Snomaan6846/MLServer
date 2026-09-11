@@ -70,7 +70,7 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
      custom envs and wildcard CORS blocked.
    - **DEVELOPMENT** (no artifact file): any runtime loads freely.
 
-2. **Serial test suites: kafka, parallel, grpc, env, cli.** Run after the
+2. **Serial test suites: parallel, grpc, env, cli.** Run after the
    parallel bulk to avoid port conflicts. Do not introduce shared-port
    usage or global state mutations in these.
 
