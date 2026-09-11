@@ -65,7 +65,7 @@ Examples:
 ```
 feat(batching): add configurable batch timeout per model
 fix(parallel): handle worker crash during model reload
-docs: update architecture diagram with kafka flow
+docs: update architecture diagram with gRPC flow
 ```
 
 ## Running Tests

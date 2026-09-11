@@ -8,7 +8,6 @@ from diagrams.k8s.network import Service, Ingress
 from diagrams.k8s.storage import PersistentVolumeClaim as PVC
 from diagrams.k8s.podconfig import ConfigMap
 from diagrams.onprem.monitoring import Prometheus, Grafana
-from diagrams.onprem.queue import Kafka
 from diagrams.onprem.client import Users
 from diagrams.generic.storage import Storage
 
@@ -61,9 +60,6 @@ with Diagram(
             prom = Prometheus("Prometheus")
             grafana = Grafana("Grafana")
 
-        with Cluster("Messaging (optional)"):
-            kafka = Kafka("Kafka Broker")
-
         with Cluster("Security"):
             allowlist = ConfigMap("trusted-runtimes.json\n(/etc/mlserver/)")
 
@@ -90,9 +86,6 @@ with Diagram(
     prom >> Edge(label="scrape :8082", color="#D0021B") >> metrics_svc
     metrics_svc >> Edge(color="#D0021B") >> mlserver
     prom >> Edge(color="#D0021B") >> grafana
-
-    # Kafka
-    kafka >> Edge(label="consume /\nproduce", color="#9B59B6", style="bold") >> mlserver
 
     # KServe
     kserve >> Edge(label="reconcile", color="#8B572A", style="dotted") >> isvc

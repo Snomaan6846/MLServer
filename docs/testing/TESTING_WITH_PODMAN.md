@@ -62,8 +62,8 @@ Once the setup is complete, you can run Docker-dependent tests normally:
 ### Individual Test Suites
 
 ```bash
-# Kafka tests only
-poetry run pytest tests/kafka/
+# Rest tests only
+poetry run pytest tests/rest
 ```
 
 ### With Venv (default)

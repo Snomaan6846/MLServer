@@ -69,7 +69,7 @@ export GITHUB_REF="${GITHUB_REF:-refs/heads/master}"
 
 ```
 
-Then run the tests in two steps. Some test directories (`metrics`, `kafka`, `parallel`, `grpc`, `env`, `cli`) are flaky when running in parallel, so they run sequentially in a separate step.
+Then run the tests in two steps. Some test directories (`metrics`, `parallel`, `grpc`, `env`, `cli`) are flaky when running in parallel, so they run sequentially in a separate step.
 
 **Core tests:**
 
@@ -80,12 +80,12 @@ source .venv/bin/activate
 
 # Step 1: Run most tests in parallel
 USE_CONDA=false python -m pytest -n auto tests/ \
-    --ignore=tests/metrics --ignore=tests/kafka --ignore=tests/parallel \
+    --ignore=tests/metrics --ignore=tests/parallel \
     --ignore=tests/grpc --ignore=tests/env --ignore=tests/cli
 
 # Step 2: Run flaky-in-parallel tests sequentially
 USE_CONDA=false python -m pytest \
-    tests/metrics tests/kafka tests/parallel tests/grpc tests/env tests/cli
+    tests/metrics tests/parallel tests/grpc tests/env tests/cli
 ```
 
 **All runtimes:**
@@ -99,12 +99,12 @@ source .venv/bin/activate
 USE_CONDA=false python -m pytest -n auto tests/ \
     runtimes/sklearn/ runtimes/xgboost/ runtimes/lightgbm/ \
     runtimes/onnx/ \
-    --ignore=tests/metrics --ignore=tests/kafka --ignore=tests/parallel \
+    --ignore=tests/metrics --ignore=tests/parallel \
     --ignore=tests/grpc --ignore=tests/env --ignore=tests/cli
 
 # Step 2: Run flaky-in-parallel tests sequentially
 USE_CONDA=false python -m pytest \
-    tests/metrics tests/kafka tests/parallel tests/grpc tests/env tests/cli
+    tests/metrics tests/parallel tests/grpc tests/env tests/cli
 ```
 
 > **Note:** Replace `USE_CONDA=false` with `USE_CONDA=true` to use conda mode instead of venv.

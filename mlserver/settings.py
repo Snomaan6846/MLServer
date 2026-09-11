@@ -491,12 +491,6 @@ class Settings(BaseSettings):
     logging_settings: str | dict | None = None
     """Path to logging config file or dictionary configuration."""
 
-    # Kafka Server settings
-    kafka_enabled: bool = False
-    kafka_servers: str = "localhost:9092"
-    kafka_topic_input: str = "mlserver-input"
-    kafka_topic_output: str = "mlserver-output"
-
     # OpenTelemetry Tracing settings
     tracing_server: str | None = None
     """Server name used to export OpenTelemetry tracing to collector service."""
