@@ -115,6 +115,26 @@ class ErrorModel(MLModel):
             if load_error:
                 raise MLServerError(self.error_message)
 
+            load_returns_false = getattr(
+                self._settings.parameters, "load_returns_false", False
+            )
+            if load_returns_false:
+                return False
+
+        return True
+
+    async def unload(self) -> bool:
+        if self._settings.parameters:
+            unload_error = getattr(self._settings.parameters, "unload_error", False)
+            if unload_error:
+                raise MLServerError(self.error_message)
+
+            unload_returns_false = getattr(
+                self._settings.parameters, "unload_returns_false", False
+            )
+            if unload_returns_false:
+                return False
+
         return True
 
     async def predict(self, payload: InferenceRequest) -> InferenceResponse:

@@ -5,9 +5,14 @@ import json
 from asyncio import CancelledError
 
 from mlserver.model import MLModel
-from mlserver.errors import MLServerError, ModelNotFound
+from mlserver.errors import (
+    MLServerError,
+    ModelNotFound,
+    ModelLoadError,
+    ModelUnloadError,
+)
 from mlserver.registry import MultiModelRegistry, SingleModelRegistry, model_initialiser
-from mlserver.settings import ModelSettings
+from mlserver.settings import ModelSettings, ModelParameters
 
 from .fixtures import SlowModel
 
@@ -16,19 +21,12 @@ from .fixtures import SlowModel
 async def model_registry(
     model_registry: MultiModelRegistry, mocker
 ) -> MultiModelRegistry:
-    async def _async_val(model: MLModel, new_model: MLModel | None = None) -> MLModel:
-        if new_model:
-            return new_model
-
+    async def _async_val(model: MLModel) -> MLModel:
         return model
 
     load_stub = mocker.stub("_on_model_load")
     load_stub.side_effect = _async_val
     model_registry._on_model_load = [load_stub]
-
-    reload_stub = mocker.stub("_on_model_reload")
-    reload_stub.side_effect = _async_val
-    model_registry._on_model_reload = [reload_stub]
 
     unload_stub = mocker.stub("_on_model_unload")
     unload_stub.side_effect = _async_val
@@ -36,7 +34,6 @@ async def model_registry(
 
     for single_registry in model_registry._models.values():
         single_registry._on_model_load = [load_stub]
-        single_registry._on_model_reload = [reload_stub]
         single_registry._on_model_unload = [unload_stub]
 
     return model_registry
@@ -100,15 +97,10 @@ async def test_reload_model(
     assert not existing_model.ready
 
     for callback in model_registry._on_model_load:
-        callback.assert_not_called()  # type: ignore[attr-defined]
-
-    for callback in model_registry._on_model_reload:  # type: ignore[assignment]
-        callback.assert_called_once_with(  # type: ignore[attr-defined]
-            existing_model, new_model
-        )
+        callback.assert_called_once_with(new_model)  # type: ignore[attr-defined]
 
     for callback in model_registry._on_model_unload:
-        callback.assert_not_called()  # type: ignore[attr-defined]
+        callback.assert_called_once_with(existing_model)  # type: ignore[attr-defined]
 
 
 async def test_load_multi_version(
@@ -272,6 +264,32 @@ async def test_model_load_error(
     assert models[0].name == "sum-model"
 
 
+async def test_load_error_with_cleanup_failure_preserves_original_error(
+    load_error_model_settings: ModelSettings,
+):
+    """
+    Test when load fails AND cleanup fails, original load error is preserved.
+    """
+
+    async def failing_unload_hook(model: MLModel) -> MLModel:
+        raise RuntimeError("Cleanup hook failed")
+
+    registry = SingleModelRegistry(
+        load_error_model_settings,
+        on_model_unload=[failing_unload_hook],
+    )
+
+    # Load fails, then cleanup also fails
+    # Should raise ModelLoadError with original error preserved
+    with pytest.raises(ModelLoadError, match="Model load and cleanup failed"):
+        await registry.load(load_error_model_settings)
+
+    # Model removed from registry even though cleanup failed
+    # (unregister happens before cleanup hooks)
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+
+
 async def test_rolling_reload(
     model_registry: MultiModelRegistry, sum_model_settings: ModelSettings
 ):
@@ -324,3 +342,319 @@ def test_model_initialiser_wraps_runtime_import_resolution_errors(exc_type):
 
     with pytest.raises(RuntimeError, match="Refused to load model 'bad-model'"):
         model_initialiser(_InvalidModelSettings())  # type: ignore[arg-type]
+
+
+async def test_unload_hook_failure_removes_model_from_registry(
+    sum_model_settings: ModelSettings,
+):
+    """Test when unload hook fails, model is removed
+    from registry and marked not ready"""
+    hook_error = RuntimeError("Hook failed")
+
+    async def failing_unload_hook(model: MLModel) -> MLModel:
+        raise hook_error
+
+    registry = SingleModelRegistry(
+        sum_model_settings,
+        on_model_unload=[failing_unload_hook],
+    )
+
+    # Load model first
+    model = await registry.load(sum_model_settings)
+    assert model.ready
+
+    # Try to unload - should fail with ModelUnloadError wrapping hook error
+    with pytest.raises(ModelUnloadError, match="Failed to unload 1 version"):
+        await registry.unload()
+
+    # Model removed from registry (unregister happens
+    # before hooks), but marked not ready
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+    assert not model.ready
+
+
+async def test_unload_model_failure_removes_model_from_registry(
+    unload_error_model_settings: ModelSettings,
+):
+    """Test when unload raises exception, model is removed
+    from registry and marked not ready"""
+    registry = SingleModelRegistry(unload_error_model_settings)
+
+    # Load model first
+    model = await registry.load(unload_error_model_settings)
+    assert model.ready
+
+    # Try to unload - should fail with ModelUnloadError
+    with pytest.raises(ModelUnloadError, match="Failed to unload 1 version"):
+        await registry.unload()
+
+    # Model removed from registry (unregister happens
+    # before unload), but marked not ready
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+    assert not model.ready
+
+
+async def test_unload_returns_false_removes_model_from_registry(
+    unload_returns_false_model_settings: ModelSettings,
+):
+    """Test when unload returns False, model is removed
+    from registry and marked not ready"""
+    registry = SingleModelRegistry(unload_returns_false_model_settings)
+
+    # Load model first
+    model = await registry.load(unload_returns_false_model_settings)
+    assert model.ready
+
+    # Try to unload - should fail with ModelUnloadError
+    with pytest.raises(ModelUnloadError, match="Failed to unload 1 version"):
+        await registry.unload()
+
+    # Model removed from registry (unregister happens
+    # before unload), but marked not ready
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+    assert not model.ready
+
+
+async def test_unload_success_removes_from_registry(
+    sum_model_settings: ModelSettings,
+):
+    """Test that successful unload removes model from registry"""
+    registry = SingleModelRegistry(sum_model_settings)
+
+    # Load model first
+    model = await registry.load(sum_model_settings)
+    assert model.ready
+
+    # Unload should succeed
+    await registry.unload()
+
+    # Model should be removed from registry
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+
+
+async def test_load_returns_false_raises_model_load_error():
+    """Test that when model.load() returns False, ModelLoadError is raised"""
+    from .fixtures import ErrorModel
+
+    load_returns_false_settings = ModelSettings(
+        name="error-model",
+        implementation=ErrorModel,
+        parameters=ModelParameters(load_returns_false=True),
+    )
+
+    registry = SingleModelRegistry(load_returns_false_settings)
+
+    # Load should fail with ModelLoadError
+    with pytest.raises(ModelLoadError, match="Model load returned False"):
+        await registry.load(load_returns_false_settings)
+
+    # Model should NOT be in registry after error
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+
+
+async def test_unload_model_unregisters_before_hooks_and_unload(
+    sum_model_settings: ModelSettings,
+):
+    """Test that _unload_model removes model from registry before running hooks"""
+    # Track whether model was in registry when hook ran
+    model_in_registry_during_hook = None
+
+    async def check_registry_hook(model: MLModel) -> MLModel:
+        nonlocal model_in_registry_during_hook
+        # Check if model is still in registry during hook execution
+        try:
+            await registry.get_model()
+            model_in_registry_during_hook = True
+        except ModelNotFound:
+            model_in_registry_during_hook = False
+        return model
+
+    registry = SingleModelRegistry(
+        sum_model_settings,
+        on_model_unload=[check_registry_hook],
+    )
+
+    # Load model first
+    model = await registry.load(sum_model_settings)
+    assert model.ready
+
+    # Unload model
+    await registry.unload()
+
+    # Model should NOT have been in registry when hook ran
+    assert model_in_registry_during_hook is False
+
+    # Model should not be in registry after unload
+    with pytest.raises(ModelNotFound):
+        await registry.get_model()
+
+
+async def test_reload_new_model_load_failure_preserves_old_model(
+    sum_model_settings: ModelSettings,
+):
+    """Test that when new model fails to load during
+    reload, old model stays in registry"""
+    from .fixtures import ErrorModel
+
+    registry = SingleModelRegistry(sum_model_settings)
+
+    # Load initial model (v1.2.3)
+    old_model = await registry.load(sum_model_settings)
+    assert old_model.ready
+    assert old_model.version == "v1.2.3"
+
+    # Try to reload with a model that fails to load (same version)
+    failing_settings = ModelSettings(
+        name=sum_model_settings.name,
+        implementation=ErrorModel,
+        parameters=ModelParameters(version="v1.2.3", load_error=True),
+    )
+
+    # Reload should fail
+    with pytest.raises(MLServerError, match="something really bad happened"):
+        await registry.load(failing_settings)
+
+    # Old model should still be in registry and ready
+    registry_model = await registry.get_model()
+    assert registry_model is old_model
+    assert old_model.ready
+    assert old_model.version == "v1.2.3"
+
+    # Old model should still be the default
+    assert registry.default is old_model
+
+
+async def test_reload_old_model_unload_failure_keeps_new_model_and_increments_metric(
+    sum_model_settings: ModelSettings, mocker
+):
+    """Test that when old model fails to unload during
+    reload, new model stays in registry and metric
+    increments"""
+    from .fixtures import ErrorModel
+
+    # Load initial model that will fail on unload
+    old_settings = ModelSettings(
+        name="error-model",
+        implementation=ErrorModel,
+        parameters=ModelParameters(version="v1.2.3", unload_error=True),
+    )
+
+    registry = SingleModelRegistry(old_settings)
+    old_model = await registry.load(old_settings)
+    assert old_model.ready
+
+    metric_spy = mocker.spy(SingleModelRegistry, "_increment_cleanup_failure_metric")
+
+    # Try to reload with new model (same version, but won't fail)
+    new_settings = ModelSettings(
+        name="error-model",
+        implementation=sum_model_settings.implementation,
+        parameters=ModelParameters(version="v1.2.3"),
+    )
+
+    # Reload should fail because old model unload fails
+    with pytest.raises(MLServerError, match="something really bad happened"):
+        await registry.load(new_settings)
+
+    # New model should be in registry and ready
+    registry_model = await registry.get_model()
+    assert registry_model is not old_model
+    assert registry_model.ready
+    assert registry_model.version == "v1.2.3"
+
+    # Metric should have been incremented
+    metric_spy.assert_called_once()
+
+
+async def test_version_matching_same_version_triggers_reload(
+    sum_model_settings: ModelSettings, mocker
+):
+    """Test that loading same version triggers reload,
+    different version triggers load"""
+    # Create a registry with mocked hooks
+    unload_hook = mocker.AsyncMock(side_effect=lambda m: m)
+    load_hook = mocker.AsyncMock(side_effect=lambda m: m)
+
+    registry = SingleModelRegistry(
+        sum_model_settings,
+        on_model_load=[load_hook],
+        on_model_unload=[unload_hook],
+    )
+
+    # Load initial model (v1.2.3)
+    model_v1 = await registry.load(sum_model_settings)
+    assert model_v1.version == "v1.2.3"
+    load_hook.assert_called_once()
+    load_hook.reset_mock()
+
+    # Test Case A: Load same version should trigger reload
+    same_version_settings = sum_model_settings.copy(deep=True)
+    model_v1_reloaded = await registry.load(same_version_settings)
+
+    # Should have called both load hook (on new model) and unload hook (on old model).
+    # Load hooks run first (on new model), then unload hooks run (on old model).
+    load_hook.assert_called_once()
+    unload_hook.assert_called_once()
+    assert model_v1_reloaded.version == "v1.2.3"
+
+    load_hook.reset_mock()
+    unload_hook.reset_mock()
+
+    # Test Case B: Load different version should trigger load (not reload)
+    different_version_settings = sum_model_settings.copy(deep=True)
+    assert different_version_settings.parameters is not None
+    different_version_settings.parameters.version = "v2.0.0"
+    model_v2 = await registry.load(different_version_settings)
+
+    # Should have called load hook (not reload hook)
+    load_hook.assert_called_once()
+    unload_hook.assert_not_called()
+    assert model_v2.version == "v2.0.0"
+
+    # Both models should be in registry
+    models = await registry.get_models()
+    assert len(models) == 2
+
+
+async def test_unload_all_versions_attempts_all_with_failures(
+    sum_model_settings: ModelSettings,
+):
+    """Test bulk unload uses return_exceptions and attempts
+    all versions even when some fail"""
+    from .fixtures import ErrorModel
+
+    # Create registry with mix of normal and error models
+    registry = MultiModelRegistry()
+
+    # Load 2 normal versions
+    sum_model_settings.name = "bulk-model"
+    for version in ["v1", "v3"]:
+        settings = sum_model_settings.copy(deep=True)
+        assert settings.parameters is not None
+        settings.parameters.version = version
+        await registry.load(settings)
+
+    # Load 1 error model (v2) that will fail on unload
+    error_settings = ModelSettings(
+        name="bulk-model",
+        implementation=ErrorModel,
+        parameters=ModelParameters(version="v2", unload_error=True),
+    )
+    await registry.load(error_settings)
+
+    # Verify all 3 loaded
+    models = await registry.get_models("bulk-model")
+    assert len(models) == 3
+
+    # Unload all versions - should attempt all despite v2 failure
+    with pytest.raises(ModelUnloadError, match="Failed to unload 1 version"):
+        await registry.unload("bulk-model")
+
+    # Model completely removed from registry, even though unload failed
+    with pytest.raises(ModelNotFound):
+        await registry.get_models("bulk-model")

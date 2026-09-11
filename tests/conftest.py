@@ -13,6 +13,7 @@ from starlette_exporter import PrometheusMiddleware
 from prometheus_client.registry import REGISTRY, CollectorRegistry
 from unittest.mock import Mock
 
+from mlserver.batching import load_batching, unload_batching
 from mlserver.handlers import DataPlane, ModelRepositoryHandlers
 from mlserver.registry import MultiModelRegistry
 from mlserver.repository import (
@@ -195,6 +196,28 @@ def load_error_model_settings() -> ModelSettings:
         name="error-model",
         implementation=ErrorModel,
         parameters=ModelParameters(load_error=True),
+    )
+
+
+@pytest.fixture
+def unload_error_model_settings() -> ModelSettings:
+    from .fixtures import ErrorModel
+
+    return ModelSettings(
+        name="error-model",
+        implementation=ErrorModel,
+        parameters=ModelParameters(unload_error=True),
+    )
+
+
+@pytest.fixture
+def unload_returns_false_model_settings() -> ModelSettings:
+    from .fixtures import ErrorModel
+
+    return ModelSettings(
+        name="error-model",
+        implementation=ErrorModel,
+        parameters=ModelParameters(unload_returns_false=True),
     )
 
 
@@ -478,7 +501,11 @@ async def rest_client(mlserver: MLServer, settings: Settings):
 async def inference_pool_registry(
     settings: Settings, prometheus_registry: CollectorRegistry
 ) -> AsyncGenerator[InferencePoolRegistry, None]:
-    registry = InferencePoolRegistry(settings)
+    registry = InferencePoolRegistry(
+        settings,
+        on_worker_load=[load_batching],
+        on_worker_unload=[unload_batching],
+    )
     yield registry
 
     await registry.close()

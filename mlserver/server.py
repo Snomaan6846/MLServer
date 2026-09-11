@@ -9,7 +9,7 @@ from .logging import configure_logger
 from .registry import MultiModelRegistry
 from .handlers import DataPlane, ModelRepositoryHandlers
 from .parallel import InferencePoolRegistry
-from .batching import load_batching
+from .batching import load_batching, unload_batching
 from .rest import RESTServer
 from .grpc import GRPCServer
 from .metrics import MetricsServer
@@ -35,8 +35,12 @@ class MLServer:
             if self._metrics_server:
                 on_worker_stop = [self._metrics_server.on_worker_stop]
 
+            # When using parallel workers, batching should be done on workers
             self._inference_pool_registry = InferencePoolRegistry(
-                self._settings, on_worker_stop=on_worker_stop  # type: ignore
+                self._settings,
+                on_worker_stop=on_worker_stop,
+                on_worker_load=[load_batching],
+                on_worker_unload=[unload_batching],
             )
 
         self._model_registry = self._create_model_registry()
@@ -58,34 +62,29 @@ class MLServer:
             self.add_custom_handlers,
             load_batching,
         ]
-        on_model_reload = [self.reload_custom_handlers]
-        on_model_unload = [self.remove_custom_handlers]
-
+        on_model_unload = [
+            unload_batching,
+            self.remove_custom_handlers,
+        ]
         if not self._inference_pool_registry:
             return MultiModelRegistry(
-                on_model_load=on_model_load,  # type: ignore
-                on_model_reload=on_model_reload,  # type: ignore
-                on_model_unload=on_model_unload,  # type: ignore
+                on_model_load=on_model_load,
+                on_model_unload=on_model_unload,
             )
 
+        # In the main process, batching hooks will be a no-op
+        # for models with parallel workers enabled
         on_model_load = [
             self._inference_pool_registry.load_model,
             self.add_custom_handlers,
-            load_batching,
-        ]
-        on_model_reload = [
-            self._inference_pool_registry.reload_model,  # type: ignore
-            self.reload_custom_handlers,
         ]
         on_model_unload = [
-            self._inference_pool_registry.unload_model,  # type: ignore
             self.remove_custom_handlers,
+            self._inference_pool_registry.unload_model,
         ]
-
         return MultiModelRegistry(
-            on_model_load=on_model_load,  # type: ignore
-            on_model_reload=on_model_reload,  # type: ignore
-            on_model_unload=on_model_unload,  # type: ignore
+            on_model_load=on_model_load,
+            on_model_unload=on_model_unload,
             model_initialiser=self._inference_pool_registry.model_initialiser,
         )
 
@@ -125,20 +124,36 @@ class MLServer:
 
         servers_task = asyncio.gather(*servers)
 
+        tasks = []
         try:
-            await asyncio.gather(
-                *[
-                    self._model_registry.load(model_settings)
-                    for model_settings in models_settings
-                ]
-            )
+            tasks = [
+                asyncio.create_task(self._model_registry.load(model_settings))
+                for model_settings in models_settings
+            ]
+            await asyncio.gather(*tasks)
             # Mark startup complete only if all models loaded successfully
             self._model_registry.startup_complete()
         except Exception:
             # If one of the models failed to load during startup, shutdown the
             # server gracefully
             logger.exception("Some of the models failed to load during startup!")
-            await self.stop()
+
+            # Explicitly cancel remaining tasks
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+
+            # Wait for cancellations to propagate
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+            try:
+                await self.stop()
+            except Exception:
+                # Log and supress stop error
+                logger.error(
+                    "Failed to stop server during startup cleanup", exc_info=True
+                )
+            raise  # Re-raise to signal startup failure to caller
         finally:
             await servers_task
 
@@ -152,16 +167,7 @@ class MLServer:
 
         return model
 
-    async def reload_custom_handlers(self, old_model: MLModel, new_model: MLModel):
-        await self.add_custom_handlers(new_model)
-        await self.remove_custom_handlers(old_model)
-
-        # TODO: Add support for custom gRPC endpoints
-        # self._grpc_server.delete_custom_handlers(handlers)
-
-        return new_model
-
-    async def remove_custom_handlers(self, model: MLModel):
+    async def remove_custom_handlers(self, model: MLModel) -> MLModel:
         await self._rest_server.delete_custom_handlers(model)
         if self._kafka_server:
             await self._kafka_server.delete_custom_handlers(model)
@@ -185,17 +191,42 @@ class MLServer:
             )
 
     async def stop(self, sig: int | None = None):
-        if self._inference_pool_registry:
-            await self._inference_pool_registry.close()
-
+        # Best effort cleanup
+        stop_errors = []
         if self._kafka_server:
-            await self._kafka_server.stop()
+            try:
+                await self._kafka_server.stop()
+            except Exception as e:
+                logger.error("Failed to stop Kafka server", exc_info=True)
+                stop_errors.append(e)
 
         if self._grpc_server:
-            await self._grpc_server.stop(sig)
+            try:
+                await self._grpc_server.stop(sig)
+            except Exception as e:
+                logger.error("Failed to stop gRPC server", exc_info=True)
+                stop_errors.append(e)
 
         if self._rest_server:
-            await self._rest_server.stop(sig)
+            try:
+                await self._rest_server.stop(sig)
+            except Exception as e:
+                logger.error("Failed to stop REST server", exc_info=True)
+                stop_errors.append(e)
+
+        if self._inference_pool_registry:
+            try:
+                await self._inference_pool_registry.close()
+            except Exception as e:
+                logger.error("Failed to close inference pool registry", exc_info=True)
+                stop_errors.append(e)
 
         if self._metrics_server:
-            await self._metrics_server.stop(sig)
+            try:
+                await self._metrics_server.stop(sig)
+            except Exception as e:
+                logger.error("Failed to stop metrics server", exc_info=True)
+                stop_errors.append(e)
+
+        if stop_errors:
+            raise stop_errors[0]

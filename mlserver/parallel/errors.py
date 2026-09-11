@@ -22,6 +22,12 @@ class WorkerStop(MLServerError):
         super().__init__(msg, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class NoWorkersAvailable(MLServerError):
+    def __init__(self):
+        msg = "No workers are currently available to handle requests."
+        super().__init__(msg, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
 class WorkerError(MLServerError):
     """
     Class used to wrap exceptions raised from the workers.

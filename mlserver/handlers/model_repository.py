@@ -1,7 +1,9 @@
+import asyncio
+
 from ..settings import ModelSettings
 from ..registry import MultiModelRegistry
 from ..repository import ModelRepository
-from ..errors import ModelNotFound
+from ..errors import ModelNotFound, ModelUnloadError
 from ..types import (
     RepositoryIndexRequest,
     RepositoryIndexResponse,
@@ -12,26 +14,64 @@ from ..types import (
 NO_VERSION_KEY = "__no_version__"
 
 
+def _model_key(model_settings: ModelSettings) -> tuple[str, str]:
+    return (model_settings.name, model_settings.version or "")
+
+
 class ModelRepositoryHandlers:
     def __init__(self, repository: ModelRepository, model_registry: MultiModelRegistry):
         self._repository = repository
         self._model_registry = model_registry
 
     async def index(self, payload: RepositoryIndexRequest) -> RepositoryIndexResponse:
-        all_model_settings = await self._repository.list()
+        # Get models from repository (on disk)
+        repository_model_settings = await self._repository.list()
 
-        repository_items = []
+        # Get all models from registry
+        registry_model_settings = [
+            m.settings for m in await self._model_registry.get_models()
+        ]
+
+        # Union and deduplicate models by (name, version)
+        all_model_settings = self._union_model_settings(
+            repository_model_settings, registry_model_settings
+        )
+
+        # Convert to index items
+        index_items = []
         for model_settings in all_model_settings:
             index_item = await self._to_item(model_settings)
             if payload.ready:
                 # TODO: If filtering by ready, we could ready directly from the
                 # active model registry
                 if index_item.state == State.READY:
-                    repository_items.append(index_item)
+                    index_items.append(index_item)
             else:
-                repository_items.append(index_item)
+                index_items.append(index_item)
 
-        return RepositoryIndexResponse(root=repository_items)
+        return RepositoryIndexResponse(root=index_items)
+
+    def _union_model_settings(
+        self,
+        repository_model_settings: list[ModelSettings],
+        registry_model_settings: list[ModelSettings],
+    ) -> list[ModelSettings]:
+        """
+        Union and deduplicate model settings by (name, version).
+
+        Combines models from repository and registry, removing duplicates based on
+        (name, version) key. When the same (name, version) appears in both sources,
+        registry settings take precedence (shows what's actually running).
+
+        Returns:
+            Deduplicated list of model settings.
+        """
+        union_model_settings = {}
+        # Repository first, then registry overwrites
+        for model_settings in repository_model_settings + registry_model_settings:
+            union_model_settings[_model_key(model_settings)] = model_settings
+
+        return list(union_model_settings.values())
 
     async def _to_item(
         self, model_settings: ModelSettings
@@ -50,14 +90,22 @@ class ModelRepositoryHandlers:
         return item
 
     async def _get_state(self, model_settings: ModelSettings) -> State:
+        """
+        Determine state of a model.
+
+        State mapping:
+        - READY: In registry and successfully loaded
+        - LOADING: In registry and currently loading
+        - UNAVAILABLE: In repository but not in registry
+        """
+        version = model_settings.version
         try:
-            model = await self._model_registry.get_model(model_settings.name)
-            if model.ready:
-                return State.READY
+            model = await self._model_registry.get_model(model_settings.name, version)
+            if not model.ready:
+                return State.LOADING
+            return State.READY
         except ModelNotFound:
             return State.UNAVAILABLE
-
-        return State.UNKNOWN
 
     async def load(self, name: str) -> bool:
         all_model_settings = await self._repository.find(name)
@@ -72,10 +120,33 @@ class ModelRepositoryHandlers:
 
         # Remove stale models
         all_models = await self._model_registry.get_models(name)
+
+        # Cleanup stale versions in parallel
+        stale_versions = []
         for model in all_models:
             model_version = model.version if model.version else NO_VERSION_KEY
             if model_version not in loaded_versions:
-                await self._model_registry.unload_version(model.name, model.version)
+                stale_versions.append((model.name, model.version))
+
+        # Unload all stale versions in parallel (best-effort)
+        if stale_versions:
+            results = await asyncio.gather(
+                *[
+                    self._model_registry.unload_version(model_name, model_version)
+                    for model_name, model_version in stale_versions
+                ],
+                return_exceptions=True,
+            )
+            # Check for failures and raise if any occurred
+            unload_failures = [
+                result for result in results if isinstance(result, Exception)
+            ]
+            if unload_failures:
+                raise ModelUnloadError(
+                    f"Failed to cleanup {len(unload_failures)} of "
+                    f"{len(stale_versions)} stale version(s) of model {name} "
+                    f"during repository load sync."
+                )
 
         return True
 

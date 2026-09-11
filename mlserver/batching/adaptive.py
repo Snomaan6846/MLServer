@@ -2,18 +2,33 @@ import time
 import asyncio
 
 from asyncio import Future, Queue, wait_for, Task
-from functools import partial
-from collections.abc import AsyncIterator, Awaitable
+from functools import partial, wraps
+from collections.abc import AsyncIterator, Awaitable, Callable
 
+from fastapi import status
+
+from ..errors import MLServerError
+from ..logging import logger
 from ..model import MLModel
 from ..types import (
     InferenceRequest,
     InferenceResponse,
 )
-from ..utils import generate_uuid, schedule_with_callback
+from ..utils import generate_uuid, schedule_with_callback, get_wrapped_method
 from .. import metrics
 
 from .requests import BatchedRequests
+
+_AdaptiveBatchingAttr = "__adaptive_batching__"
+
+
+class InvalidBatchingMethod(MLServerError):
+    def __init__(self, method_name: str, reason: str | None = None):
+        msg = f"Method {method_name} can't be used for adaptive batching"
+        if reason:
+            msg += f": {reason}"
+
+        super().__init__(msg)
 
 
 class AdaptiveBatcher:
@@ -25,10 +40,42 @@ class AdaptiveBatcher:
 
         # Save predict function before it gets decorated
         self._predict_fn = model.predict
+        self._predict_stream_fn = model.predict_stream
         self.__requests: Queue[tuple[str, InferenceRequest]] | None = None
         self._async_responses: dict[str, Future[InferenceResponse]] = {}
         self._batching_task = None
         metrics.register("batch_request_queue", "counter of request queue batch size")
+
+    @classmethod
+    def get_batcher(cls, model: MLModel) -> "AdaptiveBatcher | None":
+        return getattr(model, _AdaptiveBatchingAttr, None)
+
+    def setup(self) -> None:
+        setattr(self._model, _AdaptiveBatchingAttr, self)
+
+        # Decorate predict methods
+        setattr(self._model, "predict", adaptive_batching(self._model.predict))
+        setattr(
+            self._model,
+            "predict_stream",
+            not_implemented_warning(self._model.predict_stream),
+        )
+
+    async def teardown(self) -> None:
+        # Cancel the background batching task
+        if self._batching_task and not self._batching_task.done():
+            self._batching_task.cancel()
+            try:
+                await self._batching_task
+            except asyncio.CancelledError:
+                pass
+
+        # Remove instance overrides so the model's class methods are visible again
+        delattr(self._model, "predict")
+        delattr(self._model, "predict_stream")
+
+        # Remove batcher from model to break reference cycle
+        delattr(self._model, _AdaptiveBatchingAttr)
 
     async def predict(self, req: InferenceRequest) -> InferenceResponse:
         internal_id, _ = await self._queue_request(req)
@@ -83,6 +130,13 @@ class AdaptiveBatcher:
         )
 
     def _batching_task_callback(self, batching_task: Task):
+        if batching_task.cancelled():
+            self._clear_queue(
+                MLServerError(
+                    "Batching task cancelled", status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            )
+            return
         err = batching_task.exception()
         if err:
             # Clear queue
@@ -91,7 +145,8 @@ class AdaptiveBatcher:
     def _clear_queue(self, err: BaseException):
         # Cancel all pending async responses
         for async_response in self._async_responses.values():
-            async_response.set_exception(err)
+            if not async_response.done():
+                async_response.set_exception(err)
 
         # Empty queue
         for _ in range(self._requests.qsize()):
@@ -145,3 +200,61 @@ class AdaptiveBatcher:
 
         read_op = self._requests.get()
         return await wait_for(read_op, timeout=timeout)
+
+
+def adaptive_batching(f: Callable[[InferenceRequest], Awaitable[InferenceResponse]]):
+    """
+    Decorator for the `predict()` method which will ensure it uses the
+    underlying adaptive batcher instance.
+    """
+
+    @wraps(f)
+    async def _inner(payload: InferenceRequest) -> InferenceResponse:
+        batcher = _get_batcher(f)
+        return await batcher.predict(payload)
+
+    return _inner
+
+
+def not_implemented_warning(
+    f: Callable[[AsyncIterator[InferenceRequest]], AsyncIterator[InferenceResponse]],
+):
+    """
+    Decorator to lets users know that adaptive batching is not required on
+    method `f`.
+    """
+    model = _get_model(f)
+    logger.warning(
+        f"Adaptive Batching is enabled for model '{model.name}'"
+        " but not supported for inference streaming."
+        " Falling back to non-batched inference streaming."
+    )
+
+    @wraps(f)
+    async def _inner_stream(
+        payload: AsyncIterator[InferenceRequest],
+    ) -> AsyncIterator[InferenceResponse]:
+        async for response in f(payload):
+            yield response
+
+    return _inner_stream
+
+
+def _get_batcher(f: Callable) -> AdaptiveBatcher:
+    wrapped_f = get_wrapped_method(f)
+    model = _get_model(f)
+
+    if not hasattr(model, _AdaptiveBatchingAttr):
+        raise InvalidBatchingMethod(
+            wrapped_f.__name__, reason="adaptive batching has not been loaded"
+        )
+
+    return getattr(model, _AdaptiveBatchingAttr)
+
+
+def _get_model(f: Callable) -> MLModel:
+    wrapped_f = get_wrapped_method(f)
+    if not hasattr(wrapped_f, "__self__"):
+        raise InvalidBatchingMethod(wrapped_f.__name__, reason="method is not bound")
+
+    return getattr(wrapped_f, "__self__")

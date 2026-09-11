@@ -1,7 +1,8 @@
 import asyncio
 
+from typing import cast
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Awaitable, Iterator
 from itertools import cycle
 from multiprocessing import Queue
 from concurrent.futures import ThreadPoolExecutor
@@ -10,13 +11,14 @@ from asyncio import Future
 from ..utils import schedule_with_callback, generate_uuid
 from ..metrics import REGISTRY
 
-from .errors import WorkerStop
+from .errors import WorkerStop, NoWorkersAvailable
 from .worker import Worker
 from .logging import logger
 from .utils import END_OF_QUEUE, cancel_task
 from .messages import (
     Message,
     ModelUpdateMessage,
+    ModelUpdateType,
     ModelRequestMessage,
     ModelResponseMessage,
 )
@@ -99,7 +101,11 @@ class AsyncResponses:
         Resolve a previously scheduled response future.
         """
         message_id = response.id
-        future = self._futures[message_id]
+        future = self._futures.get(message_id)
+        if future is None:
+            # Future already cancelled and cleared (e.g. worker crashed after
+            # sending its response) — nothing left to resolve
+            return
 
         # NOTE: Use call_soon_threadsafe to cover cases where `model.predict()`
         # (or other methods) get called from a separate thread (and a separate
@@ -133,6 +139,7 @@ class Dispatcher:
     def __init__(self, workers: dict[int, Worker], responses: Queue):
         self._responses = responses
         self._workers = workers
+        self._ready_workers = dict(workers)
         self._workers_round_robin = self._reset_round_robin()
         self._worker_starting_lock = asyncio.Lock()
         self._active = False
@@ -141,36 +148,47 @@ class Dispatcher:
         self._async_responses = AsyncResponses()
 
     def _reset_round_robin(self) -> Iterator[int]:
-        worker_pids = list(self._workers.keys())
+        worker_pids = list(self._ready_workers.keys())
         self._workers_round_robin = cycle(worker_pids)
         return self._workers_round_robin
 
-    async def on_worker_start(self, worker: Worker):
+    async def on_worker_start(
+        self,
+        worker: Worker,
+        init_coro: Awaitable[None] | None = None,
+    ):
         """
         Handler for workers who have just started but are still not ready to
-        receive traffic.
-        This is used for workers that got restarted and need to reload all
-        models.
+        receive traffic. Holds the lock throughout init_coro (Phase 1/2 model
+        replay) so no concurrent dispatch_update can reach the worker in an
+        inconsistent state during initialization.
         """
         # Lock while worker is coming up to ensure no model updates get lost in
         # translation
         async with self._worker_starting_lock:
             self._workers[worker.pid] = worker  # type: ignore
+            if init_coro is not None:
+                await init_coro
 
     def on_worker_ready(self, worker: Worker):
         """
         Handler for workers who are now ready to receive traffic.
         """
+        self._ready_workers[worker.pid] = worker  # type: ignore
         self._reset_round_robin()
 
     def on_worker_stop(self, worker: Worker, exit_code: int):
         """
-        Handler used for workers who stopped unexpectedly and there need to be
-        removed from the round robin rotation.
+        Handler for workers that stopped unexpectedly. Removes the worker from
+        the active pool, resets the round-robin iterator, and cancels all
+        in-flight requests assigned to that worker.
         """
         pid = worker.pid
         if pid in self._workers:
             del self._workers[pid]
+
+        if pid in self._ready_workers:
+            del self._ready_workers[pid]
 
         self._reset_round_robin()
         self._async_responses.cancel(worker, exit_code)
@@ -219,19 +237,45 @@ class Dispatcher:
         Get next available worker.
         By default, this is just a round-robin through all the workers.
         """
-        worker_pid = next(self._workers_round_robin)
-        return self._workers[worker_pid], worker_pid
+        try:
+            worker_pid = next(self._workers_round_robin)
+        except StopIteration:
+            raise NoWorkersAvailable() from None
+        return self._ready_workers[worker_pid], worker_pid
 
     async def dispatch_update(
         self, model_update: ModelUpdateMessage
     ) -> list[ModelResponseMessage]:
         async with self._worker_starting_lock:
-            return await asyncio.gather(
+            # Dispatch to all workers concurrently and wait for results
+            # to ensure state is properly maintained
+            results = await asyncio.gather(
                 *[
                     self.dispatch_update_to_worker(worker, model_update)
                     for worker in self._workers.values()
-                ]
+                ],
+                return_exceptions=True,
             )
+            non_stop = None
+            successes = []
+            for r in results:
+                if isinstance(r, ModelResponseMessage):
+                    successes.append(r)
+                elif not isinstance(r, WorkerStop):
+                    non_stop = non_stop or r
+
+            # If any error other than a worker stop error is returned raise immediately
+            if non_stop:
+                raise non_stop
+            # If no successful results or all results are worker stop errors, this
+            # indicates all workers crashed. For load operations we must raise here
+            # to perform rollback and maintain a consistent state
+            if not successes and model_update.update_type == ModelUpdateType.Load:
+                raise NoWorkersAvailable()
+
+            # If at least one result is a success, this means any workers that crashed
+            # will properly recover on replay
+            return cast(list[ModelResponseMessage], successes)
 
     async def dispatch_update_to_worker(
         self, worker: Worker, model_update: ModelUpdateMessage
@@ -244,6 +288,7 @@ class Dispatcher:
         return await self._async_responses.schedule_and_wait(worker_update, worker)
 
     async def stop(self):
+        self._ready_workers.clear()
         self._executor.shutdown()
         if self._process_responses_task is not None:
             await cancel_task(self._process_responses_task)

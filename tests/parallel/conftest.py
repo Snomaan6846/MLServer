@@ -196,7 +196,7 @@ async def worker_with_env(
 ):
     # NOTE: This fixture will start an actual worker running on a separate
     # process.
-    worker = _spawn_worker(settings, responses, env)
+    worker = _spawn_worker(settings, responses, env, [], [])
 
     load_message = ModelUpdateMessage(
         update_type=ModelUpdateType.Load, model_settings=env_model_settings

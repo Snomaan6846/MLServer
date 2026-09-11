@@ -1,7 +1,7 @@
 import pytest
 
 from mlserver.types import InferenceResponse
-from mlserver.parallel.errors import WorkerStop
+from mlserver.parallel.errors import WorkerStop, NoWorkersAvailable
 from mlserver.parallel.dispatcher import Dispatcher
 from mlserver.parallel.messages import ModelUpdateMessage, ModelRequestMessage
 
@@ -31,6 +31,30 @@ async def test_dispatch(
     inference_response = response_message.return_value
     assert isinstance(inference_response, InferenceResponse)
     assert len(inference_response.outputs) > 0
+
+
+async def test_dispatch_request_no_ready_workers(
+    dispatcher: Dispatcher,
+    inference_request_message: ModelRequestMessage,
+):
+    dispatcher._ready_workers.clear()
+    dispatcher._reset_round_robin()
+
+    with pytest.raises(NoWorkersAvailable):
+        await dispatcher.dispatch_request(inference_request_message)
+
+
+async def test_dispatch_update_load_no_workers(
+    responses,
+    load_message: ModelUpdateMessage,
+):
+    dispatcher = Dispatcher({}, responses)
+    dispatcher.start()
+    try:
+        with pytest.raises(NoWorkersAvailable):
+            await dispatcher.dispatch_update(load_message)
+    finally:
+        await dispatcher.stop()
 
 
 async def test_cancel(dispatcher: Dispatcher, inference_request_message):

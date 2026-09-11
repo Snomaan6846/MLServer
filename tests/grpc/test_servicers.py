@@ -265,6 +265,7 @@ async def test_infer_invalid_datatype_error(
         )
 
     assert exc_info.value.details() == (
+        "pydantic_core._pydantic_core.ValidationError: "
         "1 validation error for RequestInput\ndatatype\n  Input should be "
         "'BOOL', 'UINT8', 'UINT16', 'UINT32', 'UINT64', 'INT8', 'INT16', "
         "'INT32', 'INT64', 'FP16', 'FP32', 'FP64' or 'BYTES' [type=enum, "

@@ -567,6 +567,13 @@ class ModelParameters(BaseSettings):
     version: str | None = None
     """Version of the model."""
 
+    @field_validator("version", mode="before")
+    @classmethod
+    def _coerce_empty_version(cls, v: str | None) -> str | None:
+        if v == "":
+            return None
+        return v
+
     environment_path: str | None = None
     """Path to a directory that contains the python environment to be used
     to load this model."""

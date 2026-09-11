@@ -22,6 +22,10 @@ def configure_metrics(settings: Settings):
     if not settings.parallel_workers:
         return
 
+    # Only configure prometheus multiprocess if metrics are enabled
+    if not settings.metrics_endpoint:
+        return
+
     # Re-set Prometheus' Value class to use the multiproc version.
     # Note that this workaround depends on initialising all metrics in a
     # lazy manner (i.e. not as global values)

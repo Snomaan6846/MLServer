@@ -22,6 +22,12 @@ from mlserver.parallel.registry import (
 from ..fixtures import SumModel, EnvModel
 
 
+# Test hook - must be module-level to be pickle-able for multiprocessing
+async def _test_load_hook_raises(model: MLModel) -> MLModel:
+    """Test hook that raises to prove it executed in worker process"""
+    raise RuntimeError("test_hook_executed_in_worker")
+
+
 @pytest.fixture
 async def env_model(
     inference_pool_registry: InferencePoolRegistry, env_model_settings: ModelSettings
@@ -60,10 +66,13 @@ def test_set_environment_hash(sum_model: MLModel):
     ["0e46fce1decb7a89a8b91c71d8b6975630a17224d4f00094e02e1a732f8e95f3", None],
 )
 def test_get_environment_hash(sum_model: MLModel, env_hash: str | None):
-    if env_hash:
-        _set_environment_hash(sum_model, env_hash)
-
+    _set_environment_hash(sum_model, env_hash)
     assert _get_environment_hash(sum_model) == env_hash
+
+
+def test_get_environment_hash_not_set(sum_model: MLModel):
+    with pytest.raises(AttributeError):
+        _get_environment_hash(sum_model)
 
 
 async def test_default_pool(
@@ -96,6 +105,33 @@ async def test_load_model(
     assert len(inference_response.outputs) == 1
 
     await inference_pool_registry.unload_model(sum_model)
+
+
+async def test_load_model_with_hooks(
+    settings: Settings,
+    sum_model_settings: ModelSettings,
+    prometheus_registry,
+):
+    """
+    Verify hooks execute when loading models in parallel workers.
+
+    Uses a hook that raises an error to prove it executed in the worker process.
+    If the hook didn't execute, the error wouldn't be raised and the test would fail.
+    """
+    # Create registry with a hook that raises
+    registry = InferencePoolRegistry(settings, on_worker_load=[_test_load_hook_raises])
+
+    try:
+        sum_model = SumModel(sum_model_settings)
+
+        # Load model - hook should execute in worker and raise
+        with pytest.raises(Exception, match="test_hook_executed_in_worker"):
+            await registry.load_model(sum_model)
+    finally:
+        try:
+            await registry.close()
+        except Exception:
+            pass
 
 
 def check_sklearn_version(response):
@@ -176,7 +212,8 @@ async def test_reload_model_with_env(
     new_model = EnvModel(env_model_settings)
 
     assert len(inference_pool_registry._pools) == 1
-    await inference_pool_registry.reload_model(env_model, new_model)
+    await inference_pool_registry.load_model(new_model)
+    await inference_pool_registry.unload_model(env_model)
 
     assert len(inference_pool_registry._pools) == 1
 
@@ -456,4 +493,63 @@ async def test_same_gid_pool_cleanup_multi_model(
 
     await inference_pool_registry.unload_model(loaded_b)
     assert shared_gid not in inference_pool_registry._pools
+    assert len(inference_pool_registry._pools) == 0
+
+
+async def test_reload_model_same_gid(
+    inference_pool_registry: InferencePoolRegistry,
+    sum_model_settings: ModelSettings,
+):
+    """Reloading a model with the same GID reuses the same inference pool."""
+    settings = deepcopy(sum_model_settings)
+    assert settings.parameters is not None
+    settings.parameters.inference_pool_gid = "reload-gid"
+
+    old_model = await inference_pool_registry.load_model(SumModel(settings))
+    assert len(inference_pool_registry._pools) == 1
+    assert "reload-gid" in inference_pool_registry._pools
+
+    new_model = await inference_pool_registry.load_model(SumModel(settings))
+    assert len(inference_pool_registry._pools) == 1
+    assert "reload-gid" in inference_pool_registry._pools
+
+    assert old_model != new_model
+
+    await inference_pool_registry.unload_model(old_model)
+    assert len(inference_pool_registry._pools) == 1
+    assert "reload-gid" in inference_pool_registry._pools
+
+    await inference_pool_registry.unload_model(new_model)
+    assert len(inference_pool_registry._pools) == 0
+
+
+async def test_reload_model_different_gid(
+    inference_pool_registry: InferencePoolRegistry,
+    sum_model_settings: ModelSettings,
+):
+    """Reloading a model with a different GID loads it into the new pool
+    and removes it from the old pool."""
+    settings_gid1 = deepcopy(sum_model_settings)
+    assert settings_gid1.parameters is not None
+    settings_gid1.parameters.inference_pool_gid = "gid-1"
+
+    settings_gid2 = deepcopy(sum_model_settings)
+    assert settings_gid2.parameters is not None
+    settings_gid2.parameters.inference_pool_gid = "gid-2"
+
+    old_model = await inference_pool_registry.load_model(SumModel(settings_gid1))
+    assert len(inference_pool_registry._pools) == 1
+    assert "gid-1" in inference_pool_registry._pools
+
+    new_model = await inference_pool_registry.load_model(SumModel(settings_gid2))
+    assert len(inference_pool_registry._pools) == 2
+    assert "gid-2" in inference_pool_registry._pools
+
+    assert old_model != new_model
+
+    await inference_pool_registry.unload_model(old_model)
+    assert len(inference_pool_registry._pools) == 1
+    assert "gid-2" in inference_pool_registry._pools
+
+    await inference_pool_registry.unload_model(new_model)
     assert len(inference_pool_registry._pools) == 0

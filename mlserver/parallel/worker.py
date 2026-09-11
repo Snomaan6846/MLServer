@@ -3,17 +3,20 @@ import select
 import signal
 
 from asyncio import Task, CancelledError
+from collections.abc import Awaitable, Callable, Sequence
 from multiprocessing import Process, Queue
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 
 from ..registry import MultiModelRegistry
+from ..model import MLModel
 from ..utils import install_uvloop_event_loop, schedule_with_callback
 from ..logging import configure_logger
 from ..settings import Settings
 from ..metrics import configure_metrics
 from ..context import model_context
 from ..env import Environment
+from ..errors import ModelNotFound
 
 from .messages import (
     ModelRequestMessage,
@@ -27,6 +30,8 @@ from .errors import WorkerError
 
 IGNORED_SIGNALS = [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT]
 
+WorkerModelHook = Callable[[MLModel], Awaitable[MLModel]]
+
 
 def _noop():
     pass
@@ -34,7 +39,12 @@ def _noop():
 
 class Worker(Process):
     def __init__(
-        self, settings: Settings, responses: Queue, env: Environment | None = None
+        self,
+        settings: Settings,
+        responses: Queue,
+        env: Environment | None = None,
+        on_worker_load: Sequence[WorkerModelHook] = [],
+        on_worker_unload: Sequence[WorkerModelHook] = [],
     ):
         super().__init__()
         self._settings = settings
@@ -42,6 +52,8 @@ class Worker(Process):
         self._requests: Queue[ModelRequestMessage] = Queue()
         self._model_updates: Queue[ModelUpdateMessage] = Queue()
         self._env = env
+        self._on_worker_load = on_worker_load
+        self._on_worker_unload = on_worker_unload
 
         self.__executor = None
 
@@ -93,8 +105,14 @@ class Worker(Process):
         """
         Internal __init__ method that needs to run within the worker process.
         """
-        self._model_registry = MultiModelRegistry()
+        self._model_registry = MultiModelRegistry(
+            on_model_load=self._on_worker_load,
+            on_model_unload=self._on_worker_unload,
+        )
         self._active = True
+        self._poller = select.poll()
+        self._poller.register(self._requests._reader, select.POLLIN)
+        self._poller.register(self._model_updates._reader, select.POLLIN)
 
     async def coro_run(self):
         self.__inner_init__()
@@ -117,16 +135,19 @@ class Worker(Process):
                         return
 
                     schedule_with_callback(
-                        self._process_model_update(model_update), self._handle_response
+                        self._process_model_update(model_update),
+                        self._handle_response,
                     )
 
     def _select(self):
-        readable, _, _ = select.select(
-            [self._requests._reader, self._model_updates._reader],
-            [],
-            [],
-        )
-
+        ready = {fd for fd, event in self._poller.poll() if event & select.POLLIN}
+        readable = []
+        for r in [self._requests._reader, self._model_updates._reader]:
+            try:
+                if r.fileno() in ready:
+                    readable.append(r)
+            except (ValueError, AttributeError):
+                pass
         return readable
 
     async def _process_request(self, request) -> ModelResponseMessage:
@@ -159,14 +180,18 @@ class Worker(Process):
         try:
             model_settings = update.model_settings
             if update.update_type == ModelUpdateType.Load:
-                await self._model_registry.load(model_settings)
+                await self._model_registry.load(model_settings, True)
             elif update.update_type == ModelUpdateType.Unload:
-                await self._model_registry.unload_version(
-                    model_settings.name, model_settings.version
-                )
+                try:
+                    await self._model_registry.unload_version(
+                        model_settings.name, model_settings.version, update.rollback
+                    )
+                except ModelNotFound:
+                    # Model not present on worker - idempotent operation
+                    pass
             else:
                 logger.warning(
-                    "Unknown model update message with type ", update.update_type
+                    "Unknown model update message with type %s", update.update_type
                 )
 
             return ModelResponseMessage(id=update.id)

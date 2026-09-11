@@ -2,6 +2,8 @@ import asyncio
 import os
 import signal
 
+from collections.abc import Sequence
+
 from ..settings import ModelSettings
 from ..utils import to_absolute_path
 from ..model import MLModel
@@ -12,6 +14,7 @@ from ..registry import model_initialiser
 from .errors import EnvironmentNotFound
 from .logging import logger
 from .pool import InferencePool, InferencePoolHook
+from .worker import WorkerModelHook
 
 ENV_HASH_ATTR = "__env_hash__"
 
@@ -21,7 +24,9 @@ def _set_environment_hash(model: MLModel, env_hash: str | None):
 
 
 def _get_environment_hash(model: MLModel) -> str | None:
-    return getattr(model, ENV_HASH_ATTR, None)
+    # No default — AttributeError signals the model was never dispatched to a
+    # pool (i.e. pool creation failed before _set_environment_hash was called)
+    return getattr(model, ENV_HASH_ATTR)
 
 
 def _get_env_tarball(model: MLModel) -> str | None:
@@ -49,12 +54,21 @@ class InferencePoolRegistry:
     """
 
     def __init__(
-        self, settings: Settings, on_worker_stop: list[InferencePoolHook] = []
+        self,
+        settings: Settings,
+        on_worker_stop: Sequence[InferencePoolHook] = [],
+        on_worker_load: Sequence[WorkerModelHook] = [],
+        on_worker_unload: Sequence[WorkerModelHook] = [],
     ):
         self._settings = settings
         self._on_worker_stop = on_worker_stop
+        self._on_worker_load = on_worker_load
+        self._on_worker_unload = on_worker_unload
         self._default_pool = InferencePool(
-            self._settings, on_worker_stop=on_worker_stop
+            self._settings,
+            on_worker_stop=on_worker_stop,
+            on_worker_load=on_worker_load,
+            on_worker_unload=on_worker_unload,
         )
         self._pools: dict[str, InferencePool] = {}
 
@@ -68,15 +82,36 @@ class InferencePoolRegistry:
         )
 
     async def _handle_worker_stop(self, signum, frame):
-        pid, exit_code = os.waitpid(-1, os.WNOHANG)
-        if pid == 0 or exit_code == 0:
-            # Worker terminated gracefully, nothing to do
-            return
-
-        await self._default_pool.on_worker_stop(pid, exit_code)
-        await asyncio.gather(
-            *[pool.on_worker_stop(pid, exit_code) for pool in self._pools.values()]
-        )
+        try:
+            # Loop to reap all stopped children — SIGCHLD signals can coalesce,
+            # so a single signal may represent multiple stopped workers.
+            while True:
+                pid, wait_status = os.waitpid(-1, os.WNOHANG)
+                if pid == 0:
+                    # No more stopped children
+                    break
+                exit_code = os.waitstatus_to_exitcode(wait_status)
+                if exit_code == 0:
+                    # Clean exit — no crash recovery needed
+                    continue
+                try:
+                    # Notify all pools since we don't know which pool owns
+                    # this PID — each pool checks internally
+                    await self._default_pool.on_worker_stop(pid, exit_code)
+                    await asyncio.gather(
+                        *[
+                            pool.on_worker_stop(pid, exit_code)
+                            for pool in self._pools.values()
+                        ]
+                    )
+                except Exception:
+                    logger.error(
+                        f"Failed to handle stop for worker with PID {pid}",
+                        exc_info=True,
+                    )
+        except ChildProcessError:
+            # Raised when there are no child processes left to wait on
+            pass
 
     async def _get_or_create(self, model: MLModel) -> InferencePool:
         if (
@@ -118,7 +153,11 @@ class InferencePoolRegistry:
             delete_env=False,
         )
         pool = InferencePool(
-            self._settings, env=env, on_worker_stop=self._on_worker_stop
+            self._settings,
+            env=env,
+            on_worker_stop=self._on_worker_stop,
+            on_worker_load=self._on_worker_load,
+            on_worker_unload=self._on_worker_unload,
         )
         self._pools[env_hash] = pool
         return pool
@@ -140,7 +179,11 @@ class InferencePoolRegistry:
                 return self._default_pool
             if inference_pool_gid not in self._pools:
                 self._pools[inference_pool_gid] = InferencePool(
-                    self._settings, on_worker_stop=self._on_worker_stop
+                    self._settings,
+                    pool_gid=inference_pool_gid,
+                    on_worker_stop=self._on_worker_stop,
+                    on_worker_load=self._on_worker_load,
+                    on_worker_unload=self._on_worker_unload,
                 )
             return self._pools[inference_pool_gid]
 
@@ -153,7 +196,11 @@ class InferencePoolRegistry:
 
         env = await self._extract_tarball(env_hash, env_tarball)
         self._pools[env_hash] = InferencePool(
-            self._settings, env=env, on_worker_stop=self._on_worker_stop
+            self._settings,
+            env=env,
+            on_worker_stop=self._on_worker_stop,
+            on_worker_load=self._on_worker_load,
+            on_worker_unload=self._on_worker_unload,
         )
 
         return self._pools[env_hash]
@@ -242,28 +289,21 @@ class InferencePoolRegistry:
             # Skip load if model has disabled parallel workers
             return model
 
-        # TODO: If load fails, should we remove pool if empty?
         pool = await self._get_or_create(model)
-        loaded = await pool.load_model(model)
+        # Set env_hash before dispatch so cleanup can find the correct pool
+        # even if pool.load_model fails
+        _set_environment_hash(model, pool.env_hash)
+
+        try:
+            loaded = await pool.load_model(model)
+        except Exception:
+            try:
+                await self._close_pool_if_empty(pool)
+            except Exception:
+                pass
+            raise
+
         _set_environment_hash(loaded, pool.env_hash)
-        return loaded
-
-    async def reload_model(self, old_model: MLModel, new_model: MLModel) -> MLModel:
-        if not self._should_load_model(new_model.settings):
-            # TODO: What would happen if old_model had parallel inference
-            # enabled and is disabled in new_model (and viceversa)?
-            # Skip reload if model has disabled parallel workers
-            return new_model
-
-        old_hash = _get_environment_hash(old_model)
-        new_pool = await self._get_or_create(new_model)
-
-        loaded = await new_pool.reload_model(old_model, new_model)
-        _set_environment_hash(loaded, new_pool.env_hash)
-        if old_hash != new_pool.env_hash:
-            # Environment has changed in the new version, so unload the old one
-            await self.unload_model(old_model)
-
         return loaded
 
     async def unload_model(self, model: MLModel) -> MLModel:
@@ -271,41 +311,71 @@ class InferencePoolRegistry:
             # Skip unload if model has disabled parallel workers
             return model
 
-        pool = await self._find(model)
-        unloaded = await pool.unload_model(model)
+        try:
+            pool = await self._find(model)
+        except (EnvironmentNotFound, KeyError, AttributeError):
+            logger.debug(
+                f"No pool found for model '{model.settings.name}' during unload"
+            )
+            return model
 
-        if pool != self._default_pool and pool.empty():
-            if pool.env_hash:
-                logger.info(f"Inference pool with hash '{pool.env_hash}' is now empty")
-                await self._close_pool(pool.env_hash)
-            elif (
-                model.settings.parameters
-                and model.settings.parameters.inference_pool_gid
-            ):
-                gid = model.settings.parameters.inference_pool_gid
-                logger.info(f"Inference pool with GID '{gid}' is now empty")
-                await self._close_pool(gid)
+        try:
+            unloaded = await pool.unload_model(model)
+        finally:
+            try:
+                await self._close_pool_if_empty(pool)
+            except Exception:
+                pass
 
         return unloaded
+
+    async def _close_pool_if_empty(self, pool: InferencePool) -> None:
+        if pool == self._default_pool or not pool.empty():
+            return
+
+        if pool.env_hash:
+            logger.info(f"Inference pool with hash '{pool.env_hash}' is now empty")
+            await self._close_pool(pool.env_hash)
+        elif pool.pool_gid:
+            logger.info(f"Inference pool with GID '{pool.pool_gid}' is now empty")
+            await self._close_pool(pool.pool_gid)
 
     async def close(self):
         # Reset signal handler
         signal.signal(signal.SIGCHLD, self._original_sigchld_handler)
-        await asyncio.gather(
+        # Best effort cleanup - closure attempted for all pools and
+        # pools always removed from registry
+        results = await asyncio.gather(
             self._close_pool(None),
             *[self._close_pool(env_hash) for env_hash in self._pools],
+            return_exceptions=True,
         )
+        failures = [r for r in results if isinstance(r, Exception)]
+        if failures:
+            raise failures[0]
 
     async def _close_pool(self, env_hash: str | None = None):
-        pool = self._default_pool
+        pool: InferencePool | None = self._default_pool
         if env_hash:
-            pool = self._pools[env_hash]
+            pool = self._pools.get(env_hash)
+        if pool is None:
+            return
 
+        # Best effort cleanup
         logger.info(f"Waiting for shutdown of {pool.name}...")
-        await pool.close()
-        logger.info(f"Shutdown of {pool.name} complete")
-
-        if env_hash:
-            # force calling __del__ on `Environment` to clean up
-            self._pools[env_hash]._env = None  # pylint: disable=protected-access
-            del self._pools[env_hash]
+        try:
+            await pool.close()
+            logger.info(f"Shutdown of {pool.name} complete")
+        except Exception:
+            logger.error(
+                f"Failed to shut down {pool.name}.",
+                exc_info=True,
+            )
+            raise
+        finally:
+            # Always remove pool from registry,
+            # cannot guarantee pool state at this point
+            if env_hash:
+                pool = self._pools.pop(env_hash, None)
+                if pool is not None:
+                    pool._env = None  # pylint: disable=protected-access

@@ -42,6 +42,7 @@ class ModelResponseMessage(Message):
 class ModelUpdateMessage(Message):
     update_type: ModelUpdateType
     serialised_model_settings: str
+    rollback: bool = False
 
     def __init__(self, *args, **kwargs):
         model_settings = kwargs.pop("model_settings", None)

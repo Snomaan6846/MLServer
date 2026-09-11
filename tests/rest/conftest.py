@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from mlserver.handlers import DataPlane, ModelRepositoryHandlers
 from mlserver.model import MLModel
 from mlserver.parallel import InferencePoolRegistry
-from mlserver.batching import load_batching
+from mlserver.batching import load_batching, unload_batching
 from mlserver.rest import RESTServer
 from mlserver.registry import MultiModelRegistry
 from mlserver import Settings, ModelSettings
@@ -19,9 +19,14 @@ async def model_registry(
     sum_model_settings: ModelSettings, inference_pool_registry: InferencePoolRegistry
 ) -> AsyncGenerator[MultiModelRegistry, None]:
     model_registry = MultiModelRegistry(
-        on_model_load=[inference_pool_registry.load_model, load_batching],
-        on_model_reload=[inference_pool_registry.reload_model],
-        on_model_unload=[inference_pool_registry.unload_model],
+        on_model_load=[
+            inference_pool_registry.load_model,
+            load_batching,
+        ],
+        on_model_unload=[
+            unload_batching,
+            inference_pool_registry.unload_model,
+        ],
         model_initialiser=inference_pool_registry.model_initialiser,
     )
 

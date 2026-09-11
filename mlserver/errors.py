@@ -41,6 +41,13 @@ class ModelLoadError(MLServerError):
         super().__init__(msg, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
+class ModelUnloadError(MLServerError):
+    """Raised when model unloading fails."""
+
+    def __init__(self, msg: str):
+        super().__init__(msg, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class ModelValidationError(MLServerError):
     """Raised when model configuration or options are invalid (e.g. at load time)."""
 
