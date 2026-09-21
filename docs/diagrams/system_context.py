@@ -62,7 +62,6 @@ with Diagram(
         with Cluster("Core Engine"):
             dataplane = Rack("DataPlane\nInference Orchestration")
             middleware = Rack("Middleware\nCloudEvents · Hooks")
-            cache = SQL("Response Cache\nLRU · Per-request key")
 
         with Cluster("Model Management"):
             registry = SQL("Registry\nMultiModel · Versioned")
@@ -99,7 +98,6 @@ with Diagram(
 
     # ── Core Engine internal ───────────────────────────────────
     dataplane >> Edge(color="#4B9A1E") >> middleware
-    dataplane >> Edge(label="cache lookup", color="#117A65") >> cache
 
     # ── Core Engine → Model Management ─────────────────────────
     dataplane >> Edge(label="resolve model", color="#7D3C98") >> registry

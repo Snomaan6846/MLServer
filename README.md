@@ -48,8 +48,7 @@ format that works across frameworks:
   and custom models side by side in a single process. No per-model
   containers needed.
 - **Production-grade by default** — health probes, Prometheus metrics,
-  adaptive batching, parallel workers, and response caching are built in,
-  not bolted on.
+  adaptive batching, and parallel workers are built in, not bolted on.
 - **Standards-based** — implements the
   [V2 Inference Protocol](https://kserve.github.io/website/latest/modelserving/data_plane/v2_protocol/)
   over both REST and gRPC, so your clients work with MLServer, NVIDIA Triton,
@@ -145,7 +144,6 @@ health checks, Prometheus metrics, and Swagger UI at
 | **Multi-model serving** | Run multiple models in a single server with independent versioning and lifecycle | Reduce infrastructure overhead; no per-model container sprawl |
 | **Parallel inference** | Bypass the Python GIL via multiprocessing worker pools | True CPU-parallel prediction for throughput-sensitive workloads |
 | **Adaptive batching** | Transparently group incoming requests into batches by size or time threshold | Higher GPU/CPU utilization without client-side batching logic |
-| **Response caching** | LRU cache keyed on request payload | Avoid redundant computation for repeated inputs |
 | **Streaming inference** | Server-Sent Events (REST) and bidirectional streaming (gRPC) | Token-by-token generation for LLMs and iterative models |
 | **Runtime security** | DEVELOPMENT / PRODUCTION dual-mode allowlist | Prevent arbitrary code execution in production images |
 | **V2 Inference Protocol** | REST + gRPC wire format standard | Client portability across serving frameworks |
@@ -184,7 +182,7 @@ graph TB
 ```
 
 Both REST and gRPC transports converge on a single **DataPlane** handler that
-manages inference middleware, Prometheus instrumentation, and response caching.
+manages inference middleware and Prometheus instrumentation.
 The **MultiModelRegistry** maps model names to versioned instances, and the
 **InferencePool** dispatches work to parallel workers when configured.
 
@@ -234,7 +232,6 @@ Python 3.9 and earlier are no longer supported. Python 3.13 is not yet tested.
 | Parallel inference (Python) | Multiprocessing pool | C++ backends | Java workers | Runner workers |
 | Custom Python runtimes | Subclass `MLModel` | Python backend | Handler class | Service class |
 | KServe integration | Native runtime | Supported | Supported | Supported |
-| Response caching | Built-in | External | External | External |
 | Streaming inference | SSE + gRPC | gRPC | Not built-in | SSE |
 | Runtime security modes | Built-in allowlist | Model control | Not built-in | Not built-in |
 | Language | Python | C++ / Python | Java / Python | Python |

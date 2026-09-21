@@ -1,7 +1,7 @@
 """
 Build the animated MLServer Software Architecture diagram as a self-contained HTML file.
 
-Shows the internal component perspective: DataPlane, Middleware, Response Cache,
+Shows the internal component perspective: DataPlane, Middleware,
 Model Registry, Workers, Queues, and runtime plugins. Complements the deployment
 topology diagram which shows the K8s infrastructure perspective.
 
@@ -181,8 +181,8 @@ html = f"""<!DOCTYPE html>
   <!-- ═══════════════════════════════════════════════════════ -->
 
 {node("users", "Client", 80, 200, sublabel="Applications")}
-{node("prometheus", "Prometheus", 80, 520, sublabel="Scrape /metrics")}
-{node("cm", "Security", 80, 650, sublabel="Trusted Runtimes")}
+{node("prometheus", "Prometheus", 80, 325, sublabel="Scrape /metrics")}
+{node("cm", "Security", 505, 370, sublabel="Trusted Runtimes")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  TRANSPORT LAYER                                       -->
@@ -198,13 +198,12 @@ html = f"""<!DOCTYPE html>
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  CORE ENGINE                                           -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="405" y="120" width="200" height="300" class="cluster-solid"
+  <rect x="405" y="120" width="200" height="180" class="cluster-solid"
     fill="#4B9A1E" stroke="#4B9A1E"/>
   <text x="505" y="140" class="cluster-title" fill="#4B9A1E">Core Engine</text>
 
 {box("DataPlane", 425, 160, 160, 50, "#4B9A1E", "Inference Orchestration")}
 {box("Middleware", 425, 230, 160, 50, "#4B9A1E", "CloudEvents · Hooks")}
-{box("Response Cache", 425, 300, 160, 50, "#117A65", "LRU · Per-request key")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  MODEL MANAGEMENT                                      -->
@@ -260,21 +259,17 @@ html = f"""<!DOCTYPE html>
   <!-- gRPC → DataPlane (right then up) -->
 {arrow("M 357,255 L 390,255 L 390,190 L 423,190", "arrow-green", "flow-right", "ah-green")}
 
-  <!-- Prometheus → Metrics (right then up) -->
-{arrow("M 112,520 L 155,520 L 155,330 L 193,330", "arrow-red", "flow-left", "ah-red",
-       "scrape", 155, 430)}
+  <!-- Prometheus → Metrics -->
+{arrow("M 112,325 L 193,325", "arrow-red", "flow-left", "ah-red",
+       "scrape", 152, 315)}
 
-  <!-- Security → Middleware (right then up) -->
-{arrow("M 112,650 L 155,650 L 155,268 L 423,268", "arrow-red", "flow-right", "ah-red",
-       "allowlist", 155, 460)}
+  <!-- Security → Middleware -->
+{arrow("M 505,346 L 505,282", "arrow-red", "flow-up", "ah-red",
+       "allowlist", 555, 320)}
 
   <!-- DataPlane → Registry (horizontal) -->
 {arrow("M 587,185 L 653,185", "arrow-purple", "flow-right", "ah-purple",
        "resolve model", 620, 175)}
-
-  <!-- DataPlane → Response Cache (vertical) -->
-{arrow("M 505,212 L 505,298", "arrow-teal", "flow-down", "ah-teal",
-       "cache lookup", 545, 260)}
 
   <!-- DataPlane → Middleware (vertical) -->
 {arrow("M 505,212 L 505,228", "arrow-green", "flow-down", "ah-green")}

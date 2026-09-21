@@ -421,8 +421,6 @@ class MyModel(MLModel):
 | `load_models_at_startup` | bool | `true` | Auto-load models on start |
 | `strict_readiness` | bool | `true` | Require ALL models ready for server readiness |
 | `empty_registry_readiness` | bool | `true` | Report ready when no models are loaded |
-| `cache_enabled` | bool | `false` | Enable response caching |
-| `cache_size` | int | `100` | Maximum cached responses |
 | `gzip_enabled` | bool | `true` | Enable GZip compression |
 | `log_level` | string | `INFO` | Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
 | `access_log` | bool | `true` | Enable REST/gRPC access logging |

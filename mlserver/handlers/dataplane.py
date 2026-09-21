@@ -21,7 +21,6 @@ from ..types import (
 from ..middleware import InferenceMiddlewares
 from ..cloudevents import CloudEventsMiddleware
 from ..utils import generate_uuid
-from ..cache import ResponseCache, LocalCache
 
 
 class DataPlane:
@@ -33,9 +32,6 @@ class DataPlane:
     def __init__(self, settings: Settings, model_registry: MultiModelRegistry):
         self._settings = settings
         self._model_registry = model_registry
-        self._response_cache = None
-        if settings.cache_enabled:
-            self._response_cache = self._create_response_cache()
         self._inference_middleware = InferenceMiddlewares(
             CloudEventsMiddleware(settings)
         )
@@ -133,29 +129,10 @@ class DataPlane:
         name: str,
         version: str | None = None,
     ) -> InferenceResponse:
-        # need to cache the payload here since it
-        # will be modified in the context manager
-        if self._response_cache is not None:
-            cache_key = payload.model_dump_json()
-
         async with self._infer_contextmanager(name, version) as model:
             payload = self._prepare_payload(payload, model)
 
-            if (
-                self._response_cache is not None
-                and model.settings.cache_enabled is not False
-            ):
-                cache_value = await self._response_cache.lookup(cache_key)
-                if cache_value != "":
-                    prediction = InferenceResponse.model_validate_json(cache_value)
-                else:
-                    prediction = await model.predict(payload)
-                    # ignore cache insertion error if any
-                    await self._response_cache.insert(
-                        cache_key, prediction.model_dump_json()
-                    )
-            else:
-                prediction = await model.predict(payload)
+            prediction = await model.predict(payload)
 
             # Ensure ID matches
             prediction.id = payload.id
@@ -168,7 +145,6 @@ class DataPlane:
         name: str,
         version: str | None = None,
     ) -> AsyncIterator[InferenceResponse]:
-        # TODO: Implement cache for stream
 
         async with self._infer_contextmanager(name, version) as model:
             # we need to get the first payload to get the ID
@@ -238,9 +214,3 @@ class DataPlane:
                 yield model
 
             self._ModelInferRequestSuccess.labels(model=name, version=version).inc()
-
-    def _create_response_cache(self) -> ResponseCache:
-        return LocalCache(size=self._settings.cache_size)
-
-    def _get_response_cache(self) -> ResponseCache | None:
-        return self._response_cache
