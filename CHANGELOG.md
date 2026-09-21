@@ -1,6 +1,108 @@
 # Changelog
 
 
+<a id="odh-v3.6-ea2"></a>
+## [odh-v3.6-ea2](https://github.com/opendatahub-io/MLServer/releases/tag/odh-v3.6-ea2) - 2026-09-21
+
+<!-- Release notes generated using configuration in .github/release.yml at odh-v3.6-ea2 -->
+
+## What's Changed
+* Update OWNERS File by [@brettmthompson](https://github.com/brettmthompson) in [#3](https://github.com/opendatahub-io/MLServer/pull/3)
+* Refactor Dockerfile to remove non-required runtimes from MLServer image by [@Snomaan6846](https://github.com/Snomaan6846) in [#1](https://github.com/opendatahub-io/MLServer/pull/1)
+* Adding Workflow To Merge Release Branches to rhoai-staging Branch by [@brettmthompson](https://github.com/brettmthompson) in [#2](https://github.com/opendatahub-io/MLServer/pull/2)
+* Stabilize CI Tests by [@brettmthompson](https://github.com/brettmthompson) in [#5](https://github.com/opendatahub-io/MLServer/pull/5)
+* updating owners aliases file by [@brettmthompson](https://github.com/brettmthompson) in [#10](https://github.com/opendatahub-io/MLServer/pull/10)
+* Remove conda reference from Dockerfile by [@Snomaan6846](https://github.com/Snomaan6846) in [#6](https://github.com/opendatahub-io/MLServer/pull/6)
+* Adding Required Workflows by [@brettmthompson](https://github.com/brettmthompson) in [#12](https://github.com/opendatahub-io/MLServer/pull/12)
+* Add build arguments to parameterize Dockerfile base images by [@Snomaan6846](https://github.com/Snomaan6846) in [#13](https://github.com/opendatahub-io/MLServer/pull/13)
+* Sync master to release-1.7.x by [@brettmthompson](https://github.com/brettmthompson) in [#18](https://github.com/opendatahub-io/MLServer/pull/18)
+* preserving commit history in the release to staging sync workflow by [@brettmthompson](https://github.com/brettmthompson) in [#19](https://github.com/opendatahub-io/MLServer/pull/19)
+* Revert "Sync master to release-1.7.x ([#18](https://github.com/opendatahub-io/MLServer/issues/18))" by [@brettmthompson](https://github.com/brettmthompson) in [#21](https://github.com/opendatahub-io/MLServer/pull/21)
+* Sync master to release-1.7.x by [@brettmthompson](https://github.com/brettmthompson) in [#22](https://github.com/opendatahub-io/MLServer/pull/22)
+* improvements to sync workflow by [@brettmthompson](https://github.com/brettmthompson) in [#25](https://github.com/opendatahub-io/MLServer/pull/25)
+* Cherry-pick from master to release branch by [@Snomaan6846](https://github.com/Snomaan6846) in [#30](https://github.com/opendatahub-io/MLServer/pull/30)
+* Downgrade odh release version to 3.2 by [@Snomaan6846](https://github.com/Snomaan6846) in [#34](https://github.com/opendatahub-io/MLServer/pull/34)
+* Harden Event Loop Logic by [@brettmthompson](https://github.com/brettmthompson) in [#35](https://github.com/opendatahub-io/MLServer/pull/35)
+* converting all occurences of get_event_loop to get_running_loop ([#35](https://github.com/opendatahub-io/MLServer/issues/35)) by [@brettmthompson](https://github.com/brettmthompson) in [#36](https://github.com/opendatahub-io/MLServer/pull/36)
+* Update Tekton files to version odh-v3.2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#37](https://github.com/opendatahub-io/MLServer/pull/37)
+* chore(konflux): Bump release tag to odh-v3.3 by [@github-actions](https://github.com/github-actions)[bot] in [#39](https://github.com/opendatahub-io/MLServer/pull/39)
+* Upgrade sklearn images used in testing to the latest version by [@brettmthompson](https://github.com/brettmthompson) in [#44](https://github.com/opendatahub-io/MLServer/pull/44)
+* Disable Security Scan In ODH by [@brettmthompson](https://github.com/brettmthompson) in [#45](https://github.com/opendatahub-io/MLServer/pull/45)
+* Podman Support for MLServer Tests by [@brettmthompson](https://github.com/brettmthompson) in [#43](https://github.com/opendatahub-io/MLServer/pull/43)
+* Cherry pick chores to release by [@brettmthompson](https://github.com/brettmthompson) in [#46](https://github.com/opendatahub-io/MLServer/pull/46)
+* add pipelineruns for odh ci builds by [@MohammadiIram](https://github.com/MohammadiIram) in [#66](https://github.com/opendatahub-io/MLServer/pull/66)
+* Making poetry version configurable in tests workflow by [@brettmthompson](https://github.com/brettmthompson) in [#72](https://github.com/opendatahub-io/MLServer/pull/72)
+* fix: XGBoost model loading issue with modelcar by [@Snomaan6846](https://github.com/Snomaan6846) in [#70](https://github.com/opendatahub-io/MLServer/pull/70)
+* fix: XGBoost model loading issue with modelcar ([#70](https://github.com/opendatahub-io/MLServer/issues/70)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#78](https://github.com/opendatahub-io/MLServer/pull/78)
+* Make permissions explicit in merge workflow by [@brettmthompson](https://github.com/brettmthompson) in [#76](https://github.com/opendatahub-io/MLServer/pull/76)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) by [@Snomaan6846](https://github.com/Snomaan6846) in [#73](https://github.com/opendatahub-io/MLServer/pull/73)
+* feat(runtimes): add ONNX runtime support (mlserver_onnx) ([#73](https://github.com/opendatahub-io/MLServer/issues/73)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#84](https://github.com/opendatahub-io/MLServer/pull/84)
+* CI: Add AIPCC wheels requirements file generation script and github workflow by [@Snomaan6846](https://github.com/Snomaan6846) in [#88](https://github.com/opendatahub-io/MLServer/pull/88)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#95](https://github.com/opendatahub-io/MLServer/pull/95)
+* onnx runtime: align version constraints and stabilize test model metadata by [@Snomaan6846](https://github.com/Snomaan6846) in [#98](https://github.com/opendatahub-io/MLServer/pull/98)
+* updating push job to create odh-v3.4-EA1 tag by [@brettmthompson](https://github.com/brettmthompson) in [#101](https://github.com/opendatahub-io/MLServer/pull/101)
+* updating push job to create odh-v3.4-EA2 tag by [@brettmthompson](https://github.com/brettmthompson) in [#102](https://github.com/opendatahub-io/MLServer/pull/102)
+* bumping tag in tekton push job to odh-v3.4 by [@brettmthompson](https://github.com/brettmthompson) in [#103](https://github.com/opendatahub-io/MLServer/pull/103)
+* Add mlserver-onnx to requirements-config.json by [@Snomaan6846](https://github.com/Snomaan6846) in [#107](https://github.com/opendatahub-io/MLServer/pull/107)
+* Various improvements to how MLServer gets built by [@RH-steve-grubb](https://github.com/RH-steve-grubb) in [#94](https://github.com/opendatahub-io/MLServer/pull/94)
+* chore(renovate): add renovate config for aipcc base image updates on rhoai-staging by [@Snomaan6846](https://github.com/Snomaan6846) in [#111](https://github.com/opendatahub-io/MLServer/pull/111)
+* chore: Use single reference of base image by [@Snomaan6846](https://github.com/Snomaan6846) in [#113](https://github.com/opendatahub-io/MLServer/pull/113)
+* chore(renovate): Update renovate config to remove includePaths config by [@Snomaan6846](https://github.com/Snomaan6846) in [#114](https://github.com/opendatahub-io/MLServer/pull/114)
+* chore(renovate): add daily schedule for dockerfile manager for renovate by [@Snomaan6846](https://github.com/Snomaan6846) in [#115](https://github.com/opendatahub-io/MLServer/pull/115)
+* fix: ONNX model loading failure with KServe Modelcar symlinks by [@Jooho](https://github.com/Jooho) in [#117](https://github.com/opendatahub-io/MLServer/pull/117)
+* [release-1.7.x] fix: ONNX model loading failure with KServe Modelcar symlinks by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#118](https://github.com/opendatahub-io/MLServer/pull/118)
+* Cherry pick from master to release 1.7.x by [@Snomaan6846](https://github.com/Snomaan6846) in [#122](https://github.com/opendatahub-io/MLServer/pull/122)
+* chore(ci): harden release-to-staging sync workflow merge and policy handling by [@Snomaan6846](https://github.com/Snomaan6846) in [#123](https://github.com/opendatahub-io/MLServer/pull/123)
+* [release-1.7.x] chore(ci): harden release-to-staging sync workflow merge and policy handling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#124](https://github.com/opendatahub-io/MLServer/pull/124)
+* chore(ci): require manual pyproject sync policy acknowledgement in release sync workflow by [@Snomaan6846](https://github.com/Snomaan6846) in [#126](https://github.com/opendatahub-io/MLServer/pull/126)
+* [release-1.7.x] chore(ci): require manual pyproject sync policy acknowledgement in release sync workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#127](https://github.com/opendatahub-io/MLServer/pull/127)
+* Make runtime allowlist flexible by [@brettmthompson](https://github.com/brettmthompson) in [#110](https://github.com/opendatahub-io/MLServer/pull/110)
+* chore: install mlserver wheel prior to runtime wheels by [@Snomaan6846](https://github.com/Snomaan6846) in [#131](https://github.com/opendatahub-io/MLServer/pull/131)
+* Sync master to release by [@Snomaan6846](https://github.com/Snomaan6846) in [#130](https://github.com/opendatahub-io/MLServer/pull/130)
+* master to release sync and lock the poetry.lock files of MLServer and Runtimes to 1.7.1 version by [@Snomaan6846](https://github.com/Snomaan6846) in [#135](https://github.com/opendatahub-io/MLServer/pull/135)
+* [release-1.7.x] chore(ci): add tide/merge-method-merge label for PRs generated by release to rhoai-staging sync workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#140](https://github.com/opendatahub-io/MLServer/pull/140)
+* [release-1.7.x] fix: prevent redundant InferencePool spawning for same inference_pool by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#145](https://github.com/opendatahub-io/MLServer/pull/145)
+* [release-1.7.x] chore: drop Python 3.9 support and modernize to 3.10+ syntax by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#152](https://github.com/opendatahub-io/MLServer/pull/152)
+* update tag in push job to 3.5-EA1 by [@brettmthompson](https://github.com/brettmthompson) in [#160](https://github.com/opendatahub-io/MLServer/pull/160)
+* updating tag regex to allow for -EA* suffix ([#159](https://github.com/opendatahub-io/MLServer/issues/159)) by [@brettmthompson](https://github.com/brettmthompson) in [#162](https://github.com/opendatahub-io/MLServer/pull/162)
+* chore(konflux): Bump release tag to odh-v3.5-EA2 by [@github-actions](https://github.com/github-actions)[bot] in [#164](https://github.com/opendatahub-io/MLServer/pull/164)
+* [release-1.7.x] chore(CI): enable all runtime test execution by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#167](https://github.com/opendatahub-io/MLServer/pull/167)
+* [release-1.7.x] chore: split runtime dependency groups into ODH-shipped and test-only by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#171](https://github.com/opendatahub-io/MLServer/pull/171)
+* [release-1.7.x] hardening workflows against variable command injection by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#178](https://github.com/opendatahub-io/MLServer/pull/178)
+* [release-1.7.x] Fix model loading race conditions by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#179](https://github.com/opendatahub-io/MLServer/pull/179)
+* [release-1.7.x] Fix MultiModelRegistry Startup Complete Encapsulation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#186](https://github.com/opendatahub-io/MLServer/pull/186)
+* [release-1.7.x] RHOAIENG-64894/RHOAIENG-64927: fix CVE-2026-48710 by upgrading Starlette to >= 1.0.1 and FastAPI to >= 0.134.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#187](https://github.com/opendatahub-io/MLServer/pull/187)
+* [release-1.7.x] RHOAIENG-63912/RHOAIENG-64531: fix CVE-2026-44432 and CVE-2026-44431 by upgrading urllib3 to >= 2.7.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#200](https://github.com/opendatahub-io/MLServer/pull/200)
+* [release-1.7.x] feat: Add AGENTS.md for MLServer repo by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#202](https://github.com/opendatahub-io/MLServer/pull/202)
+* [release-1.7.x] RHOAIENG-65968/RHOAIENG-66024: fix CVE-2026-34993 by upgrading aiohttp to >= 3.14.0 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#206](https://github.com/opendatahub-io/MLServer/pull/206)
+* [release-1.7.x] Harden prow-merge-release-to-staging workflow by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#207](https://github.com/opendatahub-io/MLServer/pull/207)
+* [release-1.7.x] RHOAIENG-71848: fix CVE-2026-42561 by upgrading python-multipart to >= 0.0.27 by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#210](https://github.com/opendatahub-io/MLServer/pull/210)
+* [release-1.7.x] Add ppc64le support to requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#214](https://github.com/opendatahub-io/MLServer/pull/214)
+* feat: Add Onnx CUDA GPU support ([#218](https://github.com/opendatahub-io/MLServer/issues/218)) by [@Snomaan6846](https://github.com/Snomaan6846) in [#220](https://github.com/opendatahub-io/MLServer/pull/220)
+* [release-1.7.x] chore: Add Slack notifications for PR by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#225](https://github.com/opendatahub-io/MLServer/pull/225)
+* [release-1.7.x] feat: Harden ONNX CUDA GPU support with tests, Dockerfile fixes, and dev tooling by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#229](https://github.com/opendatahub-io/MLServer/pull/229)
+* [release-1.7.x] Renovate and konflux Dockerfile updates by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#234](https://github.com/opendatahub-io/MLServer/pull/234)
+* Release: Tekton pipelines → odh-v3.5-EA2 by [@odh-devops-app](https://github.com/odh-devops-app)[bot] in [#228](https://github.com/opendatahub-io/MLServer/pull/228)
+* chore: remove redundent .tekton/mlserver-push.yaml file by [@Snomaan6846](https://github.com/Snomaan6846) in [#238](https://github.com/opendatahub-io/MLServer/pull/238)
+* [release-1.7.x] feat: Decouple access logging from debug mode, add log_level setting, and propagate log verbosity to all runtimes by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#239](https://github.com/opendatahub-io/MLServer/pull/239)
+* [release-1.7.x] fix(hack): add per-variant platform config and fix race condition in requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#242](https://github.com/opendatahub-io/MLServer/pull/242)
+* [release-1.7.x] chore: Add recreateWhen rule to always for renovate config by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#253](https://github.com/opendatahub-io/MLServer/pull/253)
+* [release-1.7.x] feat: version-aware root packages in requirements generation by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#276](https://github.com/opendatahub-io/MLServer/pull/276)
+* [release-1.7.x] RHOAIENG-79409,RHOAIENG-80719: fix CVEs by upgrading aiohttp, starlet… by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#286](https://github.com/opendatahub-io/MLServer/pull/286)
+* chore: update version to 1.7.1 by [@Snomaan6846](https://github.com/Snomaan6846) in [#289](https://github.com/opendatahub-io/MLServer/pull/289)
+* [release-1.7.x] fix: stage all update-version.sh outputs in prow-merge sync by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#292](https://github.com/opendatahub-io/MLServer/pull/292)
+* changing konflux builds to produce odh-stable tag on release branch by [@brettmthompson](https://github.com/brettmthompson) in [#303](https://github.com/opendatahub-io/MLServer/pull/303)
+* [release-1.7.x] chore: Update AIPCC base images for CPU and CUDA for renovate by [@openshift-cherrypick-robot](https://github.com/openshift-cherrypick-robot) in [#312](https://github.com/opendatahub-io/MLServer/pull/312)
+
+## New Contributors
+* [@MohammadiIram](https://github.com/MohammadiIram) made their first contribution in [#66](https://github.com/opendatahub-io/MLServer/pull/66)
+* [@RH-steve-grubb](https://github.com/RH-steve-grubb) made their first contribution in [#94](https://github.com/opendatahub-io/MLServer/pull/94)
+
+**Full Changelog**: https://github.com/opendatahub-io/MLServer/commits/odh-v3.6-ea2
+
+[Changes][odh-v3.6-ea2]
+
+
 <a id="v1.7.1+rhai14"></a>
 ## [AIPCC release for MLServer v1.7.1+rhai14 for rhoai-3.3](https://github.com/opendatahub-io/MLServer/releases/tag/v1.7.1+rhai14) - 2026-09-02
 
@@ -511,6 +613,7 @@
 [Changes][v1.7.1+rhai1]
 
 
+[odh-v3.6-ea2]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhai14...odh-v3.6-ea2
 [v1.7.1+rhai14]: https://github.com/opendatahub-io/MLServer/compare/odh-v3.6-EA1...v1.7.1+rhai14
 [odh-v3.6-EA1]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.15...odh-v3.6-EA1
 [v1.7.1+rhaiv.15]: https://github.com/opendatahub-io/MLServer/compare/v1.7.1+rhaiv.14...v1.7.1+rhaiv.15
