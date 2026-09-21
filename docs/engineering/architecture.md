@@ -128,7 +128,6 @@ classDiagram
         +int grpc_port
         +int metrics_port
         +str metrics_endpoint
-        +bool cache_enabled
         +bool strict_readiness
         +bool empty_registry_readiness
         +str log_level
@@ -188,7 +187,6 @@ classDiagram
     class DataPlane {
         -Settings _settings
         -MultiModelRegistry _model_registry
-        -ResponseCache _response_cache
         -InferenceMiddlewares _inference_middleware
         +live() bool
         +ready() bool
@@ -256,7 +254,6 @@ sequenceDiagram
     participant GRPC as gRPC<br/>(InferenceServicer)
     participant DP as DataPlane
     participant MW as InferenceMiddlewares<br/>(CloudEvents)
-    participant Cache as ResponseCache
     participant Reg as MultiModelRegistry
     participant Model as MLModel<br/>(runtime plugin)
 
@@ -283,19 +280,8 @@ sequenceDiagram
     DP->>MW: request_middleware(payload, settings)
     MW-->>DP: processed payload
 
-    alt Cache enabled
-        DP->>Cache: lookup(cache_key)
-        alt Cache hit
-            Cache-->>DP: cached InferenceResponse
-        else Cache miss
-            DP->>Model: predict(payload)
-            Model-->>DP: InferenceResponse
-            DP->>Cache: insert(key, response)
-        end
-    else Cache disabled
-        DP->>Model: predict(payload)
-        Model-->>DP: InferenceResponse
-    end
+    DP->>Model: predict(payload)
+    Model-->>DP: InferenceResponse
 
     DP->>MW: response_middleware(response, settings)
     MW-->>DP: processed response
@@ -798,8 +784,6 @@ variables, `.env` files, and JSON configuration files.
 | `max_batch_time` | 0.0 | Adaptive batching time window in seconds |
 | `strict_readiness` | true | All models must be ready vs. at least one |
 | `empty_registry_readiness` | true | Report ready when no models loaded |
-| `cache_enabled` | false | Enable response caching |
-| `cache_size` | 100 | LRU cache size |
 
 ---
 

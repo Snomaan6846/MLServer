@@ -97,12 +97,6 @@ It is controlled by two settings in `model-settings.json`:
 
 A batch is dispatched when either threshold is reached (whichever comes first).
 
-### How does response caching work?
-
-When `cache_enabled: true`, MLServer caches inference responses keyed on the serialized request payload.
-Cache is an in-memory LRU with configurable size (`cache_size`, default: 100).
-Individual models can opt out by setting `cache_enabled: false` in their `model-settings.json`.
-
 ---
 
 ## Troubleshooting

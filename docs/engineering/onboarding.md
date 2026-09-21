@@ -31,7 +31,6 @@ MLServer/
 │   ├── parallel/            # Multiprocessing worker pool
 │   ├── batching/            # Adaptive request batching
 │   ├── codecs/              # V2 ↔ Python type conversion
-│   ├── cache/               # Response caching
 │   ├── types/               # V2 Inference Protocol type definitions
 │   ├── middleware.py         # Inference middleware chain
 │   ├── cloudevents.py        # CloudEvents middleware
