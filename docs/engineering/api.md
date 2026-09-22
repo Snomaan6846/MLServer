@@ -1,6 +1,6 @@
 # API Reference
 
-MLServer implements the [V2 Inference Protocol](https://kserve.github.io/website/latest/modelserving/data_plane/v2_protocol/) over both REST (HTTP/1.1) and gRPC (HTTP/2) transports.
+MLServer implements the [V2 Inference Protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol) over both REST (HTTP/1.1) and gRPC (HTTP/2) transports.
 An optional Kafka transport is also available for event-driven inference.
 
 ---

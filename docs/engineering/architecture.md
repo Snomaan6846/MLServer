@@ -26,7 +26,7 @@
 ## System Overview
 
 MLServer is a Python-based inference server implementing the
-[V2 Inference Protocol](https://kserve.github.io/website/latest/modelserving/data_plane/v2_protocol/)
+[V2 Inference Protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol)
 (also known as the Open Inference Protocol). It serves ML models over REST
 (FastAPI/Uvicorn) and gRPC simultaneously, with optional Kafka message-bus
 integration and a dedicated Prometheus metrics endpoint.

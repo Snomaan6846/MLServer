@@ -257,8 +257,6 @@ This section expects that Docker is available and running in the background.
 MLServer offers helpers to build a custom Docker image containing your code.
 In this example, we will use the `mlserver build` subcommand to create an image, which we'll be able to deploy later.
 
-Note that this section expects that Docker is available and running in the background, as well as a functional cluster with Seldon Core installed and some familiarity with `kubectl`.
-
 ```bash
 %%bash
 mlserver build . -t 'my-custom-numpyro-server:0.1.0'
@@ -293,41 +291,5 @@ As we should be able to see, the server running within our Docker image responds
 
 ### Deploying our custom image
 
-```{note}
-This section expects access to a functional Kubernetes cluster with Seldon Core installed and some familiarity with `kubectl`.
-```
-
-Now that we've built a custom image and verified that it works as expected, we can move to the next step and deploy it.
-There is a large number of tools out there to deploy images.
-However, for our example, we will focus on deploying it to a cluster running [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/latest/).
-
-```{note}
-Also consider that depending on your Kubernetes installation Seldon Core might expect to get the container image from a public container registry like [Docker hub](https://hub.docker.com/) or [Google Container Registry](https://cloud.google.com/container-registry). For that you need to do an extra step of pushing the container to the registry using `docker tag <image name> <container registry>/<image name>` and `docker push <container registry>/<image name>` and also updating the `image` section of the yaml file to `<container registry>/<image name>`.
-```
-
-For that, we will need to create a `SeldonDeployment` resource which instructs Seldon Core to deploy a model embedded within our custom image and compliant with the [V2 Inference Protocol](https://github.com/kserve/kserve/tree/master/docs/predict-api/v2).
-This can be achieved by _applying_ (i.e. `kubectl apply`) a `SeldonDeployment` manifest to the cluster, similar to the one below:
-
-```python
-%%writefile seldondeployment.yaml
-apiVersion: machinelearning.seldon.io/v1
-kind: SeldonDeployment
-metadata:
-  name: numpyro-model
-spec:
-  protocol: v2
-  predictors:
-    - name: default
-      graph:
-        name: numpyro-divorce
-        type: MODEL
-      componentSpecs:
-        - spec:
-            containers:
-              - name: numpyro-divorce
-                image: my-custom-numpyro-server:0.1.0
-```
-
-```python
-
-```
+Now that we've built a custom image and verified that it works as expected, we can deploy it with KServe.
+See the [KServe deployment guide](../../user-guide/deployment/kserve.md) for how to serve a custom MLServer image as an `InferenceService`.

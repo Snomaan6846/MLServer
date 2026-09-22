@@ -26,11 +26,11 @@ This simplifies certain things to the interpreter.
 However, it also adds the limitation that a **single Python process will never
 be able to leverage multiple cores**.
 
-When we think about MLServer's support for [Multi-Model Serving
-(MMS)](../examples/mms/README.md), this could lead to scenarios where a
+When we think about MLServer's support for [multi-model serving via the Model
+Repository](../examples/model-repository/README.md), this could lead to scenarios where a
 **heavily-used model starves the other models** running within the same
 MLServer instance.
-Similarly, even if we don’t take MMS into account, the **GIL also makes it harder
+Similarly, even if we don't take multi-model serving into account, the **GIL also makes it harder
 to scale inference for a single model**.
 
 To work around this limitation, MLServer offloads the model inference to a pool

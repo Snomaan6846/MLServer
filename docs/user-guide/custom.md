@@ -288,8 +288,8 @@ In these cases, to load your custom runtime, MLServer will need access to these
 dependencies.
 
 It is possible to load this custom set of dependencies by providing them
-through an [environment tarball](../examples/conda/README) or by giving a
-path to an already exisiting python environment. Both paths can be
+through an environment tarball (`environment_tarball`) or by giving a
+path to an already existing python environment (`environment_path`). Both paths can be
 specified within your `model-settings.json` file.
 
 ```{warning}

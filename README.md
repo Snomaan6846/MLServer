@@ -51,7 +51,7 @@ format that works across frameworks:
   adaptive batching, parallel workers, and response caching are built in,
   not bolted on.
 - **Standards-based** — implements the
-  [V2 Inference Protocol](https://kserve.github.io/website/latest/modelserving/data_plane/v2_protocol/)
+  [V2 Inference Protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol)
   over both REST and gRPC, so your clients work with MLServer, NVIDIA Triton,
   TorchServe, or any other V2-compliant server without code changes.
 - **Kubernetes native** — the core Python runtime behind
@@ -257,8 +257,7 @@ To see MLServer in action, check out the [full list of examples](./docs/examples
 | [Serving a LightGBM model](./docs/examples/lightgbm/README.md) | LightGBM |
 | [Serving an ONNX model](./docs/examples/onnx/README.md) | ONNX Runtime |
 | [Serving a custom model](./docs/examples/custom/README.md) | Custom runtime |
-| [Multi-model serving](./docs/examples/mms/README.md) | Multiple frameworks |
-| [Model repository management](./docs/examples/model-repository/README.md) | Dynamic load/unload |
+| [Multi-model serving and the Model Repository API](./docs/examples/model-repository/README.md) | sklearn + XGBoost, load/unload |
 
 ---
 

@@ -1,8 +1,8 @@
 # Deployment with KServe
 
-MLServer is used as the [core Python inference
-server](https://kserve.github.io/website/modelserving/v1beta1/sklearn/v2/) in
-[KServe (formerly known as KFServing)](https://kserve.github.io/website/).
+MLServer is used as a [Python inference
+server](https://kserve.github.io/website/docs/concepts/resources/servingruntime)
+in [KServe (formerly known as KFServing)](https://kserve.github.io/website/).
 This allows for a straightforward avenue to deploy your models into a scalable
 serving infrastructure backed by Kubernetes.
 
@@ -10,14 +10,14 @@ serving infrastructure backed by Kubernetes.
 This section assumes a basic knowledge of KServe and Kubernetes, as well as
 access to a working Kubernetes cluster with KServe installed.
 To learn more about [KServe](https://kserve.github.io/website/) or [how to
-install it](https://kserve.github.io/website/get_started/), please visit the
+install it](https://kserve.github.io/website/docs/getting-started/quickstart-guide), please visit the
 [KServe documentation](https://kserve.github.io/website/).
 ```
 
 ## Serving Runtimes
 
 KServe provides built-in [serving
-runtimes](https://kserve.github.io/website/modelserving/v1beta1/serving_runtime/)
+runtimes](https://kserve.github.io/website/docs/concepts/resources/servingruntime)
 to deploy models trained in common ML frameworks.
 These allow you to deploy your models into a robust infrastructure by just
 pointing to where the model artifacts are stored remotely.
@@ -46,7 +46,7 @@ spec:
   predictor:
     sklearn:
       protocolVersion: v2
-      storageUri: gs://seldon-models/sklearn/iris
+      storageUri: gs://kfserving-examples/models/sklearn/1.0/model
 ```
 
 As you can see highlighted above, the `InferenceService` manifest will only
@@ -55,7 +55,7 @@ need to specify the following points:
 - The model artifact is a Scikit-Learn model. Therefore, we will use the
   `sklearn` serving runtime to deploy it.
 - The model will be served using the [V2 inference
-  protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html),
+  protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol),
   which can be enabled by setting the `protocolVersion` field to `v2`.
 
 Once you have your `InferenceService` manifest ready, then the next step is to
@@ -76,15 +76,15 @@ runtime that they correspond to.
 
 | Framework    | MLServer Runtime                           | KServe Serving Runtime | Documentation                                                                                |
 | ------------ | ------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------- |
-| Scikit-Learn | [MLServer SKLearn](../../runtimes/sklearn) | `sklearn`              | [SKLearn Serving Runtime](https://kserve.github.io/website/modelserving/v1beta1/sklearn/v2/) |
-| XGBoost      | [MLServer XGBoost](../../runtimes/xgboost) | `xgboost`              | [XGBoost Serving Runtime](https://kserve.github.io/website/modelserving/v1beta1/xgboost/)    |
+| Scikit-Learn | [MLServer SKLearn](../../runtimes/sklearn) | `sklearn`              | [SKLearn Serving Runtime](https://kserve.github.io/website/docs/model-serving/predictive-inference/frameworks/sklearn) |
+| XGBoost      | [MLServer XGBoost](../../runtimes/xgboost) | `xgboost`              | [XGBoost Serving Runtime](https://kserve.github.io/website/docs/model-serving/predictive-inference/frameworks/xgboost)    |
 
 Note that, on top of the ones shown above (backed by MLServer), KServe also
 provides a [wider
-set](https://kserve.github.io/website/modelserving/v1beta1/serving_runtime/) of
+set](https://kserve.github.io/website/docs/concepts/resources/servingruntime) of
 serving runtimes.
 To see the full list, please visit the [KServe
-documentation](https://kserve.github.io/website/modelserving/v1beta1/serving_runtime/).
+documentation](https://kserve.github.io/website/docs/concepts/resources/servingruntime).
 
 ## Custom Runtimes
 
@@ -95,7 +95,7 @@ runtimes](../../runtimes/custom), which can then get packaged up as images.
 These images then become self-contained model servers with your custom runtime.
 Therefore, it's easy to deploy them into your serving infrastructure leveraging
 KServe support for [custom
-runtimes](https://kserve.github.io/website/modelserving/v1beta1/custom/custom_model/#deploy-the-custom-predictor-on-kserve).
+runtimes](https://kserve.github.io/website/docs/model-serving/predictive-inference/frameworks/custom-predictor#deploy-the-rest-custom-serving-runtime-on-kserve).
 
 ### Usage
 
@@ -134,7 +134,7 @@ account are:
 - Pointing to our custom MLServer `image` in the custom container section of
   our `InferenceService`.
 - Explicitly choosing the [V2 inference
-  protocol](https://docs.seldon.io/projects/seldon-core/en/latest/reference/apis/v2-protocol.html) to
+  protocol](https://kserve.github.io/website/docs/concepts/architecture/data-plane/v2-protocol) to
   serve our model.
 - Let KServe know what port will be exposed by our custom container to send
   inference requests.

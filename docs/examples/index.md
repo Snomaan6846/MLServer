@@ -17,7 +17,6 @@ models](./custom/README.md)).
 - [Serving XGBoost models](./xgboost/README.md)
 - [Serving LightGBM models](./lightgbm/README.md)
 - [Serving ONNX models](./onnx/README.md)
-- [Serving Tempo pipelines](./tempo/README.md)
 - [Serving custom models](./custom/README.md)
 
 ```{toctree}
@@ -29,7 +28,6 @@ models](./custom/README.md)).
 ./xgboost/README.md
 ./lightgbm/README.md
 ./onnx/README.md
-./tempo/README.md
 ./custom/README.md
 ```
 
@@ -38,38 +36,16 @@ models](./custom/README.md)).
 To see some of the advanced features included in MLServer (e.g. multi-model
 serving), check out the examples below.
 
-- [Multi-Model Serving with multiple frameworks](./mms/README.md)
-- [Loading / unloading models from a model repository](./model-repository/README.md)
+- [Multi-model serving and the Model Repository API](./model-repository/README.md)
 - [Content-Type Decoding](./content-type/README.md)
-- [Custom Conda environment](./conda/README.md)
 - [Serving custom models requiring JSON inputs or outputs](./custom-json/README.md)
-- [Serving models through Kafka](./kafka/README.md)
-- [Streaming inference](./streaming/README.md)
 
 ```{toctree}
 :caption: MLServer Features
 :titlesonly:
 :hidden:
 
-./mms/README.md
 ./model-repository/README.md
 ./content-type/README.md
-./conda/README.md
 ./custom-json/README.md
-./kafka/README.md
-./streaming/README.md
-```
-
-## Tutorials
-
-Tutorials are designed to be *beginner-friendly* and walk through accomplishing a series of tasks using MLServer (and other tools). 
-
-- [Deploying a Custom Tensorflow Model with MLServer and Seldon Core](./cassava/README.md)
-
-```{toctree}
-:caption: Tutorials
-:titlesonly:
-:hidden:
-
-./cassava/README.md
 ```
