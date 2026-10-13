@@ -432,12 +432,14 @@ class MyModel(MLModel):
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `allow_origins` | string[] | `[]` | Allowed CORS origins |
-| `allow_origin_regex` | string | null | Regex for allowed origins |
+| `allow_origins` | string[] | `[]` | Explicitly allowed CORS origins; the `*` wildcard origin is rejected |
 | `allow_credentials` | bool | `false` | Allow cookies in CORS |
 | `allow_methods` | string[] | `["GET"]` | Allowed HTTP methods |
 | `allow_headers` | string[] | `[]` | Allowed request headers |
 | `max_age` | int | `600` | Browser CORS cache TTL (seconds) |
+
+`allow_origin_regex` is not supported. Replace it with an explicit
+`allow_origins` list. Wildcard origins are rejected.
 
 ### Model Settings (`model-settings.json`)
 

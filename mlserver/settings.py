@@ -302,14 +302,7 @@ class CORSSettings(BaseSettings):
     """
     A list of origins that should be permitted to make
     cross-origin requests. E.g. ['https://example.org', 'https://www.example.org'].
-    You can use ['*'] to allow any origin
-    """
-
-    allow_origin_regex: str | None = None
-    """
-    A regex string to match against origins that
-    should be permitted to make cross-origin requests.
-    e.g. 'https:\\/\\/.*\\.example\\.org'
+    Specify explicit origins; the wildcard ['*'] is not allowed.
     """
 
     allow_credentials: bool | None = False
@@ -514,27 +507,17 @@ class Settings(BaseSettings):
     """Enable GZipMiddleware."""
 
     @model_validator(mode="after")
-    def validate_no_wildcard_cors_in_production_mode(self) -> Self:
+    def validate_no_wildcard_cors(self) -> Self:
         """
-        Prevent wildcard CORS configurations in PRODUCTION mode.
+        Prevent wildcard CORS origins.
 
-        Wildcard CORS origins allow any website to make cross-origin requests,
-        which is inappropriate for production deployments.
+        The '*' origin lets browser scripts from any origin read permitted
+        responses, which is inappropriate for a production-ready server.
         """
-        allowed = _load_image_baked_allowed_model_implementations(
-            _get_trusted_runtimes_artifact_path()
-        )
-
-        # Only enforce in PRODUCTION mode (when allowlist file exists)
-        if allowed is not None and self.cors_settings is not None:
+        if self.cors_settings is not None:
             if "*" in (self.cors_settings.allow_origins or []):
                 raise ValueError(
-                    "Wildcard CORS origins ['*'] not allowed in PRODUCTION mode. "
-                    "Specify explicit allowed origins or disable CORS settings."
-                )
-            if self.cors_settings.allow_origin_regex is not None:
-                raise ValueError(
-                    "CORS origin regex patterns not allowed in PRODUCTION mode. "
+                    "Wildcard CORS origins ['*'] not allowed. "
                     "Specify explicit allowed origins or disable CORS settings."
                 )
 

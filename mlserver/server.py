@@ -106,6 +106,13 @@ class MLServer:
             log_runtime_security_mode()
         except Exception as exc:
             logger.exception("Failed to load trusted runtimes allowlist!")
+            if self._inference_pool_registry:
+                try:
+                    await self._inference_pool_registry.close()
+                except Exception:
+                    logger.exception(
+                        "Failed to close inference pool after startup validation error"
+                    )
             raise RuntimeError(
                 "Server startup aborted: "
                 "invalid trusted runtimes allowlist configuration"
