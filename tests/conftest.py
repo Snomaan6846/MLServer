@@ -13,7 +13,6 @@ from starlette_exporter import PrometheusMiddleware
 from prometheus_client.registry import REGISTRY, CollectorRegistry
 from unittest.mock import Mock
 
-from mlserver.batching import load_batching, unload_batching
 from mlserver.handlers import DataPlane, ModelRepositoryHandlers
 from mlserver.registry import MultiModelRegistry
 from mlserver.repository import (
@@ -501,11 +500,7 @@ async def rest_client(mlserver: MLServer, settings: Settings):
 async def inference_pool_registry(
     settings: Settings, prometheus_registry: CollectorRegistry
 ) -> AsyncGenerator[InferencePoolRegistry, None]:
-    registry = InferencePoolRegistry(
-        settings,
-        on_worker_load=[load_batching],
-        on_worker_unload=[unload_batching],
-    )
+    registry = InferencePoolRegistry(settings)
     yield registry
 
     await registry.close()

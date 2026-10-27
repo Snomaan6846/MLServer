@@ -6,10 +6,9 @@ import numpy as np
 from mlserver.errors import MLServerError
 from mlserver.model import MLModel
 from mlserver.settings import Settings
-from mlserver.types import InferenceRequest, InferenceResponse
+from mlserver.types import InferenceRequest
 from mlserver.codecs import NumpyCodec, StringCodec
 from mlserver.parallel.pool import InferencePool
-from mlserver.batching.hooks import load_batching, unload_batching
 
 from ..fixtures import ErrorModel
 
@@ -162,35 +161,3 @@ async def test_load_error(
     assert len(inference_pool._worker_registry) == 0
     expected_msg = f"mlserver.errors.MLServerError: {ErrorModel.error_message}"
     assert str(excinfo.value) == expected_msg
-
-
-async def test_worker_batching(
-    settings: Settings,
-    sum_model: MLModel,
-    inference_request: InferenceRequest,
-):
-    """Batching is applied on workers (not the main process). Verify that
-    concurrent requests to a single-worker pool with max_batch_size > 1 succeed."""
-    settings.parallel_workers = 1
-    sum_model.settings.max_batch_size = 2
-    sum_model.settings.max_batch_time = 0.5
-
-    pool = InferencePool(
-        settings,
-        on_worker_load=[load_batching],
-        on_worker_unload=[unload_batching],
-    )
-    try:
-        model = await pool.load_model(sum_model)
-
-        responses = await asyncio.gather(
-            model.predict(inference_request),
-            model.predict(inference_request),
-        )
-
-        assert len(responses) == 2
-        for response in responses:
-            assert isinstance(response, InferenceResponse)
-            assert len(response.outputs) == 1
-    finally:
-        await pool.close()

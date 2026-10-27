@@ -1,13 +1,9 @@
 from ..model import MLModel
-from ..parallel.model import ParallelModel
 from .adaptive import AdaptiveBatcher
 from ..logging import logger
 
 
 async def load_batching(model: MLModel) -> MLModel:
-    if isinstance(model, ParallelModel):
-        return model
-
     if model.settings.max_batch_size > 1 and model.settings.max_batch_time <= 0:
         logger.warning(
             "Setting max_batch_time equal to zero will result"
