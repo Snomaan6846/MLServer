@@ -40,18 +40,6 @@ def _restore_mlserver_level():
             "[foo]",
             False,
         ),
-        (
-            "",
-            "v1.0",
-            "",
-            True,
-        ),
-        (
-            "",
-            "",
-            "",
-            True,
-        ),
     ],
 )
 def test_model_logging_formatter_unstructured(
@@ -103,13 +91,6 @@ def test_model_logging_formatter_unstructured(
             ', "model_name": "foo"',
             False,
         ),
-        (
-            "",
-            "v1.0",
-            "",
-            True,
-        ),
-        ("", "", "", True),
     ],
 )
 def test_model_logging_formatter_structured(
@@ -145,6 +126,17 @@ def test_model_logging_formatter_structured(
         assert expected_model_fmt != log_records[0].model
         assert expected_model_fmt == log_records[1].model
         assert expected_model_fmt != log_records[2].model
+
+
+@pytest.mark.parametrize(
+    "formatter, expected",
+    [
+        (ModelLoggerFormatter._format_unstructured_model_details, ""),
+        (ModelLoggerFormatter._format_structured_model_details, ""),
+    ],
+)
+def test_model_logging_formatter_omits_missing_model_details(formatter, expected):
+    assert formatter("", "") == expected
 
 
 def test_get_log_level_returns_info_by_default(settings: Settings):

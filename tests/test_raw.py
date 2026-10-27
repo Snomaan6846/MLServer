@@ -114,6 +114,17 @@ def test_pack_tensor(tensor: np.ndarray):
     assert expected == packed
 
 
+@pytest.mark.parametrize("dtype", [np.float16, np.float32, np.float64])
+def test_pack_tensor_restores_nan_without_mutating_data(dtype):
+    tensor = np.array([[1.5, np.nan, 2.0]], dtype=dtype)
+    request_input = NumpyCodec.encode_input(name="foo", payload=tensor)
+
+    packed = _pack_tensor(request_input)
+
+    np.testing.assert_array_equal(np.frombuffer(packed, dtype=dtype), tensor.flatten())
+    assert request_input.data.root == [1.5, None, 2.0]
+
+
 @pytest.mark.parametrize(
     "inputs, raw_contents, expected",
     [

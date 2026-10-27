@@ -1,11 +1,13 @@
 from typing import Any
 from collections.abc import Mapping
+
 from ..types import Datatype
 
 from . import dataplane_pb2 as pb
 from . import model_repository_pb2 as mr_pb
 
 from .. import types
+from ..errors import InferenceError
 from ..raw import extract_raw, inject_raw
 
 _FIELDS = {
@@ -18,11 +20,21 @@ _FIELDS = {
     Datatype.INT16: "int_contents",
     Datatype.INT32: "int_contents",
     Datatype.INT64: "int64_contents",
-    Datatype.FP16: "bytes_contents",
     Datatype.FP32: "fp32_contents",
     Datatype.FP64: "fp64_contents",
     Datatype.BYTES: "bytes_contents",
 }
+
+
+def _parse_datatype(value: str) -> Datatype | None:
+    try:
+        return Datatype(value)
+    except ValueError:
+        return None
+
+
+def _requires_raw(elems: list[Any]) -> bool:
+    return any(_parse_datatype(elem.datatype) == Datatype.FP16 for elem in elems)
 
 
 def _get_value(pb_object, default: Any | None = None) -> Any:
@@ -215,20 +227,25 @@ class ModelInferRequestConverter:
         model_version: str = "",
         use_raw: bool = False,
     ) -> pb.ModelInferRequest:
+        use_raw = use_raw or _requires_raw(type_object.inputs)
+        inputs = type_object.inputs
         if use_raw:
             # Extract the raw data in advance, to ensure the `data` field of
             # the input objects is empty
-            type_object.inputs, raw = extract_raw(type_object.inputs)  # type: ignore
+            inputs = [input.model_copy(deep=True) for input in type_object.inputs]
+            inputs, raw = extract_raw(inputs)  # type: ignore
 
         model_infer_request = pb.ModelInferRequest(
             model_name=model_name,
             model_version=model_version,
             inputs=[
-                InferInputTensorConverter.from_types(inp) for inp in type_object.inputs
+                InferInputTensorConverter.from_types(inp, include_contents=not use_raw)
+                for inp in inputs
             ],
         )
 
         if use_raw:
+            # If using raw outputs, ensure it's set on the final object
             model_infer_request.raw_input_contents.extend(raw)
 
         if type_object.id is not None:
@@ -261,21 +278,35 @@ class InferInputTensorConverter:
             shape=list(pb_object.shape),
             datatype=pb_object.datatype,
             parameters=ParametersConverter.to_types(pb_object.parameters),
-            data=InferTensorContentsConverter.to_types(pb_object.contents),
+            data=InferTensorContentsConverter.to_types(
+                pb_object.contents, datatype=_parse_datatype(pb_object.datatype)
+            ),
         )
 
     @classmethod
     def from_types(
-        cls, type_object: types.RequestInput
+        cls, type_object: types.RequestInput, include_contents: bool = True
     ) -> pb.ModelInferRequest.InferInputTensor:
-        infer_input_tensor = pb.ModelInferRequest.InferInputTensor(
-            name=type_object.name,
-            shape=type_object.shape,
-            datatype=str(type_object.datatype),
-            contents=InferTensorContentsConverter.from_types(
-                type_object.data, datatype=Datatype(type_object.datatype)
-            ),
-        )
+        is_fp16 = Datatype(type_object.datatype) == Datatype.FP16
+        if is_fp16 and include_contents:
+            raise InferenceError(
+                "Standalone FP16 tensor conversion requires raw contents"
+            )
+        if include_contents:
+            infer_input_tensor = pb.ModelInferRequest.InferInputTensor(
+                name=type_object.name,
+                shape=type_object.shape,
+                datatype=str(type_object.datatype),
+                contents=InferTensorContentsConverter.from_types(
+                    type_object.data, datatype=Datatype(type_object.datatype)
+                ),
+            )
+        else:
+            infer_input_tensor = pb.ModelInferRequest.InferInputTensor(
+                name=type_object.name,
+                shape=type_object.shape,
+                datatype=str(type_object.datatype),
+            )
 
         if type_object.parameters is not None:
             _merge_map(
@@ -359,7 +390,12 @@ class ParametersConverter:
 
 class InferTensorContentsConverter:
     @classmethod
-    def to_types(cls, pb_object: pb.InferTensorContents) -> types.TensorData:
+    def to_types(
+        cls, pb_object: pb.InferTensorContents, datatype: Datatype | None = None
+    ) -> types.TensorData:
+        if datatype == Datatype.FP16 and pb_object.ListFields():
+            raise InferenceError("FP16 tensor contents must use raw contents")
+
         data = _get_value(pb_object, default=[])
         as_list = list(data)
         return types.TensorData(root=as_list)
@@ -373,6 +409,8 @@ class InferTensorContentsConverter:
 
     @classmethod
     def _get_contents(cls, type_object: types.TensorData, datatype: Datatype) -> dict:
+        if datatype == Datatype.FP16:
+            raise InferenceError("FP16 tensor contents must use raw contents")
         field = _FIELDS[datatype]
         return {field: type_object}
 
@@ -406,16 +444,21 @@ class ModelInferResponseConverter:
     def from_types(
         cls, type_object: types.InferenceResponse, use_raw: bool = False
     ) -> pb.ModelInferResponse:
+        use_raw = use_raw or _requires_raw(type_object.outputs)
+        outputs = type_object.outputs
         if use_raw:
             # Extract the raw data in advance, to ensure the `data` field of
             # the output objects is empty
-            type_object.outputs, raw = extract_raw(type_object.outputs)  # type: ignore
+            outputs = [output.model_copy(deep=True) for output in type_object.outputs]
+            outputs, raw = extract_raw(outputs)  # type: ignore
 
         model_infer_response = pb.ModelInferResponse(
             model_name=type_object.model_name,
             outputs=[
-                InferOutputTensorConverter.from_types(output)
-                for output in type_object.outputs
+                InferOutputTensorConverter.from_types(
+                    output, include_contents=not use_raw
+                )
+                for output in outputs
             ],
         )
 
@@ -448,21 +491,35 @@ class InferOutputTensorConverter:
             shape=list(pb_object.shape),
             datatype=pb_object.datatype,
             parameters=ParametersConverter.to_types(pb_object.parameters),
-            data=InferTensorContentsConverter.to_types(pb_object.contents),
+            data=InferTensorContentsConverter.to_types(
+                pb_object.contents, datatype=_parse_datatype(pb_object.datatype)
+            ),
         )
 
     @classmethod
     def from_types(
-        cls, type_object: types.ResponseOutput
+        cls, type_object: types.ResponseOutput, include_contents: bool = True
     ) -> pb.ModelInferResponse.InferOutputTensor:
-        infer_output_tensor = pb.ModelInferResponse.InferOutputTensor(
-            name=type_object.name,
-            shape=type_object.shape,
-            datatype=str(type_object.datatype),
-            contents=InferTensorContentsConverter.from_types(
-                type_object.data, datatype=Datatype(type_object.datatype)
-            ),
-        )
+        is_fp16 = Datatype(type_object.datatype) == Datatype.FP16
+        if is_fp16 and include_contents:
+            raise InferenceError(
+                "Standalone FP16 tensor conversion requires raw contents"
+            )
+        if include_contents:
+            infer_output_tensor = pb.ModelInferResponse.InferOutputTensor(
+                name=type_object.name,
+                shape=type_object.shape,
+                datatype=str(type_object.datatype),
+                contents=InferTensorContentsConverter.from_types(
+                    type_object.data, datatype=Datatype(type_object.datatype)
+                ),
+            )
+        else:
+            infer_output_tensor = pb.ModelInferResponse.InferOutputTensor(
+                name=type_object.name,
+                shape=type_object.shape,
+                datatype=str(type_object.datatype),
+            )
 
         if type_object.parameters:
             _merge_map(

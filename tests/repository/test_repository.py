@@ -7,7 +7,32 @@ from mlserver.repository import (
     SchemalessModelRepository,
     DEFAULT_MODEL_SETTINGS_FILENAME,
 )
+from mlserver.repository.load import load_model_settings
 from mlserver.settings import ModelSettings, ENV_PREFIX_MODEL_SETTINGS
+
+
+def test_load_model_settings_derives_name_from_parent_directory(tmp_path):
+    model_folder = tmp_path / "derived-model"
+    model_folder.mkdir()
+    settings_path = model_folder / DEFAULT_MODEL_SETTINGS_FILENAME
+    settings_path.write_text(json.dumps({"implementation": "tests.fixtures.SumModel"}))
+
+    settings = load_model_settings(str(settings_path))
+
+    assert settings.name == "derived-model"
+
+
+def test_load_model_settings_derives_name_from_explicit_empty_name(tmp_path):
+    model_folder = tmp_path / "empty-name-model"
+    model_folder.mkdir()
+    settings_path = model_folder / DEFAULT_MODEL_SETTINGS_FILENAME
+    settings_path.write_text(
+        json.dumps({"name": "", "implementation": "tests.fixtures.SumModel"})
+    )
+
+    settings = load_model_settings(str(settings_path))
+
+    assert settings.name == "empty-name-model"
 
 
 @pytest.fixture
@@ -116,6 +141,21 @@ async def test_list_fallback(
         == sum_model_settings.parameters.version
     )
     assert default_model_settings._source is None
+
+
+async def test_list_skips_environment_model_without_name(
+    monkeypatch,
+    model_folder: str,
+    model_repository: ModelRepository,
+):
+    monkeypatch.delenv(f"{ENV_PREFIX_MODEL_SETTINGS}NAME", raising=False)
+    monkeypatch.setenv(
+        f"{ENV_PREFIX_MODEL_SETTINGS}IMPLEMENTATION", "tests.fixtures.SumModel"
+    )
+    model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
+    os.remove(model_settings_path)
+
+    assert await model_repository.list() == []
 
 
 async def test_find(

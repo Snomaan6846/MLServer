@@ -106,7 +106,7 @@ def _encode_data(data: np.ndarray, datatype: Datatype) -> list:
 
 
 def convert_nan(val):
-    if np.isnan(val):
+    if isinstance(val, (float, np.floating)) and np.isnan(val):
         return None
 
     return val

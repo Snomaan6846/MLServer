@@ -5,13 +5,17 @@ from httpx import AsyncClient
 from httpx_sse import aconnect_sse
 
 from mlserver import __version__
+from mlserver.batching.adaptive import AdaptiveBatcher
 from mlserver.settings import ModelSettings
 from mlserver.model import MLModel
+from mlserver.registry import MultiModelRegistry
 from mlserver.types import (
     InferenceRequest,
     InferenceResponse,
     MetadataServerResponse,
     MetadataModelResponse,
+    Parameters,
+    RequestInput,
     TensorData,
     RepositoryIndexRequest,
 )
@@ -19,6 +23,8 @@ from mlserver.cloudevents import (
     CLOUDEVENTS_HEADER_SPECVERSION_DEFAULT,
     CLOUDEVENTS_HEADER_SPECVERSION,
 )
+
+from ..fixtures import EchoModel
 
 
 async def test_live(rest_client: AsyncClient):
@@ -134,6 +140,51 @@ async def test_infer(
     prediction = InferenceResponse.model_validate(response.json())
     assert len(prediction.outputs) == 1
     assert prediction.outputs[0].data == TensorData(root=[6])
+
+
+async def test_infer_single_adaptive_batch_preserves_output_parameters(
+    rest_client: AsyncClient, model_registry: MultiModelRegistry
+):
+    model_settings = ModelSettings(
+        name="echo-model",
+        implementation=EchoModel,
+        parallel_workers=0,
+        max_batch_size=32,
+        max_batch_time=0.01,
+    )
+    request = InferenceRequest(
+        inputs=[
+            RequestInput(
+                name="docs",
+                datatype="INT32",
+                shape=[2],
+                data=[10, 11],
+                parameters=Parameters(id="123", tags=["123", "456"], count=123),
+            )
+        ]
+    )
+
+    await model_registry.load(model_settings)
+    try:
+        model = await model_registry.get_model(model_settings.name)
+        assert AdaptiveBatcher.get_batcher(model) is not None
+
+        response = await rest_client.post(
+            "/v2/models/echo-model/infer", json=request.model_dump()
+        )
+
+        assert response.status_code == 200
+        prediction = InferenceResponse.model_validate(response.json())
+        output = prediction.outputs[0]
+        assert output.data == TensorData(root=[10, 11])
+        assert output.parameters is not None
+        assert output.parameters.model_dump(exclude_none=True) == {
+            "id": "123",
+            "tags": ["123", "456"],
+            "count": 123,
+        }
+    finally:
+        await model_registry.unload(model_settings.name)
 
 
 @pytest.mark.parametrize("sum_model", [lazy_fixture("text_model")])

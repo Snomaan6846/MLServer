@@ -1,4 +1,5 @@
 from collections import defaultdict, OrderedDict
+from collections.abc import Iterable
 from typing import Any
 
 from ..types import (
@@ -23,7 +24,13 @@ def _get_parameters(payload: ResponseOutput) -> defaultdict[Any, Any]:
     for param_name, param_values in payload_parameters.items():
         if param_name in ["content_type", "headers"]:
             continue
-        for param_value in param_values:
+        values = (
+            [param_values]
+            if isinstance(param_values, (str, bytes))
+            or not isinstance(param_values, Iterable)
+            else param_values
+        )
+        for param_value in values:
             parameters[param_name].append(param_value)
     if "content_type" in payload_parameters.keys():
         parameters["content_type"] = payload_parameters["content_type"]
@@ -259,7 +266,18 @@ class BatchedRequests:
     def _split_parameters(
         self, response_output: ResponseOutput
     ) -> dict[str, Parameters]:
+        parameters = response_output.parameters
+        if parameters is None:
+            return {}
+        if len(self._minibatch_sizes) == 1:
+            # A single request's parameters were never batched, so preserve
+            # their original values and types without flattening them.
+            return {
+                internal_id: parameters.model_copy(deep=True)
+                for internal_id in self._minibatch_sizes
+            }
         merged_parameters = _get_parameters(response_output)
+        raw_parameters = parameters.model_dump()
         idx = 0
 
         all_parameters = {}
@@ -270,9 +288,18 @@ class BatchedRequests:
                 if parameter_name in ["content_type", "headers"]:
                     continue
                 try:
-                    parameter_value = parameter_values[idx]
+                    raw_value = raw_parameters[parameter_name]
+                    is_scalar = isinstance(raw_value, (str, bytes)) or not isinstance(
+                        raw_value, Iterable
+                    )
+                    if is_scalar:
+                        parameter_value = parameter_values[0]
+                    else:
+                        parameter_value = parameter_values[idx]
                     if parameter_value != []:
-                        parameter_args[parameter_name] = str(parameter_value)
+                        parameter_args[parameter_name] = (
+                            parameter_value if is_scalar else str(parameter_value)
+                        )
                 except IndexError:
                     pass
             if "content_type" in merged_parameters.keys():

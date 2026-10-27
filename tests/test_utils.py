@@ -48,7 +48,7 @@ for scheme in ["", "file:"]:
 )
 async def test_get_model_uri(uri: str, source: str | None, expected: str):
     model_settings = ModelSettings(
-        implementation=SumModel, parameters=ModelParameters(uri=uri)
+        name="test-model", implementation=SumModel, parameters=ModelParameters(uri=uri)
     )
     model_settings._source = source
     with patch("os.path.isfile", return_value=True):

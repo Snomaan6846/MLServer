@@ -79,6 +79,60 @@ async def test_name_fallback(
     assert model_settings.name == os.path.basename(model_folder)
 
 
+async def test_name_fallback_uses_environment_name_when_configured(
+    sum_model_settings: ModelSettings,
+    model_folder: str,
+    monkeypatch,
+):
+    model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
+    with open(model_settings_path, "w") as model_settings_file:
+        settings_dict = sum_model_settings.model_dump(by_alias=True)
+        del settings_dict["name"]
+        json.dump(settings_dict, model_settings_file)
+
+    monkeypatch.setenv("MLSERVER_MODEL_NAME", "environment-model")
+
+    model_settings = load_model_settings(model_settings_path)
+
+    assert model_settings.name == "environment-model"
+
+
+async def test_name_fallback_uses_case_insensitive_environment_name(
+    sum_model_settings: ModelSettings,
+    model_folder: str,
+    monkeypatch,
+):
+    model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
+    with open(model_settings_path, "w") as model_settings_file:
+        settings_dict = sum_model_settings.model_dump(by_alias=True)
+        del settings_dict["name"]
+        json.dump(settings_dict, model_settings_file)
+
+    monkeypatch.setenv("mlserver_model_name", "lowercase-environment-model")
+
+    model_settings = load_model_settings(model_settings_path)
+
+    assert model_settings.name == "lowercase-environment-model"
+
+
+async def test_missing_implementation_uses_environment_setting(
+    sum_model_settings: ModelSettings,
+    model_folder: str,
+    monkeypatch,
+):
+    model_settings_path = os.path.join(model_folder, DEFAULT_MODEL_SETTINGS_FILENAME)
+    with open(model_settings_path, "w") as model_settings_file:
+        json.dump({"name": sum_model_settings.name}, model_settings_file)
+
+    monkeypatch.setenv(
+        "MLSERVER_MODEL_IMPLEMENTATION", sum_model_settings.implementation_
+    )
+
+    model_settings = load_model_settings(model_settings_path)
+
+    assert model_settings.implementation_ == sum_model_settings.implementation_
+
+
 async def test_load_custom_module(
     custom_module_settings_path: str, sum_model_settings: ModelSettings
 ):

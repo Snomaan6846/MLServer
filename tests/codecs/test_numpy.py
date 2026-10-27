@@ -3,7 +3,7 @@ import numpy as np
 
 from typing import Any
 
-from mlserver.codecs.numpy import NumpyCodec, to_datatype
+from mlserver.codecs.numpy import NumpyCodec, convert_nan, to_datatype
 from mlserver.types import RequestInput, ResponseOutput, Parameters, Datatype
 
 
@@ -13,6 +13,24 @@ from mlserver.types import RequestInput, ResponseOutput, Parameters, Datatype
 )
 def test_can_encode(payload: Any, expected: bool):
     assert NumpyCodec.can_encode(payload) == expected
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [(float("nan"), None), (np.float32(np.nan), None), (1.5, 1.5), (None, None)],
+)
+def test_convert_nan_handles_scalar_values(value, expected):
+    result = convert_nan(value)
+    if isinstance(value, float) and np.isnan(value):
+        assert result is None
+    else:
+        assert result == expected
+
+
+def test_convert_nan_preserves_non_scalar_values():
+    value = [1.0, np.nan]
+
+    assert convert_nan(value) is value
 
 
 @pytest.mark.parametrize(

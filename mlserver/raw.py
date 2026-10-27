@@ -84,6 +84,10 @@ def _unpack_tensor(elem: InputOrOutput, raw: bytes) -> list:
 
 def _pack_tensor(elem: InputOrOutput) -> bytes:
     tensor_format = _tensor_format(elem)
+    if Datatype(elem.datatype) in (Datatype.FP16, Datatype.FP32, Datatype.FP64):
+        # Codecs represent NaN as None for JSON; restore it for binary transport.
+        values = [float("nan") if value is None else value for value in elem.data]
+        return struct.pack(tensor_format, *values)
     return struct.pack(tensor_format, *elem.data)
 
 

@@ -5,12 +5,111 @@ import sys
 import pytest
 import json
 from unittest.mock import patch
+from pydantic import ValidationError
 
 from mlserver.settings import CORSSettings, Settings, ModelSettings, ModelParameters
 from mlserver.repository import DEFAULT_MODEL_SETTINGS_FILENAME
 import mlserver.settings as mlserver_settings
 
 from .conftest import TESTDATA_PATH, TESTS_PATH
+
+
+def test_model_settings_rejects_empty_name():
+    with pytest.raises(ValidationError):
+        ModelSettings(name="", implementation="tests.fixtures.SumModel")
+
+
+def test_model_settings_rejects_whitespace_name():
+    with pytest.raises(ValidationError):
+        ModelSettings(name="   ", implementation="tests.fixtures.SumModel")
+
+
+def test_model_settings_requires_name_when_loaded_from_environment(monkeypatch):
+    monkeypatch.delenv("MLSERVER_MODEL_NAME", raising=False)
+    monkeypatch.setenv("MLSERVER_MODEL_IMPLEMENTATION", "tests.fixtures.SumModel")
+
+    with pytest.raises(ValidationError):
+        ModelSettings()
+
+
+def test_model_settings_parse_file_derives_name_from_directory(tmp_path):
+    model_dir = tmp_path / "directory-model"
+    model_dir.mkdir()
+    settings_path = model_dir / "model-settings.json"
+    settings_path.write_text(json.dumps({"implementation": "tests.fixtures.SumModel"}))
+
+    model_settings = ModelSettings.parse_file(str(settings_path))
+
+    assert model_settings.name == model_dir.name
+    assert model_settings._source == str(settings_path)
+
+
+def test_model_settings_parse_file_derives_name_for_empty_name(tmp_path, monkeypatch):
+    model_dir = tmp_path / "directory-model"
+    model_dir.mkdir()
+    settings_path = model_dir / "model-settings.json"
+    settings_path.write_text(
+        json.dumps({"name": "", "implementation": "tests.fixtures.SumModel"})
+    )
+    monkeypatch.delenv("MLSERVER_MODEL_NAME", raising=False)
+
+    model_settings = ModelSettings.parse_file(str(settings_path))
+
+    assert model_settings.name == model_dir.name
+
+
+def test_model_settings_parse_file_rejects_whitespace_environment_name(
+    tmp_path, monkeypatch
+):
+    settings_path = tmp_path / "model-settings.json"
+    settings_path.write_text(json.dumps({"implementation": "tests.fixtures.SumModel"}))
+    monkeypatch.setenv("MLSERVER_MODEL_NAME", "   ")
+
+    with pytest.raises(ValidationError):
+        ModelSettings.parse_file(str(settings_path))
+
+
+def test_model_settings_parse_file_empty_name_uses_directory_with_valid_env(
+    tmp_path, monkeypatch
+):
+    model_dir = tmp_path / "directory-model"
+    model_dir.mkdir()
+    settings_path = model_dir / "model-settings.json"
+    settings_path.write_text(
+        json.dumps({"name": "", "implementation": "tests.fixtures.SumModel"})
+    )
+    monkeypatch.setenv("MLSERVER_MODEL_NAME", "environment-model")
+
+    model_settings = ModelSettings.parse_file(str(settings_path))
+
+    assert model_settings.name == model_dir.name
+
+
+def test_model_settings_parse_file_derives_name_for_relative_path(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    settings_path = tmp_path / "model-settings.json"
+    settings_path.write_text(json.dumps({"implementation": "tests.fixtures.SumModel"}))
+
+    model_settings = ModelSettings.parse_file("model-settings.json")
+
+    assert model_settings.name == tmp_path.name
+
+
+@pytest.mark.parametrize("name", [0, False, None, "   "])
+def test_model_settings_parse_file_rejects_invalid_name_instead_of_fallback(
+    tmp_path, name
+):
+    model_dir = tmp_path / "directory-model"
+    model_dir.mkdir()
+    settings_path = model_dir / "model-settings.json"
+    settings_path.write_text(
+        json.dumps({"name": name, "implementation": "tests.fixtures.SumModel"})
+    )
+
+    with pytest.raises(ValidationError):
+        ModelSettings.parse_file(str(settings_path))
 
 
 def test_settings_from_env(monkeypatch):

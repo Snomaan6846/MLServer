@@ -30,6 +30,51 @@ def test_can_encode(payload: Any, expected: bool):
 
 
 @pytest.mark.parametrize(
+    "values",
+    [
+        ["hello", "world"],
+        [b"hello", b"world"],
+        [b"\xff\xfe", b"\x80"],
+    ],
+)
+def test_pandas_column_roundtrip_preserves_strings_and_bytes(values):
+    dataframe = pd.DataFrame({"value": values})
+
+    encoded = PandasCodec.encode_request(dataframe)
+    decoded = PandasCodec.decode_request(encoded)
+
+    pd.testing.assert_frame_equal(decoded, dataframe)
+
+
+@pytest.mark.parametrize("use_bytes", [False, True])
+def test_pandas_all_none_column_roundtrip(use_bytes):
+    dataframe = pd.DataFrame({"tools": [None, None]})
+
+    request = PandasCodec.encode_request(dataframe, use_bytes=use_bytes)
+    response = PandasCodec.encode_response("test-model", dataframe, use_bytes=use_bytes)
+
+    pd.testing.assert_frame_equal(PandasCodec.decode_request(request), dataframe)
+    pd.testing.assert_frame_equal(PandasCodec.decode_response(response), dataframe)
+
+
+@pytest.mark.parametrize("binary_value", [b"world", b"\xff\xfe"])
+@pytest.mark.parametrize("use_bytes", [False, True])
+def test_pandas_mixed_string_bytes_column_preserves_binary_values(
+    binary_value, use_bytes
+):
+    dataframe = pd.DataFrame({"value": ["hello", binary_value]})
+    expected = pd.DataFrame(
+        {"value": [b"hello" if use_bytes else "hello", binary_value]}
+    )
+
+    request = PandasCodec.encode_request(dataframe, use_bytes=use_bytes)
+    response = PandasCodec.encode_response("test-model", dataframe, use_bytes=use_bytes)
+
+    pd.testing.assert_frame_equal(PandasCodec.decode_request(request), expected)
+    pd.testing.assert_frame_equal(PandasCodec.decode_response(response), expected)
+
+
+@pytest.mark.parametrize(
     "series, use_bytes, expected",
     [
         (
@@ -40,7 +85,6 @@ def test_can_encode(payload: Any, expected: bool):
                 shape=[2, 1],
                 data=[b"hey", b"abc"],
                 datatype="BYTES",
-                parameters=Parameters(content_type=StringCodec.ContentType),
             ),
         ),
         (
@@ -51,7 +95,17 @@ def test_can_encode(payload: Any, expected: bool):
                 shape=[2, 1],
                 data=[b"hey", b"abc"],
                 datatype="BYTES",
-                parameters=Parameters(content_type=StringCodec.ContentType),
+            ),
+        ),
+        (
+            pd.Series(data=["hey", None, "abc"], name="bar"),
+            False,
+            ResponseOutput(
+                name="bar",
+                shape=[3, 1],
+                data=['"hey"', "null", '"abc"'],
+                datatype="BYTES",
+                parameters=Parameters(content_type=PandasCodec.JsonContentType),
             ),
         ),
         (
@@ -96,6 +150,28 @@ def test_can_encode(payload: Any, expected: bool):
                 shape=[3, 1],
                 data=[4, None, 6],
                 datatype="FP64",
+            ),
+        ),
+        (
+            pd.Series(data=[[1, 2], None], name="bar"),
+            True,
+            ResponseOutput(
+                name="bar",
+                shape=[2, 1],
+                data=[b"[1,2]", b"null"],
+                datatype="BYTES",
+                parameters=Parameters(content_type=PandasCodec.JsonContentType),
+            ),
+        ),
+        (
+            pd.Series(data=["text", {"key": "value"}, np.NaN], name="bar"),
+            True,
+            ResponseOutput(
+                name="bar",
+                shape=[3, 1],
+                data=[b'"text"', b'{"key":"value"}', b"null"],
+                datatype="BYTES",
+                parameters=Parameters(content_type=PandasCodec.JsonContentType),
             ),
         ),
         (
@@ -581,6 +657,20 @@ def test_encode_request(
                 ]
             ),
             pd.DataFrame({"a": [[1, 2, 3]], "b": ["hello world"]}),
+        ),
+        (
+            InferenceRequest(
+                inputs=[
+                    RequestInput(
+                        name="a",
+                        data=[b"value"],
+                        datatype="BYTES",
+                        shape=[1, 1],
+                        parameters=Parameters(content_type=StringCodec.ContentType),
+                    )
+                ]
+            ),
+            pd.DataFrame({"a": ["value"]}),
         ),
         (
             InferenceRequest(

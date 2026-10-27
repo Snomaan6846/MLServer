@@ -22,6 +22,7 @@ from pydantic import (
     Field,
     AliasChoices,
     field_validator,
+    ValidationError,
 )
 from pydantic import model_validator
 from pydantic._internal._validators import import_string
@@ -73,6 +74,15 @@ _BUILTIN_RUNTIME_IMPORT_PATH_ALIASES = {
     "mlserver_lightgbm.lightgbm.LightGBMModel": "mlserver_lightgbm.LightGBMModel",
     "mlserver_onnx.onnx.OnnxModel": "mlserver_onnx.OnnxModel",
 }
+
+
+def _is_missing_or_empty_field_error(exc: ValidationError, field: str) -> bool:
+    """Return whether a field error represents a missing or empty value."""
+    return any(
+        error.get("loc") == (field,)
+        and (error.get("type") == "missing" or error.get("input") == "")
+        for error in exc.errors()
+    )
 
 
 def canonicalize_runtime_import_path(import_path: str) -> str:
@@ -649,14 +659,30 @@ class ModelSettings(BaseSettings):
 
     @classmethod
     def parse_file(cls, path: str) -> Self:  # type: ignore
+        path = os.path.abspath(path)
         with open(path, "r") as f:
             obj = json.load(f)
-            obj["_source"] = path
+            if isinstance(obj, dict):
+                obj["_source"] = path
+
+        try:
             return cls.model_validate(obj)
+        except ValidationError as exc:
+            # Repository settings may omit the name and derive it from the
+            # containing directory. Retry only for that file-backed case;
+            # environment-only settings must still provide a name.
+            if isinstance(obj, dict) and _is_missing_or_empty_field_error(exc, "name"):
+                model_directory = os.path.dirname(path)
+                obj["name"] = os.path.basename(model_directory)
+                return cls.model_validate(obj)
+            raise
 
     @classmethod
     def model_validate(cls, obj: Any) -> Self:  # type: ignore
-        source = obj.pop("_source", None)
+        source = None
+        if isinstance(obj, dict):
+            obj = obj.copy()
+            source = obj.pop("_source", None)
         model_settings = super().model_validate(obj)
         if source:
             model_settings._source = source
@@ -737,8 +763,15 @@ class ModelSettings(BaseSettings):
             return params.version
         return None
 
-    name: str = ""
+    name: str
     """Name of the model."""
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Model name must not be blank or whitespace-only")
+        return value
 
     # Model metadata
     platform: str = ""
