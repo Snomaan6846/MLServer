@@ -1087,6 +1087,16 @@ def test_model_settings_serialisation():
     as_dict["implementation"] == expected
 
 
+@pytest.mark.parametrize(
+    ("version", "expected_version"),
+    [(None, None), ("", None), ("v1", "v1")],
+)
+def test_model_parameters_normalizes_empty_version(version, expected_version):
+    parameters = ModelParameters(version=version)
+
+    assert parameters.version == expected_version
+
+
 def test_model_parameters_environment_tarball_blocked_in_production_mode():
     """Test that environment_tarball is rejected in PRODUCTION mode."""
     with pytest.raises(ValueError, match="environment_tarball is not allowed"):

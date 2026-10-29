@@ -167,18 +167,12 @@ def prometheus_registry(
     PrometheusMiddleware._metrics.clear()
 
 
-@pytest.fixture
-def event_loop():
-    # By default use uvloop for tests
+@pytest.fixture(scope="session", autouse=True)
+def uvloop_policy():
+    # Install uvloop once before pytest-asyncio creates its per-test loops.
+    # Replacing the policy from a function-scoped event_loop fixture prevents
+    # pytest-asyncio from closing its replacement loop between tests.
     install_uvloop_event_loop()
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # No event loop running yet, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
 
 
 @pytest.fixture

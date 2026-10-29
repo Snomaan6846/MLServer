@@ -37,6 +37,8 @@ ENV_PREFIX_SETTINGS = "MLSERVER_"
 ENV_PREFIX_MODEL_SETTINGS = "MLSERVER_MODEL_"
 
 DEFAULT_PARALLEL_WORKERS = 1
+DEFAULT_MODEL_OPERATION_TIMEOUT = 60
+DEFAULT_WORKER_START_TIMEOUT = 300
 
 DEFAULT_ENVIRONMENTS_DIR = os.path.join(os.getcwd(), ".envs")
 DEFAULT_METRICS_DIR = os.path.join(os.getcwd(), ".metrics")
@@ -351,6 +353,17 @@ class Settings(BaseSettings):
 
     parallel_workers_timeout: int = 5
     """Grace timeout to wait until the workers shut down when stopping MLServer."""
+
+    model_operation_timeout: float = Field(
+        default=DEFAULT_MODEL_OPERATION_TIMEOUT, gt=0
+    )
+    """Maximum time in seconds for an accepted model lifecycle operation.
+
+    The timeout starts after the operation's top-level lock is acquired.
+    """
+
+    worker_start_timeout: float = Field(default=DEFAULT_WORKER_START_TIMEOUT, gt=0)
+    """Maximum time in seconds to initialize a worker and replay model state."""
 
     environments_dir: str = DEFAULT_ENVIRONMENTS_DIR
     """

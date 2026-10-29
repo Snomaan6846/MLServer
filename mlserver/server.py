@@ -21,6 +21,10 @@ HANDLED_SIGNALS = [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT]
 class MLServer:
     def __init__(self, settings: Settings):
         self._settings = settings
+        self._live: bool = False
+        self._stop_task: asyncio.Task | None = None
+        self._startup_model_tasks: list[asyncio.Task] = []
+        self._server_tasks: list[asyncio.Task] = []
         self._add_signal_handlers()
 
         self._metrics_server = None
@@ -49,7 +53,9 @@ class MLServer:
             settings=self._settings, model_registry=self._model_registry
         )
         self._model_repository_handlers = ModelRepositoryHandlers(
-            repository=self._model_repository, model_registry=self._model_registry
+            repository=self._model_repository,
+            model_registry=self._model_registry,
+            model_operation_timeout=self._settings.model_operation_timeout,
         )
 
         self._configure_logger()
@@ -68,6 +74,7 @@ class MLServer:
             return MultiModelRegistry(
                 on_model_load=on_model_load,
                 on_model_unload=on_model_unload,
+                model_operation_timeout=self._settings.model_operation_timeout,
             )
 
         # Batch the main-process ParallelModel before dispatching merged
@@ -86,6 +93,7 @@ class MLServer:
             on_model_load=on_model_load,
             on_model_unload=on_model_unload,
             model_initialiser=self._inference_pool_registry.model_initialiser,
+            model_operation_timeout=self._settings.model_operation_timeout,
         )
 
     def _configure_logger(self):
@@ -102,9 +110,18 @@ class MLServer:
     async def start(self, models_settings: list[ModelSettings] = []):
         # Validate runtime security configuration before starting servers to prevent
         # a window where endpoints are accessible but security hasn't been verified
+        if self._stop_task is not None:
+            logger.info("Server shutdown currently in progress...")
+            return
+        if self._live:
+            logger.info("Server already running...")
+            return
+        self._live = True
+
         try:
             log_runtime_security_mode()
         except Exception as exc:
+            self._live = False
             logger.exception("Failed to load trusted runtimes allowlist!")
             if self._inference_pool_registry:
                 try:
@@ -122,40 +139,39 @@ class MLServer:
         if self._metrics_server:
             servers.append(self._metrics_server.start())
 
-        servers_task = asyncio.gather(*servers)
-
-        tasks = []
+        # Start servers and load startup models concurrently
         try:
-            tasks = [
-                asyncio.create_task(self._model_registry.load(model_settings))
-                for model_settings in models_settings
-            ]
-            await asyncio.gather(*tasks)
-            # Mark startup complete only if all models loaded successfully
-            self._model_registry.startup_complete()
-        except Exception:
-            # If one of the models failed to load during startup, shutdown the
-            # server gracefully
-            logger.exception("Some of the models failed to load during startup!")
-
-            # Explicitly cancel remaining tasks
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-
-            # Wait for cancellations to propagate
-            await asyncio.gather(*tasks, return_exceptions=True)
-
-            try:
-                await self.stop()
-            except Exception:
-                # Log and supress stop error
-                logger.error(
-                    "Failed to stop server during startup cleanup", exc_info=True
+            for server in servers:
+                self._server_tasks.append(asyncio.create_task(server))
+            for model_settings in models_settings:
+                self._startup_model_tasks.append(
+                    asyncio.create_task(self._model_registry.load(model_settings))
                 )
-            raise  # Re-raise to signal startup failure to caller
+            await asyncio.gather(*self._startup_model_tasks)
+            self._startup_model_tasks.clear()
+
+            # Mark startup complete only if all models loaded successfully
+            # Then await the server tasks throughout the lifetime of MLServer
+            self._model_registry.startup_complete()
+            await asyncio.gather(*self._server_tasks)
+        except (Exception, asyncio.CancelledError) as start_error:
+            if isinstance(start_error, asyncio.CancelledError):
+                logger.info("Server startup was cancelled. Shutting down...")
+            else:
+                logger.exception(
+                    "A failure occurred during server startup. Shutting down..."
+                )
+            try:
+                if self._live:
+                    await self.stop()
+                elif self._stop_task is not None:
+                    await self._stop_task
+            except (Exception, asyncio.CancelledError):
+                logger.error("Failed while shutting down after startup failure")
+            raise
         finally:
-            await servers_task
+            self._startup_model_tasks.clear()
+            self._server_tasks.clear()
 
     async def add_custom_handlers(self, model: MLModel) -> MLModel:
         await self._rest_server.add_custom_handlers(model)
@@ -187,6 +203,31 @@ class MLServer:
             )
 
     async def stop(self, sig: int | None = None):
+        """Request shutdown, cancelling startup if it is still running."""
+        self._live = False
+        if self._stop_task is not None:
+            logger.info("Server shutdown already in progress...")
+            return
+        try:
+            self._stop_task = asyncio.current_task()
+            # Cancel startup model load tasks
+            for model_task in self._startup_model_tasks:
+                if not model_task.done():
+                    model_task.cancel()
+            await asyncio.gather(*self._startup_model_tasks, return_exceptions=True)
+
+            try:
+                await self._stop_resources(sig)
+            except Exception:
+                for server_task in self._server_tasks:
+                    if not server_task.done():
+                        server_task.cancel()
+            await asyncio.gather(*self._server_tasks, return_exceptions=True)
+        finally:
+            self._stop_task = None
+
+    async def _stop_resources(self, sig: int | None = None):
+        """Stop transports and shared resources after shutdown is requested."""
         # Best effort cleanup
         stop_errors = []
 

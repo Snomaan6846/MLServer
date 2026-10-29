@@ -90,7 +90,7 @@ graph TB
     classDef external fill:#F5A623,stroke:#C47D1A,color:#fff
     classDef core fill:#7ED321,stroke:#5A9A18,color:#fff
 
-    class REST,GRPC,Metrics
+    class REST,GRPC,Metrics server
     class Client,Prometheus,ModelStore external
     class DataPlane,Registry,Pool,Batcher core
 ```
