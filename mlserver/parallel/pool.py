@@ -138,6 +138,18 @@ class InferencePool:
             self._transport_directory = TemporaryDirectory(prefix="mlserver-ipc-")
             reply = create_endpoint(Path(self._transport_directory.name), "r")
             setattr(self._responses, "_zmq_reply_endpoint", reply)
+
+            # Propagate the serialization choice to the dispatcher's
+            # response transport (workers get it from their own settings).
+            setattr(
+                self._responses,
+                "_zmq_msgpack",
+                settings.parallel_inference_serialization == "msgpack",
+            )
+            logger.info(
+                "ZeroMQ inference IPC enabled (serialization: %s)",
+                settings.parallel_inference_serialization,
+            )
         for _ in range(self._settings.parallel_workers):
             worker = _spawn_worker(
                 self._settings,

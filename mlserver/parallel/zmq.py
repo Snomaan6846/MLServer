@@ -2,6 +2,10 @@
 
 Only endpoint strings belong on a spawned Worker. Contexts and sockets are
 created in their owning process; model control messages keep their queues.
+
+When the ``parallel_inference_serialization`` setting is ``"msgpack"``,
+inference requests and replies use zero-copy multipart frames instead of
+pickle, following the vLLM EngineCore IPC pattern.
 """
 
 import asyncio
@@ -34,6 +38,29 @@ def create_endpoint(directory: Path, kind: str) -> str:
     return f"ipc://{path}"
 
 
+def _encode_msgpack(message: Any) -> list[bytes]:
+    """Encode a message as multipart frames (zero-copy for tensors)."""
+    from .serialization import encode_message
+
+    return encode_message(message)
+
+
+def _decode_msgpack(frames: list[Any], message_cls: type) -> Any:
+    """Decode multipart frames back into a message."""
+    from .serialization import decode_message
+
+    return decode_message(frames, message_cls)
+
+
+def _frame_buffers(frames: Any) -> list[Any]:
+    """Zero-copy buffer views for received ZeroMQ multipart frames.
+
+    ``recv_multipart(copy=False)`` hands back ``zmq.Frame`` objects whose
+    ``buffer`` memoryviews expose the message contents without copying.
+    """
+    return [frame.buffer if isinstance(frame, zmq.Frame) else frame for frame in frames]
+
+
 def _socket(context: zmq.asyncio.Context, kind: int) -> Any:
     sock = context.socket(kind)
     # Preserve Queue's unbounded admission policy. Resource limits and request
@@ -51,8 +78,9 @@ def _socket(context: zmq.asyncio.Context, kind: int) -> Any:
 
 
 class ParentTransport:
-    def __init__(self, reply_endpoint: str) -> None:
+    def __init__(self, reply_endpoint: str, msgpack: bool = False) -> None:
         self._context = zmq.asyncio.Context(io_threads=1)
+        self._msgpack = msgpack
         self._replies: Any = None
         self._requests: dict[int, Any] = {}
         self._pending_sends: dict[int, set[asyncio.Future[None]]] = {}
@@ -89,7 +117,13 @@ class ParentTransport:
     ) -> None:
         try:
             while True:
-                response = ForkingPickler.loads(await self._replies.recv(copy=True))
+                if self._msgpack:
+                    frames = await self._replies.recv_multipart(copy=False)
+                    response = _decode_msgpack(
+                        _frame_buffers(frames), ModelResponseMessage
+                    )
+                else:
+                    response = ForkingPickler.loads(await self._replies.recv(copy=True))
                 if not isinstance(response, ModelResponseMessage):
                     raise TypeError("Unexpected ZeroMQ inference response")
                 resolve(response)
@@ -149,8 +183,13 @@ class ParentTransport:
                 raise
             self._requests[pid] = sock
         # Use multiprocessing.Queue's exact default serializer/protocol,
-        # including the existing Pydantic and NumPy pickle reducers.
-        sending = self._requests[pid].send(ForkingPickler.dumps(message), copy=True)
+        # including the existing Pydantic and NumPy pickle reducers,
+        # unless msgpack zero-copy serialization is enabled.
+        if self._msgpack:
+            frames = _encode_msgpack(message)
+            sending = self._requests[pid].send_multipart(frames, copy=False)
+        else:
+            sending = self._requests[pid].send(ForkingPickler.dumps(message), copy=True)
         if sending.done():
             sending.result()
             return
@@ -219,7 +258,11 @@ async def _reply(worker: Worker, request: ModelRequestMessage, replies: Any) -> 
     response = await worker._process_request(request)
     if not isinstance(response, ModelResponseMessage):
         raise TypeError("Unexpected worker inference response")
-    await replies.send(ForkingPickler.dumps(response), copy=True)
+    if getattr(worker, "_zmq_msgpack", False) is True:
+        frames = _encode_msgpack(response)
+        await replies.send_multipart(frames, copy=False)
+    else:
+        await replies.send(ForkingPickler.dumps(response), copy=True)
 
 
 async def serve_requests(worker: Worker) -> None:
@@ -243,14 +286,23 @@ async def serve_requests(worker: Worker) -> None:
         replies = _socket(context, zmq.PUSH)
         requests.bind(getattr(worker, "_zmq_request_endpoint"))
         replies.connect(getattr(worker, "_zmq_reply_endpoint"))
+        msgpack = getattr(worker, "_zmq_msgpack", False) is True
         while True:
-            incoming = requests.recv(copy=True)
+            if msgpack:
+                incoming = requests.recv_multipart(copy=False)
+            else:
+                incoming = requests.recv(copy=True)
             done, _ = await asyncio.wait(
                 (incoming, failure), return_when=asyncio.FIRST_COMPLETED
             )
             if failure in done:
                 failure.result()
-            request = ForkingPickler.loads(incoming.result())
+            raw = incoming.result()
+            if msgpack:
+                # Multipart frames: [metadata, buffer1, buffer2, ...]
+                request = _decode_msgpack(_frame_buffers(raw), ModelRequestMessage)
+            else:
+                request = ForkingPickler.loads(raw)
             if not isinstance(request, ModelRequestMessage):
                 raise TypeError("Unexpected ZeroMQ inference request")
             # Queue workers also schedule async methods independently. Keep

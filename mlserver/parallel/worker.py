@@ -60,6 +60,8 @@ class Worker(Process):
                 raise ValueError("ZeroMQ worker requires its pool's reply endpoint")
             self._zmq_reply_endpoint = reply
             self._zmq_request_endpoint = create_endpoint(Path(reply[6:]).parent, "q")
+            # Propagate serialization choice for worker-side encode/decode.
+            self._zmq_msgpack = settings.parallel_inference_serialization == "msgpack"
         self._requests: Queue[ModelRequestMessage] = Queue()
         self._model_updates: Queue[ModelUpdateMessage] = Queue()
         self._env = env

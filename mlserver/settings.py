@@ -353,6 +353,15 @@ class Settings(BaseSettings):
     across."""
 
     parallel_inference_transport: Literal["queue", "zmq"] = "queue"
+
+    parallel_inference_serialization: Literal["pickle", "msgpack"] = "pickle"
+    """Serialization for ZMQ inference IPC messages.
+
+    "pickle" preserves the existing behaviour (ForkingPickler with NumPy
+    reducers).  "msgpack" uses zero-copy multipart frames for NumPy
+    tensors, following the vLLM EngineCore IPC pattern.  Only effective
+    when parallel_inference_transport is "zmq".
+    """
     """Inference IPC transport; ZeroMQ requires the optional ``zmq`` extra.
 
     Model-control messages retain multiprocessing queues in either mode.

@@ -41,9 +41,10 @@ class RunningPool:
     initial_workers: list[Worker]
 
 
-@pytest.fixture
-def settings(settings: Settings) -> Settings:
+@pytest.fixture(params=["pickle", "msgpack"])
+def settings(settings: Settings, request: pytest.FixtureRequest) -> Settings:
     settings.parallel_inference_transport = "zmq"
+    settings.parallel_inference_serialization = request.param
     settings.rest_worker_json = True
     settings.grpc_raw_input_buffers = True
     return settings
@@ -154,6 +155,43 @@ async def test_spawned_numeric_buffers_and_many_inflight_requests(
     assert all(
         isinstance(payload.inputs[0].data.root, np.ndarray) for payload in payloads
     )
+    assert not case.pool._dispatcher._async_responses._futures
+
+
+def big_fp32_request(value: int) -> InferenceRequest:
+    """A request whose input tensor exceeds the msgpack inline threshold."""
+    tensor = np.full((1, 4096), value, dtype="<f4")  # 16 KiB
+    wire = pb.ModelInferRequest(
+        model_name="sum-model",
+        id=f"numeric-big-{value}",
+        inputs=[
+            pb.ModelInferRequest.InferInputTensor(
+                name="input-0", datatype="FP32", shape=[1, 4096]
+            )
+        ],
+        outputs=[pb.ModelInferRequest.InferRequestedOutputTensor(name="total")],
+        raw_input_contents=[tensor.tobytes()],
+    )
+    converted = convert_request(wire)
+    data = converted.inputs[0].data.root
+    assert isinstance(data, np.ndarray)
+    assert data.nbytes >= 256  # forces a separate tensor frame under msgpack
+    return converted
+
+
+async def test_large_input_tensors_across_concurrent_requests(
+    running_pool: RunningPool,
+) -> None:
+    case = running_pool
+    payloads = [big_fp32_request(value) for value in range(8)]
+    responses = await asyncio.wait_for(
+        asyncio.gather(*(case.model.predict(payload) for payload in payloads)),
+        timeout=10,
+    )
+    for value, response in enumerate(responses):
+        np.testing.assert_array_equal(
+            NumpyCodec.decode_output(response.outputs[0]), [[value * 4096]]
+        )
     assert not case.pool._dispatcher._async_responses._futures
 
 

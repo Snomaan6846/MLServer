@@ -25,10 +25,11 @@ def directory() -> Iterator[Path]:
         yield Path(path)
 
 
-def worker(directory: Path, reply: str) -> Mock:
+def worker(directory: Path, reply: str, msgpack: bool = False) -> Mock:
     return Mock(
         spec=Worker,
         pid=42,
+        _zmq_msgpack=msgpack,
         _zmq_request_endpoint=transport.create_endpoint(directory, "q"),
         _zmq_reply_endpoint=reply,
     )
@@ -66,16 +67,17 @@ def test_endpoints_are_unique_short_strings_and_reject_unsafe_paths(
         transport.create_endpoint(long, "q")
 
 
+@pytest.mark.parametrize("msgpack", [False, True])
 @pytest.mark.parametrize("error", [False, True])
 async def test_real_ipc_preserves_request_response_arrays_bytes_and_errors(
-    directory: Path, error: bool
+    directory: Path, error: bool, msgpack: bool
 ) -> None:
     endpoint = transport.create_endpoint(directory, "r")
-    parent = transport.ParentTransport(endpoint)
+    parent = transport.ParentTransport(endpoint, msgpack=msgpack)
     resolved = asyncio.get_running_loop().create_future()
     failed = Mock()
     parent.start(resolved.set_result, failed)
-    target = worker(directory, endpoint)
+    target = worker(directory, endpoint, msgpack=msgpack)
     bits = np.array([0x80000000, 0x7FC00001, 1], dtype="<u4")
     message = ModelRequestMessage(
         model_name="chosen-model",

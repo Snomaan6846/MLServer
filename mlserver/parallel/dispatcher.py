@@ -188,7 +188,9 @@ class Dispatcher:
         if reply is not None:
             from .zmq import ParentTransport
 
-            self._transport = ParentTransport(reply)
+            self._transport = ParentTransport(
+                reply, msgpack=getattr(responses, "_zmq_msgpack", False)
+            )
 
     def _reset_round_robin(self) -> Iterator[int]:
         worker_pids = list(self._ready_workers.keys())
