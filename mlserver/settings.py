@@ -469,6 +469,15 @@ class Settings(BaseSettings):
     request preparation. Generate and streaming routes are unchanged.
     """
 
+    rest_binary_tensor: bool = False
+    """Accept and serve the KServe v2 binary tensor data extension over REST.
+
+    When enabled, unary REST inference requests carrying the
+    Inference-Header-Content-Length header are parsed as a JSON header
+    followed by raw binary tensor data. Standard JSON requests are
+    unaffected. Generate and streaming routes are unchanged.
+    """
+
     root_path: str = ""
     """Set the ASGI root_path for applications submounted below a given URL path."""
 
