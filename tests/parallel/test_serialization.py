@@ -453,3 +453,122 @@ class TestNumpyScalarRoundtrip:
         )
         decoded = decode_request(encode_message(msg))
         assert decoded.method_args[0] == {"v": 1.5, "i": 3, "b": True}
+
+
+class TestNumericListFraming:
+    """Large flat numeric lists are framed as buffers, restored exactly."""
+
+    def _msg(self, values):
+        return ModelRequestMessage(
+            model_name="test",
+            method_name="predict",
+            method_args=[{"values": values}],
+        )
+
+    def test_large_float_list_roundtrip(self):
+        data = [float(i) + 0.5 for i in range(1000)]
+        frames = encode_message(self._msg(data))
+        # Framed: metadata + exactly one buffer frame, tiny metadata
+        assert len(frames) == 2
+        assert len(frames[0]) < 500
+        decoded = decode_request(frames)
+        out = decoded.method_args[0]["values"]
+        assert isinstance(out, list)
+        assert out == data
+        assert all(type(v) is float for v in out)
+
+    def test_large_int_list_roundtrip(self):
+        data = list(range(-500, 500))
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 2
+        decoded = decode_request(frames)
+        out = decoded.method_args[0]["values"]
+        assert out == data
+        assert all(type(v) is int for v in out)
+
+    def test_large_bool_list_roundtrip(self):
+        data = [i % 2 == 0 for i in range(200)]
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 2
+        decoded = decode_request(frames)
+        out = decoded.method_args[0]["values"]
+        assert out == data
+        assert all(type(v) is bool for v in out)
+
+    def test_mixed_int_float_list_is_not_framed(self):
+        # Mixed types must keep the walk: framing as float64 would turn the
+        # int 1 into 1.0 and change the JSON encoding of the response.
+        data = [1, 2.0] * 64
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 1  # stayed in metadata
+        decoded = decode_request(frames)
+        out = decoded.method_args[0]["values"]
+        assert out == data
+        assert type(out[0]) is int
+        assert type(out[1]) is float
+
+    def test_list_with_none_is_not_framed(self):
+        # NumpyCodec converts NaN outputs to None — such lists must walk.
+        data = [1.0, None] * 64
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 1
+        decoded = decode_request(frames)
+        assert decoded.method_args[0]["values"] == data
+
+    def test_nested_list_frames_each_row(self):
+        # The walk recurses and frames each innermost flat list — nested
+        # tensor payloads (e.g. JSON requests) benefit row by row.
+        data = [[float(j) for j in range(100)] for i in range(10)]
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 11  # metadata + one buffer per row
+        decoded = decode_request(frames)
+        out = decoded.method_args[0]["values"]
+        assert out == data
+        assert all(type(v) is float for v in out[0])
+
+    def test_small_list_is_not_framed(self):
+        data = [1.0, 2.0, 3.0]
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 1
+        decoded = decode_request(frames)
+        assert decoded.method_args[0]["values"] == data
+
+    def test_huge_int_list_roundtrip(self):
+        # Beyond int64 (framing rejected, orjson-safe bigint markers used)
+        data = [10**30] * 100
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 1  # walked, not framed
+        decoded = decode_request(frames)
+        out = decoded.method_args[0]["values"]
+        assert out == data
+        assert all(type(v) is int for v in out)
+
+    def test_int64_boundary_values_roundtrip(self):
+        data = [2**63 - 1, -(2**63), 0, -1, 1] * 20
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 2  # framed as int64
+        decoded = decode_request(frames)
+        assert decoded.method_args[0]["values"] == data
+
+    def test_string_list_is_not_framed(self):
+        data = ["a"] * 100
+        frames = encode_message(self._msg(data))
+        assert len(frames) == 1
+        decoded = decode_request(frames)
+        assert decoded.method_args[0]["values"] == data
+
+    def test_real_response_shape_is_framed(self):
+        # The exact shape NumpyCodec produces for RF-DETR outputs
+        dets = [0.25 + i * 1e-6 for i in range(1200)]
+        labels = [0.5 + i * 1e-7 for i in range(27300)]
+        msg = ModelResponseMessage(
+            id="r",
+            return_value={"dets": dets, "labels": labels},
+        )
+        frames = encode_message(msg)
+        # metadata + two buffer frames, and the metadata stays tiny
+        assert len(frames) == 3
+        assert len(frames[0]) < 1000
+        decoded = decode_response(frames)
+        assert decoded.return_value["dets"] == dets
+        assert decoded.return_value["labels"] == labels

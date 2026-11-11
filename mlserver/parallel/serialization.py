@@ -17,6 +17,10 @@ messages:
   exception objects so worker failures keep reaching the frontend.
 - ``bytes`` payloads (e.g. raw REST bodies) share the inline/frame split
   used for arrays.
+- Flat lists of homogeneous Python numbers (tensor payloads reach the IPC
+  layer as flattened lists, e.g. from ``NumpyCodec._encode_data``) are
+  framed as raw buffers and restored with ``tolist()``, reproducing the
+  original values and types exactly.
 """
 
 from __future__ import annotations
@@ -34,9 +38,60 @@ from pydantic import BaseModel, RootModel
 _NDARRAY_MARKER = "__ndarray__"
 _BYTES_MARKER = "__bytes__"
 _EXCEPTION_MARKER = "__exception__"
+_BIGINT_MARKER = "__bigint__"
+
+# Python ints beyond the JSON-metadata int64 range travel as strings
+_INT64_MIN = -(2**63)
+_INT64_MAX = 2**63 - 1
 
 # Buffers below this size (bytes) are inlined into the metadata frame
 _INLINE_THRESHOLD = 256
+
+# Flat numeric lists at or above this many elements are framed as buffers
+_LIST_FRAME_MIN_ELEMENTS = 64
+
+# Wire dtypes for the Python numeric types that can be framed losslessly
+_PYTHON_NUMERIC_DTYPES = {
+    float: "<f8",
+    int: "<i8",
+    bool: "|b1",
+}
+
+
+def _try_frame_numeric_list(obj: list, buffers: list[bytes]) -> dict[str, Any] | None:
+    """Frame a flat list of homogeneous Python numbers as a raw buffer.
+
+    Large tensor payloads reach the IPC layer as flat Python lists (e.g.
+    ``NumpyCodec._encode_data`` flattens outputs), and walking them
+    element-by-element dominates the serialization cost.  When every
+    element shares one Python numeric type, the list is sent as a single
+    frame and rebuilt with ``tolist()`` on decode, which reproduces the
+    original values and types exactly.  Anything else (mixed types,
+    strings, nested lists, very small lists) returns None and keeps the
+    element-wise walk.
+    """
+    if len(obj) < _LIST_FRAME_MIN_ELEMENTS:
+        return None
+    types = set(map(type, obj))
+    if len(types) != 1:
+        return None
+    dtype = _PYTHON_NUMERIC_DTYPES.get(types.pop())
+    if dtype is None:
+        return None
+    try:
+        arr = np.asarray(obj, dtype=dtype)
+    except (OverflowError, ValueError, TypeError):
+        # e.g. ints beyond the int64 range — fall back to the walk
+        return None
+    buffers.append(arr.tobytes())
+    return {
+        _NDARRAY_MARKER: True,
+        "inline": False,
+        "frame": len(buffers) - 1,
+        "dtype": arr.dtype.str,
+        "shape": list(arr.shape),
+        "as_list": True,
+    }
 
 
 def _to_serializable(obj: Any, buffers: list[bytes]) -> Any:
@@ -103,8 +158,18 @@ def _to_serializable(obj: Any, buffers: list[bytes]) -> Any:
         return result
     if isinstance(obj, dict):
         return {k: _to_serializable(v, buffers) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list):
+        framed = _try_frame_numeric_list(obj, buffers)
+        if framed is not None:
+            return framed
         return [_to_serializable(item, buffers) for item in obj]
+    if isinstance(obj, tuple):
+        return [_to_serializable(item, buffers) for item in obj]
+    if isinstance(obj, int) and not isinstance(obj, bool):
+        if not _INT64_MIN <= obj <= _INT64_MAX:
+            # orjson rejects ints beyond 64-bit; keep pickle-path parity
+            return {_BIGINT_MARKER: True, "value": str(obj)}
+        return obj
     if isinstance(obj, (str, int, float, bool)):
         return obj
     # Best-effort for anything else
@@ -157,13 +222,21 @@ def _restore_arrays(obj: Any, frames: list[bytes] | list[memoryview]) -> Any:
             else:
                 frame = frames[obj["frame"]]
                 arr = np.frombuffer(frame, dtype=dtype)
-            return arr.reshape(shape)
+            arr = arr.reshape(shape)
+            if obj.get("as_list"):
+                # Framed numeric lists must come back as lists (not arrays)
+                # so downstream JSON encoding and type semantics are
+                # unchanged compared to the element-wise walk.
+                return arr.tolist()
+            return arr
         if obj.get(_BYTES_MARKER):
             if obj.get("inline"):
                 return bytes.fromhex(obj["data"])
             return bytes(frames[obj["frame"]])
         if obj.get(_EXCEPTION_MARKER):
             return _restore_exception(obj)
+        if obj.get(_BIGINT_MARKER):
+            return int(obj["value"])
         # Check for Pydantic model / dataclass marker
         class_path = obj.get("__class__")
         if class_path:
