@@ -1,0 +1,38 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: mlserver-client
+  namespace: mlserver-perf
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: mlserver-client
+  namespace: mlserver-perf
+  labels:
+    purpose: rhoaieng-102092
+spec:
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: mlserver-client:latest
+  runPolicy: Serial
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: client-store
+  namespace: mlserver-perf
+  labels:
+    purpose: rhoaieng-102092
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi

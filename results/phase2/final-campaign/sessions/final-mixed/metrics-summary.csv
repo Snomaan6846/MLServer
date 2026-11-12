@@ -1,0 +1,4 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+batched-mixed,4,3,8.198,1.50,485.197,495.073,540.713,194.709,6.6,28.1,1326.0
+batched-mixed,8,3,8.262,79.12,966.369,1391.723,4593.077,522.870,6.8,23.3,1961.3
+batched-mixed,16,3,1.768,4.19,9036.058,9318.272,9408.084,922.434,7.1,2.1,2567.9

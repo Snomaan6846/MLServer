@@ -1,0 +1,52 @@
+{
+  "variant": "gpu-binary-msgpack",
+  "deployment": "mlserver-rfdetr",
+  "service": "mlserver-rfdetr",
+  "device": "cuda",
+  "image": "quay.io/syedali/mlserver-cuda@sha256:1b03ff83f161aabbe6e1422c890d63df7d95c7c53c89c19cc83462e7934b17f1",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:1b03ff83f161aabbe6e1422c890d63df7d95c7c53c89c19cc83462e7934b17f1",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "1",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+    "MLSERVER_PARALLEL_INFERENCE_SERIALIZATION": "msgpack",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+    "MLSERVER_REST_BINARY_TENSOR": "true"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    }
+  },
+  "old_pod_uid": "b4ba3140-abbf-4942-969a-fa5df1bb2aa4",
+  "pod_uid": "f2fb0bc7-c521-4e93-b90b-02f17f94d0e8",
+  "pod_name": "mlserver-rfdetr-d9d4d47d9-nbbk8",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-11T01:09:26+00:00",
+  "providers_line": "2026-11-11 01:09:34,412 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CUDAExecutionProvider', 'CPUExecutionProvider']",
+  "model_ready_seconds": 0.012187575921416283,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 2.023214495042339,
+      "rest_response_sha256": "8566ab5a79eb119b735b1dd16ce532d75c9baddd286993a856edc6d344311028",
+      "rest_response_bytes": 542365
+    },
+    "grpc": {
+      "grpc_latency_s": 1.6309993790928274,
+      "grpc_response_sha256": "167e3b498805adc31882bf8128f83cbdaf82419cc37f69988fd96d08916799ba",
+      "grpc_response_bytes": 114127
+    }
+  },
+  "hook_utc": "2026-11-11T01:09:48.878950+00:00",
+  "hook_duration_s": 24.078018532134593
+}

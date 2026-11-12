@@ -1,0 +1,12 @@
+# RHOAIENG-102092 Phase 3 profiling: zmq overlay + branch wheel + profilers.
+# Binary-tensor branch (c596dde6) wheel over the zmq overlay, plus py-spy
+# (sampling, follows subprocesses), viztracer (tracing) and memray
+# (allocations). Inert when not invoked; serving path unchanged.
+FROM quay.io/syedali/mlserver-cuda:odh-master-zmq
+USER 0
+COPY dist/mlserver-1.7.0.dev0-py3-none-any.whl /tmp/
+RUN pip3 install --no-cache-dir --force-reinstall --no-deps \
+    /tmp/mlserver-1.7.0.dev0-py3-none-any.whl && \
+    rm /tmp/mlserver-1.7.0.dev0-py3-none-any.whl && \
+    pip3 install --no-cache-dir py-spy viztracer memray
+USER 1000

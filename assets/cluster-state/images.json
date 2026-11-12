@@ -1,0 +1,12 @@
+{
+  "defaults": {
+    "cuda": "quay.io/opendatahub/odh-mlserver-cuda@sha256:4c8168e9955daad321eedcd65bbcd27c9f210cfd56f8317f3fa12b10324de3fe",
+    "cpu": "quay.io/opendatahub/mlserver@sha256:71b302fcc7dac94795d748601efbb9646cded770ec1feddff4cadcb111c9d11f"
+  },
+  "overrides": {
+    "gpu-opt-rest": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+    "gpu-opt-grpc": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+    "cpu-opt-rest": "quay.io/syedali/mlserver@sha256:64efd7b8eeeac45300cd50f38cb18809e9b1786217c6475c7f84ba4551c575a0",
+    "cpu-opt-grpc": "quay.io/syedali/mlserver@sha256:64efd7b8eeeac45300cd50f38cb18809e9b1786217c6475c7f84ba4551c575a0"
+  }
+}

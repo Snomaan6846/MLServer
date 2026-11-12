@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlserver-client
+  namespace: mlserver-perf
+  labels:
+    app: mlserver-client
+    purpose: rhoaieng-102092
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: mlserver-client
+  template:
+    metadata:
+      labels:
+        app: mlserver-client
+        purpose: rhoaieng-102092
+    spec:
+      # Cross-node CPU isolation from the serving pods (same zone), per
+      # OPENSHIFT.rst: load generators get separate reserved CPU resources.
+      nodeSelector:
+        kubernetes.io/hostname: syedali-cluster-pool-j6qh5-worker-c-8kdd4
+      serviceAccountName: sweep-hook
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: client
+          image: image-registry.openshift-image-registry.svc:5000/mlserver-perf/mlserver-client:latest
+          command: ["sleep", "infinity"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "4"
+              memory: 8Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          volumeMounts:
+            - name: store
+              mountPath: /store
+      volumes:
+        - name: store
+          persistentVolumeClaim:
+            claimName: client-store

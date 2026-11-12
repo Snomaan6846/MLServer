@@ -1,0 +1,194 @@
+[
+  {
+    "path": "j0-0.bin",
+    "track": "j0",
+    "corpus_index": 0,
+    "bytes": 15259725,
+    "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4",
+    "input_sha256": "247d56fbd2eb6b8a882a2462c1e9c216237766a7c689eef2904ba5a61ea67a2d"
+  },
+  {
+    "path": "j1-0.bin",
+    "track": "j1",
+    "corpus_index": 0,
+    "bytes": 8370813,
+    "sha256": "eb03caa06958778a39943cb390745a69c47787e2085179ad94976b2d367041c7",
+    "input_sha256": "247d56fbd2eb6b8a882a2462c1e9c216237766a7c689eef2904ba5a61ea67a2d"
+  },
+  {
+    "path": "g-0.bin",
+    "track": "g",
+    "corpus_index": 0,
+    "bytes": 3145808,
+    "sha256": "5813dc141625ba15430322a778def6c2232d9006b442bc6f545c5accda8b51ec",
+    "input_sha256": "247d56fbd2eb6b8a882a2462c1e9c216237766a7c689eef2904ba5a61ea67a2d"
+  },
+  {
+    "path": "j0-1.bin",
+    "track": "j0",
+    "corpus_index": 1,
+    "bytes": 15259744,
+    "sha256": "b1ef747035046a732144478b2abc6a6882a91472538a9da413617bc2f299936d",
+    "input_sha256": "1e5a6956f6c6d7127a2cb019c9be847b42d02fc08dc07d672cb33987d2ece868"
+  },
+  {
+    "path": "j1-1.bin",
+    "track": "j1",
+    "corpus_index": 1,
+    "bytes": 8370810,
+    "sha256": "6e9e4e3d27624a6f376a983666673e1f8dc303a010652e36f479e9df1f45a8dd",
+    "input_sha256": "1e5a6956f6c6d7127a2cb019c9be847b42d02fc08dc07d672cb33987d2ece868"
+  },
+  {
+    "path": "g-1.bin",
+    "track": "g",
+    "corpus_index": 1,
+    "bytes": 3145805,
+    "sha256": "f6b475495cc67806c751f5d396f85d662857ff8036744e292710506162957227",
+    "input_sha256": "1e5a6956f6c6d7127a2cb019c9be847b42d02fc08dc07d672cb33987d2ece868"
+  },
+  {
+    "path": "j0-2.bin",
+    "track": "j0",
+    "corpus_index": 2,
+    "bytes": 15259744,
+    "sha256": "c3939ea30f50ca4ec03c540dc524e7a7ef027addf22970644def5dff5d340b43",
+    "input_sha256": "56cb7747b7eee4dd192c0ee7ed89b190ac80be70fed28eb3f6a7567e8eb0637b"
+  },
+  {
+    "path": "j1-2.bin",
+    "track": "j1",
+    "corpus_index": 2,
+    "bytes": 8370810,
+    "sha256": "cc383883f616f0adf8ee323db2bc0f3324278186ea1c7c34a21cc4c615f8f0f3",
+    "input_sha256": "56cb7747b7eee4dd192c0ee7ed89b190ac80be70fed28eb3f6a7567e8eb0637b"
+  },
+  {
+    "path": "g-2.bin",
+    "track": "g",
+    "corpus_index": 2,
+    "bytes": 3145805,
+    "sha256": "1f91eb9fd584b9773828fc46f5c7914845fdb5b2e8e6bd63613bdf2862a9da91",
+    "input_sha256": "56cb7747b7eee4dd192c0ee7ed89b190ac80be70fed28eb3f6a7567e8eb0637b"
+  },
+  {
+    "path": "j0-3.bin",
+    "track": "j0",
+    "corpus_index": 3,
+    "bytes": 15259744,
+    "sha256": "088a23995f0fbb4536778eb370339591051d84616b16d4f6533387604dd60a90",
+    "input_sha256": "c00f59b057825bc0793d40912d9e4cdadcbcce876de41b5fd9aeff0304dd835a"
+  },
+  {
+    "path": "j1-3.bin",
+    "track": "j1",
+    "corpus_index": 3,
+    "bytes": 8370810,
+    "sha256": "6e7b822f0a9dba41e799c8b96dd0af016ce70ce66593a65c2ce980b5fa0cc3c6",
+    "input_sha256": "c00f59b057825bc0793d40912d9e4cdadcbcce876de41b5fd9aeff0304dd835a"
+  },
+  {
+    "path": "g-3.bin",
+    "track": "g",
+    "corpus_index": 3,
+    "bytes": 3145805,
+    "sha256": "fa592711b17913c6caaeb92d4c9174aa9bcc303d133936fd5b743a31b88a9ab0",
+    "input_sha256": "c00f59b057825bc0793d40912d9e4cdadcbcce876de41b5fd9aeff0304dd835a"
+  },
+  {
+    "path": "j0-4.bin",
+    "track": "j0",
+    "corpus_index": 4,
+    "bytes": 15259744,
+    "sha256": "58108dc4c72d23299392836b704a18d03a7880b5a9e3418acc3ef5f86f1aa5b7",
+    "input_sha256": "ccaa1f7783549f02f7a740341862c8d200770eb6793a6fe69b72cd6621d28c06"
+  },
+  {
+    "path": "j1-4.bin",
+    "track": "j1",
+    "corpus_index": 4,
+    "bytes": 8370810,
+    "sha256": "dcecb2e61c3afa108c467f37739de3f801eca33c983db30171d8920542e9ebcb",
+    "input_sha256": "ccaa1f7783549f02f7a740341862c8d200770eb6793a6fe69b72cd6621d28c06"
+  },
+  {
+    "path": "g-4.bin",
+    "track": "g",
+    "corpus_index": 4,
+    "bytes": 3145805,
+    "sha256": "28487c41224acde95e369cdae9f2dd5c8ab63636fc9ab481761d2856174059ad",
+    "input_sha256": "ccaa1f7783549f02f7a740341862c8d200770eb6793a6fe69b72cd6621d28c06"
+  },
+  {
+    "path": "j0-5.bin",
+    "track": "j0",
+    "corpus_index": 5,
+    "bytes": 15259744,
+    "sha256": "f491c4bbcffc6a82c388533b0d3dfc6cdad4bdbf47735af564fb996b14dbd785",
+    "input_sha256": "49365192cc0e8f704cbd29d23082e856745673b6b7d564c4647c670a1c49f26b"
+  },
+  {
+    "path": "j1-5.bin",
+    "track": "j1",
+    "corpus_index": 5,
+    "bytes": 8370810,
+    "sha256": "f0a3ccf54059000e4b2ede56d88db96b88701c241ec69ab7d788bc8e128bb48d",
+    "input_sha256": "49365192cc0e8f704cbd29d23082e856745673b6b7d564c4647c670a1c49f26b"
+  },
+  {
+    "path": "g-5.bin",
+    "track": "g",
+    "corpus_index": 5,
+    "bytes": 3145805,
+    "sha256": "67bca46c66b8f5074f97c4148eadfc8079818b78e1707022dfdb8818d47d91dc",
+    "input_sha256": "49365192cc0e8f704cbd29d23082e856745673b6b7d564c4647c670a1c49f26b"
+  },
+  {
+    "path": "j0-6.bin",
+    "track": "j0",
+    "corpus_index": 6,
+    "bytes": 15259744,
+    "sha256": "c81a34aceff7958c849b5b5035126f59a9fef9f9d79fc40d889934b3cb83900f",
+    "input_sha256": "12afcafeec53c25767c8901f9c77749866be89632a84ecd15e7008e794b33fe3"
+  },
+  {
+    "path": "j1-6.bin",
+    "track": "j1",
+    "corpus_index": 6,
+    "bytes": 8370810,
+    "sha256": "080049a446782e31fa4715ea69f699e3733e16451fed185c1be24f17bdd75af7",
+    "input_sha256": "12afcafeec53c25767c8901f9c77749866be89632a84ecd15e7008e794b33fe3"
+  },
+  {
+    "path": "g-6.bin",
+    "track": "g",
+    "corpus_index": 6,
+    "bytes": 3145805,
+    "sha256": "11e5a62b6839aa92b24502601cfc80c0a7737e403b13ecf8690be5f0b1d0781b",
+    "input_sha256": "12afcafeec53c25767c8901f9c77749866be89632a84ecd15e7008e794b33fe3"
+  },
+  {
+    "path": "j0-7.bin",
+    "track": "j0",
+    "corpus_index": 7,
+    "bytes": 15259744,
+    "sha256": "59006886e2d99b108d4c6fa0b22af654ec6ef602c0ffc6ae996555c6087f99a1",
+    "input_sha256": "0fc7e3557748a6b203fca8d2bd28d9489aefc6cfabed1236d2ec46b13fbc21e9"
+  },
+  {
+    "path": "j1-7.bin",
+    "track": "j1",
+    "corpus_index": 7,
+    "bytes": 8370810,
+    "sha256": "9adbcf59590f742059d713171944aaf9e7a6afe9e0eefbc0a9708f1319456cbf",
+    "input_sha256": "0fc7e3557748a6b203fca8d2bd28d9489aefc6cfabed1236d2ec46b13fbc21e9"
+  },
+  {
+    "path": "g-7.bin",
+    "track": "g",
+    "corpus_index": 7,
+    "bytes": 3145805,
+    "sha256": "27d85c2d33da90cc0a97796fd782e752cb6ef5a672e19a5f86359e35f73acb00",
+    "input_sha256": "0fc7e3557748a6b203fca8d2bd28d9489aefc6cfabed1236d2ec46b13fbc21e9"
+  }
+]

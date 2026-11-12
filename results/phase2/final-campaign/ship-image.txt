@@ -1,0 +1,1 @@
+quay.io/syedali/mlserver-cuda@sha256:be187c53a63e8a09d3de1c1f5376642dc9434db685a9dfbb483a6e3d45a895bf

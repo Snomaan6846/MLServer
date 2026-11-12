@@ -1,0 +1,14 @@
+{
+  "comparisons": [
+    {
+      "control": "batched-stock",
+      "candidate": "batched-binary",
+      "label": "Batched binary vs batched stock"
+    },
+    {
+      "control": "batched-stock",
+      "candidate": "batched-binary-json",
+      "label": "Batched JSON fallback vs batched stock"
+    }
+  ]
+}

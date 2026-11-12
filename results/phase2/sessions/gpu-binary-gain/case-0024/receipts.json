@@ -1,0 +1,51 @@
+{
+  "variant": "gpu-stock-ov",
+  "deployment": "mlserver-rfdetr",
+  "service": "mlserver-rfdetr",
+  "device": "cuda",
+  "image": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "1",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "queue",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+    "MLSERVER_REST_BINARY_TENSOR": "true"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    }
+  },
+  "old_pod_uid": "b34626de-2d88-460b-9490-4e7b2a920af5",
+  "pod_uid": "1f664363-2666-4b1b-ba4a-81961cf6a67b",
+  "pod_name": "mlserver-rfdetr-6fc6f6cdb8-f974k",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-10T17:53:46+00:00",
+  "providers_line": "2026-11-10 17:54:00,703 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CUDAExecutionProvider', 'CPUExecutionProvider']",
+  "model_ready_seconds": 0.013380635995417833,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.6364081378560513,
+      "rest_response_sha256": "8566ab5a79eb119b735b1dd16ce532d75c9baddd286993a856edc6d344311028",
+      "rest_response_bytes": 542365
+    },
+    "grpc": {
+      "grpc_latency_s": 0.3391885310411453,
+      "grpc_response_sha256": "167e3b498805adc31882bf8128f83cbdaf82419cc37f69988fd96d08916799ba",
+      "grpc_response_bytes": 114127
+    }
+  },
+  "hook_utc": "2026-11-10T17:54:12.653889+00:00",
+  "hook_duration_s": 28.54086855216883
+}

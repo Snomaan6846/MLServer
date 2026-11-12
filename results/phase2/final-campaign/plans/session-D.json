@@ -1,0 +1,46 @@
+{
+  "round_offset": 0,
+  "rounds": 3,
+  "concurrency": [
+    4,
+    8,
+    16
+  ],
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 20,
+  "session": "final-mixed",
+  "variants": [
+    {
+      "name": "batched-mixed",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "batched-mixed"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small-batched/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin",
+          "/store/payloads/j0-0.bin"
+        ],
+        "payload_headers": [
+          {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          {
+            "Content-Type": "application/json"
+          }
+        ],
+        "min_response_bytes": 100000
+      }
+    }
+  ]
+}

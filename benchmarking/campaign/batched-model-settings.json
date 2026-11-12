@@ -1,0 +1,19 @@
+{
+  "name": "rfdetr-small-batched",
+  "implementation": "mlserver_onnx.OnnxModel",
+  "max_batch_size": 4,
+  "max_batch_time": 0.005,
+  "parameters": {
+    "uri": "./model.onnx",
+    "extra": {
+      "session_options": {
+        "intra_op_num_threads": 2,
+        "inter_op_num_threads": 1
+      },
+      "session_config_entries": {
+        "session.intra_op.allow_spinning": "0",
+        "session.inter_op.allow_spinning": "0"
+      }
+    }
+  }
+}

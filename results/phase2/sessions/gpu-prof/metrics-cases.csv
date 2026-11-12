@@ -1,0 +1,3 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,8,gpu-prof-stock,True,5.7987,587,1369.578,1474.686,1520.355,1663.795,358.773,7.340,23.000,382.000,1395.7,mlserver-rfdetr-655db9cbbf-d5qd4
+case-0001,0,8,gpu-prof-w1json,True,4.3053,438,1853.086,1928.912,1945.006,1967.814,335.417,5.422,18.000,382.000,1114.3,mlserver-rfdetr-8795f4b89-nldxn

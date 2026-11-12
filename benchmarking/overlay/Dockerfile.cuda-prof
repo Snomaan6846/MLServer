@@ -1,0 +1,7 @@
+# RHOAIENG-102092 Phase 2 profiling image: zmq overlay + Python profilers.
+# Adds py-spy (sampling, follows subprocesses), viztracer (tracing) and
+# memray (allocations). Inert when not invoked; serving path unchanged.
+FROM quay.io/syedali/mlserver-cuda:odh-master-zmq
+USER 0
+RUN pip3 install --no-cache-dir py-spy viztracer memray
+USER 1000

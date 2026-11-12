@@ -1,0 +1,39 @@
+{
+  "variant": "triton-stock",
+  "engine": "triton",
+  "deployment": "triton-rfdetr",
+  "image": "nvcr.io/nvidia/tritonserver:26.10-py3",
+  "pod_image_id": "nvcr.io/nvidia/tritonserver@sha256:b404f7de5dbeeefe0b17d7d149745a50d0989a25d0d831433b5ba63c716c2fcd",
+  "old_pod_uid": "6a03091c-9e20-4255-ad61-a6b21af28e76",
+  "pod_uid": "4e4a21de-a1a8-4779-9822-b1b8b87a571e",
+  "pod_name": "triton-rfdetr-849599cfcd-rc8w9",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-10T11:54:14+00:00",
+  "backend_evidence": [
+    "NOTE: CUDA Forward Compatibility mode ENABLED.",
+    "Using CUDA 13.4 driver version 615.71.09 with kernel driver version 595.91.07.",
+    "See https://docs.nvidia.com/deploy/cuda-compatibility/ for details.",
+    "I1110 11:54:16.735220 1 cuda_memory_manager.cc:107] \"CUDA memory pool is created on device 0 with size 67108864\"",
+    "platform: \"onnxruntime_onnx\"",
+    "backend: \"onnxruntime\"",
+    "I1110 11:54:16.737908 1 shared_library.cc:149] \"OpenLibraryHandle: /opt/tritonserver/backends/onnxruntime/libtriton_onnxruntime.so\"",
+    "I1110 11:54:16.740799 1 onnxruntime.cc:2997] \"TRITONBACKEND_Initialize: onnxruntime\""
+  ],
+  "model_ready_seconds": 0.013055699993856251,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.6820400930009782,
+      "rest_response_sha256": "f17415d30aa0ab4a9731331f1bb6f8a93c98a73b3b1d826dcf96d847f234d1ae",
+      "rest_response_bytes": 542115,
+      "max_abs_diff_vs_mlserver_cuda_ref": 0.00018978118896484375,
+      "parity_tolerance": 0.001
+    },
+    "grpc": {
+      "grpc_latency_s": 0.08676629408728331,
+      "grpc_response_sha256": "52f4105a96fba4529ed297fd4bd90c06fed229c90a8b79ca4cfda312f4a3aabe",
+      "grpc_response_bytes": 114086
+    }
+  },
+  "hook_utc": "2026-11-10T11:54:48.001587+00:00",
+  "hook_duration_s": 39.19055712595582
+}

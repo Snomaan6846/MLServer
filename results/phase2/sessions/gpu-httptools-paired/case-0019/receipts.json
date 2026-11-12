@@ -1,0 +1,50 @@
+{
+  "variant": "gpu-stock-ov",
+  "deployment": "mlserver-rfdetr",
+  "service": "mlserver-rfdetr",
+  "device": "cuda",
+  "image": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "1",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "queue",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    }
+  },
+  "old_pod_uid": "ba4b3128-a8bc-47bc-b124-9145d2df5974",
+  "pod_uid": "47f1a4b2-a466-4489-9421-a98f97018e52",
+  "pod_name": "mlserver-rfdetr-644d744cf5-kh64w",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-10T14:34:01+00:00",
+  "providers_line": "2026-11-10 14:34:10,919 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CUDAExecutionProvider', 'CPUExecutionProvider']",
+  "model_ready_seconds": 0.013297254918143153,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.6605201039928943,
+      "rest_response_sha256": "8566ab5a79eb119b735b1dd16ce532d75c9baddd286993a856edc6d344311028",
+      "rest_response_bytes": 542365
+    },
+    "grpc": {
+      "grpc_latency_s": 0.28314027399756014,
+      "grpc_response_sha256": "167e3b498805adc31882bf8128f83cbdaf82419cc37f69988fd96d08916799ba",
+      "grpc_response_bytes": 114127
+    }
+  },
+  "hook_utc": "2026-11-10T14:34:21.353879+00:00",
+  "hook_duration_s": 21.401471470016986
+}

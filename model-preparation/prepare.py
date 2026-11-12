@@ -184,7 +184,9 @@ def export(root: Path, reuse_export: bool = False) -> dict[str, Any]:
     tensor.tofile(root / "sample" / "input.fp32")
     print("Loading official weights and computing PyTorch reference", flush=True)
     model = RFDETRSmall(pretrain_weights=str(weights), device="cpu")
-    network = model.model.model.eval()
+    network = model.model.model
+    assert network is not None
+    network = network.eval()
     with torch.inference_mode():
         raw = network(torch.from_numpy(tensor))
     reference = {

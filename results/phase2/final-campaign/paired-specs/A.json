@@ -1,0 +1,19 @@
+{
+  "comparisons": [
+    {
+      "control": "head-stock-rest",
+      "candidate": "head-binary-rest",
+      "label": "Binary tensor vs stock"
+    },
+    {
+      "control": "head-stock-rest",
+      "candidate": "head-binary-json",
+      "label": "JSON fallback vs stock"
+    },
+    {
+      "control": "head-binary-rest",
+      "candidate": "head-binary-graph",
+      "label": "CUDA graph delta"
+    }
+  ]
+}

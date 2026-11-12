@@ -1,0 +1,42 @@
+{
+  "round_offset": 0,
+  "rounds": 3,
+  "concurrency": [
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 1500,
+  "max_start_lateness_ms": 20,
+  "session": "triton-rest-binary",
+  "variants": [
+    {
+      "name": "triton-stock",
+      "prepare_argv": [
+        "python3",
+        "/tools/triton_hook.py",
+        "triton-stock"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://triton-rfdetr.mlserver-perf.svc:8000/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    }
+  ]
+}

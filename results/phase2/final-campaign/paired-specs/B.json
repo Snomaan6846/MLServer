@@ -1,0 +1,9 @@
+{
+  "comparisons": [
+    {
+      "control": "head-stock-grpc",
+      "candidate": "head-grpc-optin",
+      "label": "gRPC opt-in vs stock"
+    }
+  ]
+}

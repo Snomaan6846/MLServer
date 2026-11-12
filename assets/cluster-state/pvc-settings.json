@@ -1,0 +1,11 @@
+{
+  "host": "0.0.0.0",
+  "http_port": 8080,
+  "grpc_port": 8081,
+  "metrics_port": 8082,
+  "metrics_endpoint": null,
+  "parallel_workers": 1,
+  "model_operation_timeout": 300,
+  "grpc_max_message_length": 33554432,
+  "access_log": false
+}

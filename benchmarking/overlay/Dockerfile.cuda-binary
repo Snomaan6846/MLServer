@@ -1,0 +1,9 @@
+# RHOAIENG-102092 candidate: binary tensor extension on zmq overlay.
+# Installs the branch-built mlserver wheel with rest_binary_tensor support.
+FROM quay.io/syedali/mlserver-cuda:odh-master-zmq
+USER 0
+COPY dist/mlserver-1.7.0.dev0-py3-none-any.whl /tmp/
+RUN pip3 install --no-cache-dir --force-reinstall --no-deps \
+    /tmp/mlserver-1.7.0.dev0-py3-none-any.whl && \
+    rm /tmp/mlserver-1.7.0.dev0-py3-none-any.whl
+USER 1000

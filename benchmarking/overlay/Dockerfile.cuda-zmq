@@ -1,0 +1,7 @@
+# RHOAIENG-102092 overlay: official odh-master CUDA image + pyzmq (zmq transport).
+# Only addition vs the official image: the optional pyzmq dependency pinned to
+# the version in MLServer master's poetry.lock (27.2.0). No code changes.
+FROM quay.io/opendatahub/odh-mlserver-cuda@sha256:4c8168e9955daad321eedcd65bbcd27c9f210cfd56f8317f3fa12b10324de3fe
+USER 0
+RUN pip3 install --no-cache-dir pyzmq==27.2.0
+USER 1000

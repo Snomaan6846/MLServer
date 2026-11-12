@@ -1,0 +1,32 @@
+{
+  "gpu-prof-stock@c8": {
+    "trials": 1,
+    "rps": [
+      5.798703665386668
+    ],
+    "rps_median": 5.798703665386668,
+    "rps_spread_pct": 0.0,
+    "p50_ms": 1369.578365,
+    "p90_ms": 1474.6856308000001,
+    "p99_ms": 1663.794580339999,
+    "cpu_ms_per_request": 358.7732316865417,
+    "cpu_pct": 7.340248990357143,
+    "gpu_util_mean": 23.0,
+    "mem_working_set_max_mb": 1395.69140625
+  },
+  "gpu-prof-w1json@c8": {
+    "trials": 1,
+    "rps": [
+      4.3052994245404825
+    ],
+    "rps_median": 4.3052994245404825,
+    "rps_spread_pct": 0.0,
+    "p50_ms": 1853.0859445,
+    "p90_ms": 1928.9116864999999,
+    "p99_ms": 1967.81396555,
+    "cpu_ms_per_request": 335.41689954337903,
+    "cpu_pct": 5.421759859821428,
+    "gpu_util_mean": 18.0,
+    "mem_working_set_max_mb": 1114.32421875
+  }
+}

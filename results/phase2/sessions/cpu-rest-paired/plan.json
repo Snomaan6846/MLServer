@@ -1,0 +1,54 @@
+{
+  "session": "cpu-rest-paired",
+  "round_offset": 0,
+  "rounds": 3,
+  "concurrency": [
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 300,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 20,
+  "variants": [
+    {
+      "name": "cpu-stock",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "cpu-stock"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "cpu-opt-rest",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "cpu-opt-rest"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    }
+  ]
+}

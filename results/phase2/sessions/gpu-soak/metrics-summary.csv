@@ -1,0 +1,2 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-binary-ship,8,1,31.521,0.00,253.769,255.914,257.983,44.425,5.0,83.6,1109.1

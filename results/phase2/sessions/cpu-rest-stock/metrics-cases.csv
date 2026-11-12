@@ -1,0 +1,16 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,1,cpu-stock,True,1.4128,85,706.426,723.448,733.181,745.851,904.520,5.768,null,null,847.1,mlserver-rfdetr-cpu-6957fbb4b5-46xqg
+case-0001,0,2,cpu-stock,True,1.7488,106,1140.002,1158.340,1167.499,1181.796,1198.719,6.912,null,null,909.4,mlserver-rfdetr-cpu-54fdd86b44-xlbtj
+case-0002,0,4,cpu-stock,True,1.7218,107,2310.912,2355.852,2362.959,2385.608,1099.977,7.021,null,null,1036.4,mlserver-rfdetr-cpu-8d6c767df-54nsd
+case-0003,0,8,cpu-stock,True,1.7633,113,4527.854,4569.738,4575.496,4590.791,1130.865,6.965,null,null,1290.8,mlserver-rfdetr-cpu-5d8b8b8975-jhz4p
+case-0004,0,16,cpu-stock,True,1.7398,120,9130.530,9345.786,9362.515,9377.516,1052.409,6.978,null,null,1769.1,mlserver-rfdetr-cpu-fb4fb7db8-f7kzg
+case-0005,1,1,cpu-stock,True,1.4219,86,701.960,718.611,722.935,727.581,1208.203,5.773,null,null,843.6,mlserver-rfdetr-cpu-5ccc575548-knl7v
+case-0006,1,2,cpu-stock,True,1.7227,105,1158.097,1180.569,1186.659,1197.873,1144.605,6.918,null,null,908.6,mlserver-rfdetr-cpu-75bf559bb-2kc8x
+case-0007,1,4,cpu-stock,True,1.7323,107,2287.714,2377.688,2417.099,2437.031,1228.480,6.963,null,null,1022.1,mlserver-rfdetr-cpu-64fb95548c-h9rh7
+case-0008,1,8,cpu-stock,True,1.7383,112,4591.724,4660.443,4672.147,4693.931,945.762,7.016,null,null,1234.2,mlserver-rfdetr-cpu-7cbcd6486c-7sc9m
+case-0009,1,16,cpu-stock,True,1.7382,120,9086.679,9291.190,9314.722,9321.358,1153.187,7.013,null,null,1736.8,mlserver-rfdetr-cpu-c6c774f5c-v8jvs
+case-0010,2,1,cpu-stock,True,1.4324,86,697.748,714.497,716.822,729.311,1329.889,5.802,null,null,842.7,mlserver-rfdetr-cpu-5977688b9d-bdxpd
+case-0011,2,2,cpu-stock,True,1.7198,105,1157.060,1192.420,1200.953,1219.280,798.831,6.993,null,null,924.2,mlserver-rfdetr-cpu-79f94bc6c5-9lc47
+case-0012,2,4,cpu-stock,True,1.6826,104,2368.520,2418.557,2440.514,2468.028,1096.631,6.732,null,null,1038.6,mlserver-rfdetr-cpu-7dc8d5f4fb-8qjtr
+case-0013,2,8,cpu-stock,True,1.6935,109,4708.977,4747.210,4757.717,4771.407,1265.810,7.014,null,null,1257.0,mlserver-rfdetr-cpu-77c8f49c8d-wms24
+case-0014,2,16,cpu-stock,True,1.7053,118,9301.370,9397.285,9404.402,9414.867,1141.872,7.003,null,null,1739.2,mlserver-rfdetr-cpu-6f4b87fb7c-tsrmt

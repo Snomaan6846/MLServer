@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sweep-hook
+  namespace: mlserver-perf
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sweep-hook
+  namespace: mlserver-perf
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sweep-hook
+  namespace: mlserver-perf
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: sweep-hook
+subjects:
+  - kind: ServiceAccount
+    name: sweep-hook
+    namespace: mlserver-perf

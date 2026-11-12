@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlserver-rfdetr-cpu
+  namespace: mlserver-perf
+  labels:
+    app: mlserver-rfdetr-cpu
+    purpose: rhoaieng-102092
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: mlserver-rfdetr-cpu
+  template:
+    metadata:
+      labels:
+        app: mlserver-rfdetr-cpu
+        purpose: rhoaieng-102092
+    spec:
+      # Same node as the GPU deployment: identical CPU type, same PVC
+      # (RWO attaches per-node), controlled comparison - only the
+      # execution provider differs. Never coexists with the GPU deployment.
+      nodeSelector:
+        nvidia.com/gpu.product: Tesla-T4
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mlserver
+          image: quay.io/opendatahub/mlserver@sha256:71b302fcc7dac94795d748601efbb9646cded770ec1feddff4cadcb111c9d11f
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: rest
+              containerPort: 8080
+            - name: grpc
+              containerPort: 8081
+            - name: metrics
+              containerPort: 8082
+          env:
+            - name: MLSERVER_MODEL_ONNX_PROVIDERS
+              value: '["CPUExecutionProvider"]'
+          resources:
+            requests:
+              cpu: "28"
+              memory: 32Gi
+            limits:
+              cpu: "28"
+              memory: 32Gi
+          readinessProbe:
+            httpGet:
+              path: /v2/health/ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /v2/health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 10
+          volumeMounts:
+            - name: models
+              mountPath: /mnt/models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: rfdetr-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlserver-rfdetr-cpu
+  namespace: mlserver-perf
+  labels:
+    app: mlserver-rfdetr-cpu
+spec:
+  type: ClusterIP
+  selector:
+    app: mlserver-rfdetr-cpu
+  ports:
+    - name: rest
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 8081
+      targetPort: 8081
+    - name: metrics
+      port: 8082
+      targetPort: 8082

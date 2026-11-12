@@ -1,0 +1,50 @@
+{
+  "variant": "gpu-opt-grpc",
+  "deployment": "mlserver-rfdetr",
+  "service": "mlserver-rfdetr",
+  "device": "cuda",
+  "image": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:4da0f8c94b8fbc2550d7689ac5ec5acd0bf8070a12f1a5d832fecf5bfabd0ce3",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "2",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "true",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "true",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "true"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    }
+  },
+  "old_pod_uid": "e4e8c2d8-8e32-4939-9316-08581f7e4100",
+  "pod_uid": "ee26d3d0-7880-4b2a-89d4-6f740516fdce",
+  "pod_name": "mlserver-rfdetr-b4b779b9f-8nl4d",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-09T20:12:15+00:00",
+  "providers_line": "2026-11-09 20:12:20,146 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CUDAExecutionProvider', 'CPUExecutionProvider']",
+  "model_ready_seconds": 0.01394513004925102,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.7523604430025443,
+      "rest_response_sha256": "8566ab5a79eb119b735b1dd16ce532d75c9baddd286993a856edc6d344311028",
+      "rest_response_bytes": 542365
+    },
+    "grpc": {
+      "grpc_latency_s": 0.1531236399896443,
+      "grpc_response_sha256": "167e3b498805adc31882bf8128f83cbdaf82419cc37f69988fd96d08916799ba",
+      "grpc_response_bytes": 114127
+    }
+  },
+  "hook_utc": "2026-11-09T20:12:33.535427+00:00",
+  "hook_duration_s": 20.32543266401626
+}

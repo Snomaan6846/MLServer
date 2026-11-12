@@ -1,0 +1,50 @@
+{
+  "session": "gpu-prof",
+  "round_offset": 0,
+  "rounds": 1,
+  "concurrency": [
+    8
+  ],
+  "clients": 2,
+  "seconds": 100,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 50,
+  "variants": [
+    {
+      "name": "gpu-prof-stock",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-prof-stock"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-prof-w1json",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-prof-w1json"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    }
+  ]
+}

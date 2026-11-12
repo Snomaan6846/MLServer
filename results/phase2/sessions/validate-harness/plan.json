@@ -1,0 +1,34 @@
+{
+  "session": "validate-harness",
+  "round_offset": 0,
+  "rounds": 1,
+  "concurrency": [
+    1
+  ],
+  "clients": 2,
+  "seconds": 15,
+  "warmup_seconds": 15,
+  "warmup_requests": 4,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 50,
+  "variants": [
+    {
+      "name": "gpu-stock",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-stock"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    }
+  ]
+}

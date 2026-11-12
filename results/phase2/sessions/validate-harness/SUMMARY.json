@@ -1,0 +1,103 @@
+{
+  "plan": {
+    "session": "validate-harness",
+    "round_offset": 0,
+    "rounds": 1,
+    "concurrency": [
+      1
+    ],
+    "clients": 2,
+    "seconds": 15,
+    "warmup_seconds": 15,
+    "warmup_requests": 4,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 50,
+    "variants": [
+      {
+        "name": "gpu-stock",
+        "prepare_argv": [
+          "python3",
+          "/tools/hook.py",
+          "gpu-stock"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/j0-0.bin"
+          ],
+          "min_response_bytes": 500000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "validate-harness",
+      "round": 0,
+      "concurrency": 1,
+      "variant": "gpu-stock",
+      "valid": true,
+      "requested_start_ns": 973032996981518,
+      "drained_ns": 973048219216028,
+      "duration_seconds": 15.22223451,
+      "successful": 60,
+      "attempted": 60,
+      "rps": 3.9416026576508183,
+      "latency_ms": {
+        "p50": 252.7347525,
+        "p95": 261.56237454999996,
+        "p99": 265.30203329
+      },
+      "clients": [
+        {
+          "started_ns": 973032998279107,
+          "admission_deadline_ns": 973047998279107,
+          "drained_ns": 973048219216028,
+          "cpu_seconds": 0.367770814,
+          "attempted": 60,
+          "successful": 60,
+          "valid": true,
+          "requested_start_ns": 973032996981518,
+          "start_lateness_ms": 1.297589,
+          "latency_ms": {
+            "p50": 252.7347525,
+            "p95": 261.56237454999996,
+            "p99": 265.30203329
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 169,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    }
+  ]
+}

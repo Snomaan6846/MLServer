@@ -1,0 +1,1509 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "concurrency": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 32,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 1500,
+    "max_start_lateness_ms": 20,
+    "session": "triton-rest",
+    "variants": [
+      {
+        "name": "triton-stock",
+        "prepare_argv": [
+          "python3",
+          "/tools/triton_hook.py",
+          "triton-stock"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://triton-rfdetr.mlserver-perf.svc:8000/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/j0-0.bin"
+          ],
+          "min_response_bytes": 500000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "triton-rest",
+      "round": 0,
+      "concurrency": 1,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1044808306436009,
+      "drained_ns": 1044868424485978,
+      "duration_seconds": 60.118049969,
+      "successful": 324,
+      "attempted": 324,
+      "rps": 5.389396365435528,
+      "latency_ms": {
+        "p50": 184.94255700000002,
+        "p95": 197.13006975000002,
+        "p99": 199.64815249
+      },
+      "clients": [
+        {
+          "started_ns": 1044808308039564,
+          "admission_deadline_ns": 1044868308039564,
+          "drained_ns": 1044868424485978,
+          "cpu_seconds": 1.857921347,
+          "attempted": 324,
+          "successful": 324,
+          "valid": true,
+          "requested_start_ns": 1044808306436009,
+          "start_lateness_ms": 1.603555,
+          "latency_ms": {
+            "p50": 184.94255700000002,
+            "p95": 197.13006975000002,
+            "p99": 199.64815249
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 4916,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0001",
+      "session": "triton-rest",
+      "round": 0,
+      "concurrency": 2,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1044972459619055,
+      "drained_ns": 1045032561940627,
+      "duration_seconds": 60.102321572,
+      "successful": 475,
+      "attempted": 475,
+      "rps": 7.903188888152521,
+      "latency_ms": {
+        "p50": 252.211901,
+        "p95": 262.7106242,
+        "p99": 272.3167891
+      },
+      "clients": [
+        {
+          "started_ns": 1044972460955776,
+          "admission_deadline_ns": 1045032460955776,
+          "drained_ns": 1045032561940627,
+          "cpu_seconds": 1.222679497,
+          "attempted": 238,
+          "successful": 238,
+          "valid": true,
+          "requested_start_ns": 1044972459619055,
+          "start_lateness_ms": 1.336721,
+          "latency_ms": {
+            "p50": 252.2311975,
+            "p95": 262.7119223,
+            "p99": 270.17345241
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 4973,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1044972461768766,
+          "admission_deadline_ns": 1045032461768766,
+          "drained_ns": 1045032515433044,
+          "cpu_seconds": 1.350268729,
+          "attempted": 237,
+          "successful": 237,
+          "valid": true,
+          "requested_start_ns": 1044972459619055,
+          "start_lateness_ms": 2.149711,
+          "latency_ms": {
+            "p50": 252.201419,
+            "p95": 262.1041058,
+            "p99": 273.81666599999994
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 4974,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0002",
+      "session": "triton-rest",
+      "round": 0,
+      "concurrency": 4,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1045134647927106,
+      "drained_ns": 1045194825646350,
+      "duration_seconds": 60.177719244,
+      "successful": 843,
+      "attempted": 843,
+      "rps": 14.008506978835875,
+      "latency_ms": {
+        "p50": 363.957954,
+        "p95": 402.9194042,
+        "p99": 489.25260116000004
+      },
+      "clients": [
+        {
+          "started_ns": 1045134649469205,
+          "admission_deadline_ns": 1045194649469205,
+          "drained_ns": 1045194794754243,
+          "cpu_seconds": 2.791642429,
+          "attempted": 529,
+          "successful": 529,
+          "valid": true,
+          "requested_start_ns": 1045134647927106,
+          "start_lateness_ms": 1.542099,
+          "latency_ms": {
+            "p50": 161.684513,
+            "p95": 394.59312,
+            "p99": 405.1178953200001
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5048,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1045134649293939,
+          "admission_deadline_ns": 1045194649293939,
+          "drained_ns": 1045194825646350,
+          "cpu_seconds": 1.847182452,
+          "attempted": 314,
+          "successful": 314,
+          "valid": true,
+          "requested_start_ns": 1045134647927106,
+          "start_lateness_ms": 1.366833,
+          "latency_ms": {
+            "p50": 382.700466,
+            "p95": 481.03627444999995,
+            "p99": 500.03706885
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5049,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0003",
+      "session": "triton-rest",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1045299395538231,
+      "drained_ns": 1045359856437639,
+      "duration_seconds": 60.460899408,
+      "successful": 1585,
+      "attempted": 1585,
+      "rps": 26.21528980745327,
+      "latency_ms": {
+        "p50": 165.785573,
+        "p95": 657.754768,
+        "p99": 757.55568936
+      },
+      "clients": [
+        {
+          "started_ns": 1045299397530188,
+          "admission_deadline_ns": 1045359397530188,
+          "drained_ns": 1045359831247880,
+          "cpu_seconds": 3.710232645,
+          "attempted": 655,
+          "successful": 655,
+          "valid": true,
+          "requested_start_ns": 1045299395538231,
+          "start_lateness_ms": 1.991957,
+          "latency_ms": {
+            "p50": 179.716471,
+            "p95": 722.9440419,
+            "p99": 763.5804493600001
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5123,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1045299396895201,
+          "admission_deadline_ns": 1045359396895201,
+          "drained_ns": 1045359856437639,
+          "cpu_seconds": 5.164154593,
+          "attempted": 930,
+          "successful": 930,
+          "valid": true,
+          "requested_start_ns": 1045299395538231,
+          "start_lateness_ms": 1.35697,
+          "latency_ms": {
+            "p50": 160.922609,
+            "p95": 649.4711941,
+            "p99": 744.85399522
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5124,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0004",
+      "session": "triton-rest",
+      "round": 0,
+      "concurrency": 16,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1045463353220821,
+      "drained_ns": 1045524678079872,
+      "duration_seconds": 61.324859051,
+      "successful": 936,
+      "attempted": 936,
+      "rps": 15.262978415027227,
+      "latency_ms": {
+        "p50": 1513.2156325,
+        "p95": 1676.24592475,
+        "p99": 1744.4667038999999
+      },
+      "clients": [
+        {
+          "started_ns": 1045463354757579,
+          "admission_deadline_ns": 1045523354757579,
+          "drained_ns": 1045524645505518,
+          "cpu_seconds": 3.298604649,
+          "attempted": 524,
+          "successful": 524,
+          "valid": true,
+          "requested_start_ns": 1045463353220821,
+          "start_lateness_ms": 1.536758,
+          "latency_ms": {
+            "p50": 419.62549149999995,
+            "p95": 1673.96677265,
+            "p99": 1752.1339199699999
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5198,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1045463355237651,
+          "admission_deadline_ns": 1045523355237651,
+          "drained_ns": 1045524678079872,
+          "cpu_seconds": 2.718190671,
+          "attempted": 412,
+          "successful": 412,
+          "valid": true,
+          "requested_start_ns": 1045463353220821,
+          "start_lateness_ms": 2.01683,
+          "latency_ms": {
+            "p50": 1612.3829329999999,
+            "p95": 1686.4798431499999,
+            "p99": 1740.86273541
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5199,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0005",
+      "session": "triton-rest",
+      "round": 1,
+      "concurrency": 1,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1045626711315432,
+      "drained_ns": 1045686808229212,
+      "duration_seconds": 60.09691378,
+      "successful": 331,
+      "attempted": 331,
+      "rps": 5.5077703525959665,
+      "latency_ms": {
+        "p50": 180.323259,
+        "p95": 192.183902,
+        "p99": 198.4540417
+      },
+      "clients": [
+        {
+          "started_ns": 1045626713069152,
+          "admission_deadline_ns": 1045686713069152,
+          "drained_ns": 1045686808229212,
+          "cpu_seconds": 2.09481207,
+          "attempted": 331,
+          "successful": 331,
+          "valid": true,
+          "requested_start_ns": 1045626711315432,
+          "start_lateness_ms": 1.75372,
+          "latency_ms": {
+            "p50": 180.323259,
+            "p95": 192.183902,
+            "p99": 198.4540417
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5273,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0006",
+      "session": "triton-rest",
+      "round": 1,
+      "concurrency": 2,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1045788902951603,
+      "drained_ns": 1045848989414370,
+      "duration_seconds": 60.086462767,
+      "successful": 473,
+      "attempted": 473,
+      "rps": 7.871989433529705,
+      "latency_ms": {
+        "p50": 253.301849,
+        "p95": 265.2799568,
+        "p99": 269.3450074
+      },
+      "clients": [
+        {
+          "started_ns": 1045788904774154,
+          "admission_deadline_ns": 1045848904774154,
+          "drained_ns": 1045848943925134,
+          "cpu_seconds": 1.313250038,
+          "attempted": 236,
+          "successful": 236,
+          "valid": true,
+          "requested_start_ns": 1045788902951603,
+          "start_lateness_ms": 1.822551,
+          "latency_ms": {
+            "p50": 253.223939,
+            "p95": 264.88106675,
+            "p99": 269.50432165
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5330,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1045788904910262,
+          "admission_deadline_ns": 1045848904910262,
+          "drained_ns": 1045848989414370,
+          "cpu_seconds": 1.366391986,
+          "attempted": 237,
+          "successful": 237,
+          "valid": true,
+          "requested_start_ns": 1045788902951603,
+          "start_lateness_ms": 1.958659,
+          "latency_ms": {
+            "p50": 253.361216,
+            "p95": 265.446968,
+            "p99": 268.94167944
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5331,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0007",
+      "session": "triton-rest",
+      "round": 1,
+      "concurrency": 4,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1045951192429898,
+      "drained_ns": 1046011414456666,
+      "duration_seconds": 60.222026768,
+      "successful": 845,
+      "attempted": 845,
+      "rps": 14.031410853296043,
+      "latency_ms": {
+        "p50": 364.743574,
+        "p95": 391.974007,
+        "p99": 482.2537188399998
+      },
+      "clients": [
+        {
+          "started_ns": 1045951194319197,
+          "admission_deadline_ns": 1046011194319197,
+          "drained_ns": 1046011268634770,
+          "cpu_seconds": 3.069438096,
+          "attempted": 525,
+          "successful": 525,
+          "valid": true,
+          "requested_start_ns": 1045951192429898,
+          "start_lateness_ms": 1.889299,
+          "latency_ms": {
+            "p50": 169.124252,
+            "p95": 386.22820659999996,
+            "p99": 402.14332124
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5405,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1045951193734121,
+          "admission_deadline_ns": 1046011193734121,
+          "drained_ns": 1046011414456666,
+          "cpu_seconds": 1.910768276,
+          "attempted": 320,
+          "successful": 320,
+          "valid": true,
+          "requested_start_ns": 1045951192429898,
+          "start_lateness_ms": 1.304223,
+          "latency_ms": {
+            "p50": 375.0777985,
+            "p95": 403.59549805,
+            "p99": 488.57050706
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5406,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0008",
+      "session": "triton-rest",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1046113630157769,
+      "drained_ns": 1046174000441682,
+      "duration_seconds": 60.370283913,
+      "successful": 1649,
+      "attempted": 1649,
+      "rps": 27.31476304428822,
+      "latency_ms": {
+        "p50": 251.761345,
+        "p95": 517.9377016,
+        "p99": 583.8254123599999
+      },
+      "clients": [
+        {
+          "started_ns": 1046113631625546,
+          "admission_deadline_ns": 1046173631625546,
+          "drained_ns": 1046173975512014,
+          "cpu_seconds": 3.383718335,
+          "attempted": 592,
+          "successful": 592,
+          "valid": true,
+          "requested_start_ns": 1046113630157769,
+          "start_lateness_ms": 1.467777,
+          "latency_ms": {
+            "p50": 495.60698149999996,
+            "p95": 524.0530868,
+            "p99": 612.6235992400001
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5480,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1046113632299964,
+          "admission_deadline_ns": 1046173632299964,
+          "drained_ns": 1046174000441682,
+          "cpu_seconds": 5.698952103,
+          "attempted": 1057,
+          "successful": 1057,
+          "valid": true,
+          "requested_start_ns": 1046113630157769,
+          "start_lateness_ms": 2.142195,
+          "latency_ms": {
+            "p50": 178.644377,
+            "p95": 511.511938,
+            "p99": 529.60157152
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5481,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0009",
+      "session": "triton-rest",
+      "round": 1,
+      "concurrency": 16,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1046277062886743,
+      "drained_ns": 1046338206866791,
+      "duration_seconds": 61.143980048,
+      "successful": 1303,
+      "attempted": 1303,
+      "rps": 21.310356293082375,
+      "latency_ms": {
+        "p50": 502.430351,
+        "p95": 1499.5468675,
+        "p99": 1578.82591008
+      },
+      "clients": [
+        {
+          "started_ns": 1046277064452894,
+          "admission_deadline_ns": 1046337064452894,
+          "drained_ns": 1046338206866791,
+          "cpu_seconds": 4.933607178,
+          "attempted": 809,
+          "successful": 809,
+          "valid": true,
+          "requested_start_ns": 1046277062886743,
+          "start_lateness_ms": 1.566151,
+          "latency_ms": {
+            "p50": 488.905726,
+            "p95": 1485.9389129999997,
+            "p99": 1562.39921096
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5555,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1046277064479166,
+          "admission_deadline_ns": 1046337064479166,
+          "drained_ns": 1046338178563050,
+          "cpu_seconds": 3.351197378,
+          "attempted": 494,
+          "successful": 494,
+          "valid": true,
+          "requested_start_ns": 1046277062886743,
+          "start_lateness_ms": 1.592423,
+          "latency_ms": {
+            "p50": 1286.476428,
+            "p95": 1511.33915925,
+            "p99": 1597.3183534099999
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5556,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0010",
+      "session": "triton-rest",
+      "round": 2,
+      "concurrency": 1,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1046440411056330,
+      "drained_ns": 1046500574921245,
+      "duration_seconds": 60.163864915,
+      "successful": 323,
+      "attempted": 323,
+      "rps": 5.368671052904215,
+      "latency_ms": {
+        "p50": 186.668776,
+        "p95": 196.5019336,
+        "p99": 200.38890935999999
+      },
+      "clients": [
+        {
+          "started_ns": 1046440413226519,
+          "admission_deadline_ns": 1046500413226519,
+          "drained_ns": 1046500574921245,
+          "cpu_seconds": 2.026069788,
+          "attempted": 323,
+          "successful": 323,
+          "valid": true,
+          "requested_start_ns": 1046440411056330,
+          "start_lateness_ms": 2.170189,
+          "latency_ms": {
+            "p50": 186.668776,
+            "p95": 196.5019336,
+            "p99": 200.38890935999999
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5630,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0011",
+      "session": "triton-rest",
+      "round": 2,
+      "concurrency": 2,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1046602829347880,
+      "drained_ns": 1046662930149084,
+      "duration_seconds": 60.100801204,
+      "successful": 478,
+      "attempted": 478,
+      "rps": 7.953304954746374,
+      "latency_ms": {
+        "p50": 250.156228,
+        "p95": 262.7848406,
+        "p99": 271.47850623
+      },
+      "clients": [
+        {
+          "started_ns": 1046602831327377,
+          "admission_deadline_ns": 1046662831327377,
+          "drained_ns": 1046662930149084,
+          "cpu_seconds": 1.21829662,
+          "attempted": 239,
+          "successful": 239,
+          "valid": true,
+          "requested_start_ns": 1046602829347880,
+          "start_lateness_ms": 1.979497,
+          "latency_ms": {
+            "p50": 250.013632,
+            "p95": 262.53507490000004,
+            "p99": 278.92133550000005
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5687,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1046602830831117,
+          "admission_deadline_ns": 1046662830831117,
+          "drained_ns": 1046662885681305,
+          "cpu_seconds": 1.295941378,
+          "attempted": 239,
+          "successful": 239,
+          "valid": true,
+          "requested_start_ns": 1046602829347880,
+          "start_lateness_ms": 1.483237,
+          "latency_ms": {
+            "p50": 250.501566,
+            "p95": 263.0160944,
+            "p99": 270.01316357999997
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5688,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0012",
+      "session": "triton-rest",
+      "round": 2,
+      "concurrency": 4,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1046767205056548,
+      "drained_ns": 1046827337882401,
+      "duration_seconds": 60.132825853,
+      "successful": 1464,
+      "attempted": 1464,
+      "rps": 24.346103467328764,
+      "latency_ms": {
+        "p50": 163.325463,
+        "p95": 170.91664,
+        "p99": 176.96889462999997
+      },
+      "clients": [
+        {
+          "started_ns": 1046767206768838,
+          "admission_deadline_ns": 1046827206768838,
+          "drained_ns": 1046827337882401,
+          "cpu_seconds": 4.217739421,
+          "attempted": 732,
+          "successful": 732,
+          "valid": true,
+          "requested_start_ns": 1046767205056548,
+          "start_lateness_ms": 1.71229,
+          "latency_ms": {
+            "p50": 163.233531,
+            "p95": 171.8138265,
+            "p99": 177.34879902999995
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5762,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1046767206355034,
+          "admission_deadline_ns": 1046827206355034,
+          "drained_ns": 1046827311927830,
+          "cpu_seconds": 4.214445371,
+          "attempted": 732,
+          "successful": 732,
+          "valid": true,
+          "requested_start_ns": 1046767205056548,
+          "start_lateness_ms": 1.298486,
+          "latency_ms": {
+            "p50": 163.4282565,
+            "p95": 170.47518785,
+            "p99": 175.79773789999993
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5763,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0013",
+      "session": "triton-rest",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1046929758423622,
+      "drained_ns": 1046990151991364,
+      "duration_seconds": 60.393567742,
+      "successful": 1290,
+      "attempted": 1290,
+      "rps": 21.359890601443713,
+      "latency_ms": {
+        "p50": 261.9100825,
+        "p95": 660.59407805,
+        "p99": 757.2672812799998
+      },
+      "clients": [
+        {
+          "started_ns": 1046929759817141,
+          "admission_deadline_ns": 1046989759817141,
+          "drained_ns": 1046989900353228,
+          "cpu_seconds": 4.203059117,
+          "attempted": 777,
+          "successful": 777,
+          "valid": true,
+          "requested_start_ns": 1046929758423622,
+          "start_lateness_ms": 1.393519,
+          "latency_ms": {
+            "p50": 252.527873,
+            "p95": 654.6935159999999,
+            "p99": 745.63543904
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5837,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1046929760450878,
+          "admission_deadline_ns": 1046989760450878,
+          "drained_ns": 1046990151991364,
+          "cpu_seconds": 3.060554239,
+          "attempted": 513,
+          "successful": 513,
+          "valid": true,
+          "requested_start_ns": 1046929758423622,
+          "start_lateness_ms": 2.027256,
+          "latency_ms": {
+            "p50": 543.216401,
+            "p95": 735.2622743999999,
+            "p99": 761.88274736
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5838,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0014",
+      "session": "triton-rest",
+      "round": 2,
+      "concurrency": 16,
+      "variant": "triton-stock",
+      "valid": true,
+      "requested_start_ns": 1047092949081924,
+      "drained_ns": 1047153702405249,
+      "duration_seconds": 60.753323325,
+      "successful": 1727,
+      "attempted": 1727,
+      "rps": 28.42642847307975,
+      "latency_ms": {
+        "p50": 622.339873,
+        "p95": 1057.9197253,
+        "p99": 1149.54121538
+      },
+      "clients": [
+        {
+          "started_ns": 1047092950497982,
+          "admission_deadline_ns": 1047152950497982,
+          "drained_ns": 1047153702405249,
+          "cpu_seconds": 4.710867341,
+          "attempted": 741,
+          "successful": 741,
+          "valid": true,
+          "requested_start_ns": 1047092949081924,
+          "start_lateness_ms": 1.416058,
+          "latency_ms": {
+            "p50": 638.847613,
+            "p95": 1058.931293,
+            "p99": 1153.5665093999999
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5912,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1047092950978491,
+          "admission_deadline_ns": 1047152950978491,
+          "drained_ns": 1047153570988283,
+          "cpu_seconds": 5.676198412,
+          "attempted": 986,
+          "successful": 986,
+          "valid": true,
+          "requested_start_ns": 1047092949081924,
+          "start_lateness_ms": 1.896567,
+          "latency_ms": {
+            "p50": 271.1065355,
+            "p95": 1056.8898047500002,
+            "p99": 1145.47090825
+          },
+          "payloads": [
+            {
+              "bytes": 15259725,
+              "sha256": "762aa26d5ce9c864ee3ada2817c8c76d96b41f90d4ca9c72780555d7f62abef4"
+            }
+          ],
+          "pid": 5913,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "variant": "cpu-stock",
+  "deployment": "mlserver-rfdetr-cpu",
+  "service": "mlserver-rfdetr-cpu",
+  "device": "cpu",
+  "image": "quay.io/opendatahub/mlserver@sha256:71b302fcc7dac94795d748601efbb9646cded770ec1feddff4cadcb111c9d11f",
+  "pod_image_id": "quay.io/opendatahub/mlserver@sha256:17ade7d4ab9ef418d85bf7aa19596238dacba72e06a181e6022d09aeb74f63b1",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "1",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "queue"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi"
+    }
+  },
+  "old_pod_uid": "d4145466-6dd3-4946-9ec6-38a27680c390",
+  "pod_uid": "178dd4c0-6b65-40b5-aef8-24975a1aff12",
+  "pod_name": "mlserver-rfdetr-cpu-7dc8d5f4fb-8qjtr",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-09T17:06:51+00:00",
+  "providers_line": "2026-11-09 17:06:55,643 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CPUExecutionProvider']",
+  "model_ready_seconds": 0.01295166602358222,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.8448417840991169,
+      "rest_response_sha256": "a1f3e24e2edf00ec6fc47c3b8840c20d3925e6fa4501dae3531281d945a5866a",
+      "rest_response_bytes": 542380
+    },
+    "grpc": {
+      "grpc_latency_s": 0.7478787050349638,
+      "grpc_response_sha256": "cdb15d43f11cabb6030f6bb3b52b7978a38abd861de18771a114fe74a573ead8",
+      "grpc_response_bytes": 114127
+    }
+  },
+  "hook_utc": "2026-11-09T17:07:10.746624+00:00",
+  "hook_duration_s": 20.95333521394059
+}

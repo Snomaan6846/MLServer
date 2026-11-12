@@ -37,6 +37,16 @@ def validate(spec: dict[str, Any]) -> None:
             raise ValueError(f"{name} must be finite and positive")
     if not spec["payloads"] or not all(Path(p).is_file() for p in spec["payloads"]):
         raise ValueError("payloads must name existing prebuilt wire files")
+    payload_headers = spec.get("payload_headers")
+    if payload_headers is not None:
+        if (
+            not isinstance(payload_headers, list)
+            or len(payload_headers) != len(spec["payloads"])
+            or not all(isinstance(entry, dict) for entry in payload_headers)
+        ):
+            raise ValueError(
+                "payload_headers must be a list of objects matching payloads"
+            )
     if spec["protocol"] == "rest":
         from urllib.parse import urlsplit
 
@@ -57,6 +67,19 @@ async def transport(spec: dict[str, Any], bodies: list[bytes]) -> AsyncIterator[
     if spec["protocol"] == "rest":
         headers.setdefault("Content-Type", "application/json")
         headers["Accept-Encoding"] = "identity"
+        # Optional per-payload header overrides: payload i is sent with
+        # base headers merged with payload_headers[i]. Required when a
+        # spec mixes wire formats (e.g. binary octet-stream + JSON) since
+        # each format needs its own Content-Type / negotiation headers.
+        payload_headers = spec.get("payload_headers")
+        if payload_headers is None:
+            header_sets = [headers]
+        else:
+            header_sets = []
+            for override in payload_headers:
+                merged = dict(headers)
+                merged.update(override)
+                header_sets.append(merged)
         tls = ssl.create_default_context(cafile=spec.get("ca_file"))
         connector = aiohttp.TCPConnector(limit=spec["concurrency"], ssl=tls)
         async with aiohttp.ClientSession(
@@ -69,7 +92,7 @@ async def transport(spec: dict[str, Any], bodies: list[bytes]) -> AsyncIterator[
                 async with session.post(
                     spec["url"],
                     data=bodies[index],
-                    headers=headers,
+                    headers=header_sets[index % len(header_sets)],
                     allow_redirects=False,
                 ) as response:
                     body = await response.read()

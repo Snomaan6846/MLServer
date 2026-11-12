@@ -6,3 +6,5 @@ __pycache__/
 .coverage
 benchmark-results/
 rfdetr-small-bundle/
+model-preparation/rfdetr-small-original/
+assets/models/*/model.onnx

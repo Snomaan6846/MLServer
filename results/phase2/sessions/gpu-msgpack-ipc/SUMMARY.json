@@ -1,0 +1,1668 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "concurrency": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 32,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 20,
+    "session": "gpu-msgpack-ipc",
+    "variants": [
+      {
+        "name": "gpu-binary-zmq-pickle",
+        "prepare_argv": [
+          "python3",
+          "/tools/hook.py",
+          "gpu-binary-zmq-pickle"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      },
+      {
+        "name": "gpu-binary-msgpack",
+        "prepare_argv": [
+          "python3",
+          "/tools/hook.py",
+          "gpu-binary-msgpack"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 1,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1085119904033334,
+      "drained_ns": 1085179923041027,
+      "duration_seconds": 60.019007693,
+      "successful": 1454,
+      "attempted": 1454,
+      "rps": 24.225658768590066,
+      "latency_ms": {
+        "p50": 41.180048,
+        "p95": 42.679224000000005,
+        "p99": 43.23387083
+      },
+      "clients": [
+        {
+          "started_ns": 1085119905214276,
+          "admission_deadline_ns": 1085179905214276,
+          "drained_ns": 1085179923041027,
+          "cpu_seconds": 2.87363194,
+          "attempted": 1454,
+          "successful": 1454,
+          "valid": true,
+          "requested_start_ns": 1085119904033334,
+          "start_lateness_ms": 1.180942,
+          "latency_ms": {
+            "p50": 41.180048,
+            "p95": 42.679224000000005,
+            "p99": 43.23387083
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 9795,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0001",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 1,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0002",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 2,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1085296428245548,
+      "drained_ns": 1085356483119532,
+      "duration_seconds": 60.054873984,
+      "successful": 1892,
+      "attempted": 1892,
+      "rps": 31.50452035756619,
+      "latency_ms": {
+        "p50": 63.422081000000006,
+        "p95": 65.30980489999999,
+        "p99": 66.41702260999999
+      },
+      "clients": [
+        {
+          "started_ns": 1085296429682780,
+          "admission_deadline_ns": 1085356429682780,
+          "drained_ns": 1085356451431448,
+          "cpu_seconds": 1.650889526,
+          "attempted": 946,
+          "successful": 946,
+          "valid": true,
+          "requested_start_ns": 1085296428245548,
+          "start_lateness_ms": 1.437232,
+          "latency_ms": {
+            "p50": 63.409345,
+            "p95": 65.399512,
+            "p99": 66.39584075
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 9872,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1085296430053828,
+          "admission_deadline_ns": 1085356430053828,
+          "drained_ns": 1085356483119532,
+          "cpu_seconds": 1.614484541,
+          "attempted": 946,
+          "successful": 946,
+          "valid": true,
+          "requested_start_ns": 1085296428245548,
+          "start_lateness_ms": 1.80828,
+          "latency_ms": {
+            "p50": 63.4279015,
+            "p95": 65.17633775,
+            "p99": 66.38248969999998
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 9873,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0003",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 2,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0004",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 4,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1085480059865875,
+      "drained_ns": 1085540183810835,
+      "duration_seconds": 60.12394496,
+      "successful": 1886,
+      "attempted": 1886,
+      "rps": 31.3685338055369,
+      "latency_ms": {
+        "p50": 127.415265,
+        "p95": 130.48013625,
+        "p99": 131.56120515000003
+      },
+      "clients": [
+        {
+          "started_ns": 1085480061500707,
+          "admission_deadline_ns": 1085540061500707,
+          "drained_ns": 1085540150540969,
+          "cpu_seconds": 1.647678803,
+          "attempted": 943,
+          "successful": 943,
+          "valid": true,
+          "requested_start_ns": 1085480059865875,
+          "start_lateness_ms": 1.634832,
+          "latency_ms": {
+            "p50": 127.436078,
+            "p95": 130.5030626,
+            "p99": 131.63408198000002
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 9967,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1085480061645909,
+          "admission_deadline_ns": 1085540061645909,
+          "drained_ns": 1085540183810835,
+          "cpu_seconds": 1.645475892,
+          "attempted": 943,
+          "successful": 943,
+          "valid": true,
+          "requested_start_ns": 1085480059865875,
+          "start_lateness_ms": 1.780034,
+          "latency_ms": {
+            "p50": 127.41006,
+            "p95": 130.4453819,
+            "p99": 131.51453708
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 9968,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0005",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 4,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0006",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1085648811701613,
+      "drained_ns": 1085709046335957,
+      "duration_seconds": 60.234634344,
+      "successful": 1895,
+      "attempted": 1895,
+      "rps": 31.460305530828908,
+      "latency_ms": {
+        "p50": 253.876547,
+        "p95": 259.0347729,
+        "p99": 260.70911788
+      },
+      "clients": [
+        {
+          "started_ns": 1085648813128571,
+          "admission_deadline_ns": 1085708813128571,
+          "drained_ns": 1085709014791033,
+          "cpu_seconds": 1.70228008,
+          "attempted": 947,
+          "successful": 947,
+          "valid": true,
+          "requested_start_ns": 1085648811701613,
+          "start_lateness_ms": 1.426958,
+          "latency_ms": {
+            "p50": 253.883151,
+            "p95": 259.031628,
+            "p99": 260.25150729999996
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10062,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1085648813410664,
+          "admission_deadline_ns": 1085708813410664,
+          "drained_ns": 1085709046335957,
+          "cpu_seconds": 1.706620408,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1085648811701613,
+          "start_lateness_ms": 1.709051,
+          "latency_ms": {
+            "p50": 253.85301850000002,
+            "p95": 259.0414894,
+            "p99": 260.72474786000004
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10063,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0007",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0008",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 16,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1085817962430160,
+      "drained_ns": 1085878442785635,
+      "duration_seconds": 60.480355475,
+      "successful": 1895,
+      "attempted": 1895,
+      "rps": 31.332487799006277,
+      "latency_ms": {
+        "p50": 508.458213,
+        "p95": 519.6522998,
+        "p99": 523.05102474
+      },
+      "clients": [
+        {
+          "started_ns": 1085817964456817,
+          "admission_deadline_ns": 1085877964456817,
+          "drained_ns": 1085878442785635,
+          "cpu_seconds": 1.738427832,
+          "attempted": 947,
+          "successful": 947,
+          "valid": true,
+          "requested_start_ns": 1085817962430160,
+          "start_lateness_ms": 2.026657,
+          "latency_ms": {
+            "p50": 508.419293,
+            "p95": 519.5746981,
+            "p99": 523.1129826600001
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10157,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1085817963855913,
+          "admission_deadline_ns": 1085877963855913,
+          "drained_ns": 1085878411534205,
+          "cpu_seconds": 1.759326182,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1085817962430160,
+          "start_lateness_ms": 1.425753,
+          "latency_ms": {
+            "p50": 508.458908,
+            "p95": 519.6888114,
+            "p99": 522.51981202
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10158,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0009",
+      "session": "gpu-msgpack-ipc",
+      "round": 0,
+      "concurrency": 16,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0010",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 1,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0011",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 1,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1086008806902649,
+      "drained_ns": 1086068814413008,
+      "duration_seconds": 60.007510359,
+      "successful": 1473,
+      "attempted": 1473,
+      "rps": 24.546927396048478,
+      "latency_ms": {
+        "p50": 40.657542,
+        "p95": 41.9938576,
+        "p99": 42.72542892
+      },
+      "clients": [
+        {
+          "started_ns": 1086008808887403,
+          "admission_deadline_ns": 1086068808887403,
+          "drained_ns": 1086068814413008,
+          "cpu_seconds": 2.579462557,
+          "attempted": 1473,
+          "successful": 1473,
+          "valid": true,
+          "requested_start_ns": 1086008806902649,
+          "start_lateness_ms": 1.984754,
+          "latency_ms": {
+            "p50": 40.657542,
+            "p95": 41.9938576,
+            "p99": 42.72542892
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10272,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0012",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 2,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0013",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 2,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1086176003191319,
+      "drained_ns": 1086236040376838,
+      "duration_seconds": 60.037185519,
+      "successful": 1895,
+      "attempted": 1895,
+      "rps": 31.563771412973523,
+      "latency_ms": {
+        "p50": 63.238616,
+        "p95": 65.3285824,
+        "p99": 66.40597252
+      },
+      "clients": [
+        {
+          "started_ns": 1086176005317714,
+          "admission_deadline_ns": 1086236005317714,
+          "drained_ns": 1086236007362930,
+          "cpu_seconds": 1.59552521,
+          "attempted": 947,
+          "successful": 947,
+          "valid": true,
+          "requested_start_ns": 1086176003191319,
+          "start_lateness_ms": 2.126395,
+          "latency_ms": {
+            "p50": 63.248935,
+            "p95": 65.2891102,
+            "p99": 66.31279082
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10349,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1086176004958977,
+          "admission_deadline_ns": 1086236004958977,
+          "drained_ns": 1086236040376838,
+          "cpu_seconds": 1.623477275,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1086176003191319,
+          "start_lateness_ms": 1.767658,
+          "latency_ms": {
+            "p50": 63.218973500000004,
+            "p95": 65.3408714,
+            "p99": 66.50754325
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10350,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0014",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 4,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0015",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 4,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1086359461265500,
+      "drained_ns": 1086419585893502,
+      "duration_seconds": 60.124628002,
+      "successful": 1895,
+      "attempted": 1895,
+      "rps": 31.517866521136135,
+      "latency_ms": {
+        "p50": 126.846734,
+        "p95": 129.948077,
+        "p99": 131.02835996
+      },
+      "clients": [
+        {
+          "started_ns": 1086359462750452,
+          "admission_deadline_ns": 1086419462750452,
+          "drained_ns": 1086419585893502,
+          "cpu_seconds": 1.671253314,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1086359461265500,
+          "start_lateness_ms": 1.484952,
+          "latency_ms": {
+            "p50": 126.8873055,
+            "p95": 129.8521704,
+            "p99": 130.97035134
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10444,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1086359462516913,
+          "admission_deadline_ns": 1086419462516913,
+          "drained_ns": 1086419522585082,
+          "cpu_seconds": 1.636194992,
+          "attempted": 947,
+          "successful": 947,
+          "valid": true,
+          "requested_start_ns": 1086359461265500,
+          "start_lateness_ms": 1.251413,
+          "latency_ms": {
+            "p50": 126.792591,
+            "p95": 130.1113625,
+            "p99": 131.14935237999998
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10445,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0016",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0017",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1086543307764316,
+      "drained_ns": 1086603543988047,
+      "duration_seconds": 60.236223731,
+      "successful": 1896,
+      "attempted": 1896,
+      "rps": 31.476076728632002,
+      "latency_ms": {
+        "p50": 253.8649105,
+        "p95": 258.82681225,
+        "p99": 260.0735128
+      },
+      "clients": [
+        {
+          "started_ns": 1086543308984888,
+          "admission_deadline_ns": 1086603308984888,
+          "drained_ns": 1086603511334337,
+          "cpu_seconds": 1.645886521,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1086543307764316,
+          "start_lateness_ms": 1.220572,
+          "latency_ms": {
+            "p50": 253.8599915,
+            "p95": 258.9468228,
+            "p99": 260.00403149
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10539,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1086543309332675,
+          "admission_deadline_ns": 1086603309332675,
+          "drained_ns": 1086603543988047,
+          "cpu_seconds": 1.678739369,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1086543307764316,
+          "start_lateness_ms": 1.568359,
+          "latency_ms": {
+            "p50": 253.8866195,
+            "p95": 258.72901855,
+            "p99": 260.11001987
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10540,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0018",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 16,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0019",
+      "session": "gpu-msgpack-ipc",
+      "round": 1,
+      "concurrency": 16,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1086719255661529,
+      "drained_ns": 1086779767092941,
+      "duration_seconds": 60.511431412,
+      "successful": 1908,
+      "attempted": 1908,
+      "rps": 31.531232289137773,
+      "latency_ms": {
+        "p50": 506.0620735,
+        "p95": 515.8373671,
+        "p99": 517.77255545
+      },
+      "clients": [
+        {
+          "started_ns": 1086719257139860,
+          "admission_deadline_ns": 1086779257139860,
+          "drained_ns": 1086779734280617,
+          "cpu_seconds": 1.734127972,
+          "attempted": 954,
+          "successful": 954,
+          "valid": true,
+          "requested_start_ns": 1086719255661529,
+          "start_lateness_ms": 1.478331,
+          "latency_ms": {
+            "p50": 506.0563175,
+            "p95": 515.8249909,
+            "p99": 517.87375738
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10634,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1086719257761273,
+          "admission_deadline_ns": 1086779257761273,
+          "drained_ns": 1086779767092941,
+          "cpu_seconds": 1.751591341,
+          "attempted": 954,
+          "successful": 954,
+          "valid": true,
+          "requested_start_ns": 1086719255661529,
+          "start_lateness_ms": 2.099744,
+          "latency_ms": {
+            "p50": 506.0991295,
+            "p95": 515.84163585,
+            "p99": 517.64209084
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10635,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0020",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 1,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1086871008690218,
+      "drained_ns": 1086931012056380,
+      "duration_seconds": 60.003366162,
+      "successful": 1423,
+      "attempted": 1423,
+      "rps": 23.715336172275993,
+      "latency_ms": {
+        "p50": 42.062684,
+        "p95": 43.9786599,
+        "p99": 46.05218537999999
+      },
+      "clients": [
+        {
+          "started_ns": 1086871010275495,
+          "admission_deadline_ns": 1086931010275495,
+          "drained_ns": 1086931012056380,
+          "cpu_seconds": 2.61344581,
+          "attempted": 1423,
+          "successful": 1423,
+          "valid": true,
+          "requested_start_ns": 1086871008690218,
+          "start_lateness_ms": 1.585277,
+          "latency_ms": {
+            "p50": 42.062684,
+            "p95": 43.9786599,
+            "p99": 46.05218537999999
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10709,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0021",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 1,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0022",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 2,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1087053542864325,
+      "drained_ns": 1087113605776662,
+      "duration_seconds": 60.062912337,
+      "successful": 1898,
+      "attempted": 1898,
+      "rps": 31.600199293546286,
+      "latency_ms": {
+        "p50": 63.216286499999995,
+        "p95": 65.12235555000001,
+        "p99": 66.07075473
+      },
+      "clients": [
+        {
+          "started_ns": 1087053544175201,
+          "admission_deadline_ns": 1087113544175201,
+          "drained_ns": 1087113574222303,
+          "cpu_seconds": 1.896353643,
+          "attempted": 949,
+          "successful": 949,
+          "valid": true,
+          "requested_start_ns": 1087053542864325,
+          "start_lateness_ms": 1.310876,
+          "latency_ms": {
+            "p50": 63.24105,
+            "p95": 65.13550959999999,
+            "p99": 65.93261768
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10786,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1087053544938242,
+          "admission_deadline_ns": 1087113544938242,
+          "drained_ns": 1087113605776662,
+          "cpu_seconds": 1.905889012,
+          "attempted": 949,
+          "successful": 949,
+          "valid": true,
+          "requested_start_ns": 1087053542864325,
+          "start_lateness_ms": 2.073917,
+          "latency_ms": {
+            "p50": 63.209058,
+            "p95": 65.1083686,
+            "p99": 66.20042844
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10787,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0023",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 2,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0024",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 4,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1087221216141728,
+      "drained_ns": 1087281332846041,
+      "duration_seconds": 60.116704313,
+      "successful": 1894,
+      "attempted": 1894,
+      "rps": 31.505386425357152,
+      "latency_ms": {
+        "p50": 126.8401975,
+        "p95": 129.6979907,
+        "p99": 130.91380071
+      },
+      "clients": [
+        {
+          "started_ns": 1087221217520489,
+          "admission_deadline_ns": 1087281217520489,
+          "drained_ns": 1087281332846041,
+          "cpu_seconds": 1.880504004,
+          "attempted": 947,
+          "successful": 947,
+          "valid": true,
+          "requested_start_ns": 1087221216141728,
+          "start_lateness_ms": 1.378761,
+          "latency_ms": {
+            "p50": 126.840053,
+            "p95": 129.7647399,
+            "p99": 130.92779614
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10881,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1087221217443519,
+          "admission_deadline_ns": 1087281217443519,
+          "drained_ns": 1087281301619724,
+          "cpu_seconds": 1.8712615,
+          "attempted": 947,
+          "successful": 947,
+          "valid": true,
+          "requested_start_ns": 1087221216141728,
+          "start_lateness_ms": 1.301791,
+          "latency_ms": {
+            "p50": 126.840342,
+            "p95": 129.65299290000002,
+            "p99": 130.8426988
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10882,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0025",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 4,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0026",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1087389215975521,
+      "drained_ns": 1087449441527590,
+      "duration_seconds": 60.225552069,
+      "successful": 1896,
+      "attempted": 1896,
+      "rps": 31.481654129592133,
+      "latency_ms": {
+        "p50": 253.810565,
+        "p95": 258.8057105,
+        "p99": 260.1305909
+      },
+      "clients": [
+        {
+          "started_ns": 1087389218052821,
+          "admission_deadline_ns": 1087449218052821,
+          "drained_ns": 1087449410745450,
+          "cpu_seconds": 1.976747729,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1087389215975521,
+          "start_lateness_ms": 2.0773,
+          "latency_ms": {
+            "p50": 253.78775100000001,
+            "p95": 258.75344735,
+            "p99": 260.12433063000003
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10976,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1087389217368920,
+          "admission_deadline_ns": 1087449217368920,
+          "drained_ns": 1087449441527590,
+          "cpu_seconds": 1.982555199,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1087389215975521,
+          "start_lateness_ms": 1.393399,
+          "latency_ms": {
+            "p50": 253.842487,
+            "p95": 258.92630895,
+            "p99": 260.10518299
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 10977,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0027",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0028",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 16,
+      "variant": "gpu-binary-zmq-pickle",
+      "valid": true,
+      "requested_start_ns": 1087564508549472,
+      "drained_ns": 1087625005837756,
+      "duration_seconds": 60.497288284,
+      "successful": 1911,
+      "attempted": 1911,
+      "rps": 31.588192697645443,
+      "latency_ms": {
+        "p50": 505.701801,
+        "p95": 515.3224680000001,
+        "p99": 517.5794489
+      },
+      "clients": [
+        {
+          "started_ns": 1087564510404714,
+          "admission_deadline_ns": 1087624510404714,
+          "drained_ns": 1087625005837756,
+          "cpu_seconds": 1.771425265,
+          "attempted": 956,
+          "successful": 956,
+          "valid": true,
+          "requested_start_ns": 1087564508549472,
+          "start_lateness_ms": 1.855242,
+          "latency_ms": {
+            "p50": 505.687794,
+            "p95": 515.224386,
+            "p99": 517.5457607
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 11071,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1087564510453530,
+          "admission_deadline_ns": 1087624510453530,
+          "drained_ns": 1087624943745906,
+          "cpu_seconds": 1.799584294,
+          "attempted": 955,
+          "successful": 955,
+          "valid": true,
+          "requested_start_ns": 1087564508549472,
+          "start_lateness_ms": 1.904058,
+          "latency_ms": {
+            "p50": 505.781749,
+            "p95": 515.4400215999999,
+            "p99": 517.65409742
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 11072,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0029",
+      "session": "gpu-msgpack-ipc",
+      "round": 2,
+      "concurrency": 16,
+      "variant": "gpu-binary-msgpack",
+      "valid": false,
+      "error": "Command '['python3', '/tools/hook.py', 'gpu-binary-msgpack']' returned non-zero exit status 1."
+    }
+  ]
+}

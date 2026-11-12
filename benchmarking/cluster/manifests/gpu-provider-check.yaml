@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-provider-check
+  namespace: mlserver-perf
+  labels:
+    app: mlserver-perf
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    nvidia.com/gpu.product: Tesla-T4
+  containers:
+    - name: check
+      image: quay.io/opendatahub/odh-mlserver-cuda:odh-master
+      command: ["/bin/sh", "-c"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      args:
+        - |
+          echo "=== identity ==="
+          id
+          echo "=== nvidia devices ==="
+          ls -la /dev/nvidia* 2>&1 || true
+          echo "=== nvidia-smi ==="
+          nvidia-smi 2>&1 || echo "nvidia-smi not available on PATH"
+          echo "=== ORT provider check ==="
+          echo 'CAgSCWdwdS1jaGVjazo8Cg4KAVgKAVgSAVkiA0FkZBIIdGlueV9hZGRaDwoBWBIKCggIARIECgIIAWIPCgFZEgoKCAgBEgQKAggBQgQKABAN' | base64 -d > /tmp/tiny.onnx
+          python3 - <<'PYEOF'
+          import onnxruntime as ort
+          import numpy as np
+          print("ORT version:", ort.__version__)
+          print("available providers:", ort.get_available_providers())
+          sess = ort.InferenceSession(
+              "/tmp/tiny.onnx",
+              providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+          )
+          print("active providers:", sess.get_providers())
+          out = sess.run(None, {"X": np.array([3.5], dtype=np.float32)})
+          print("tiny run output:", out, "(expect 7.0)")
+          assert float(out[0][0]) == 7.0, "wrong result"
+          if "CUDAExecutionProvider" in sess.get_providers():
+              print("RESULT: CUDA EXECUTION PROVEN ON T4")
+          else:
+              print("RESULT: CUDA NOT ACTIVE - FAIL")
+          PYEOF
+          echo "=== check complete ==="
+      resources:
+        limits:
+          nvidia.com/gpu: 1

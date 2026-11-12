@@ -1,0 +1,17 @@
+{
+  "gpu-binary-ship@c8": {
+    "trials": 1,
+    "rps": [
+      31.52099900957414
+    ],
+    "rps_median": 31.52099900957414,
+    "rps_spread_pct": 0.0,
+    "p50_ms": 253.76912,
+    "p90_ms": 255.9135008,
+    "p99_ms": 257.98271636000004,
+    "cpu_ms_per_request": 44.42494648537666,
+    "cpu_pct": 5.008325347365079,
+    "gpu_util_mean": 83.6,
+    "mem_working_set_max_mb": 1109.14453125
+  }
+}

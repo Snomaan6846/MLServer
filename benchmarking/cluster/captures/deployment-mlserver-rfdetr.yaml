@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "667"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"mlserver-rfdetr","purpose":"rhoaieng-102092"},"name":"mlserver-rfdetr","namespace":"mlserver-perf"},"spec":{"replicas":1,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"mlserver-rfdetr"}},"strategy":{"type":"Recreate"},"template":{"metadata":{"labels":{"app":"mlserver-rfdetr","purpose":"rhoaieng-102092"}},"spec":{"containers":[{"image":"quay.io/opendatahub/odh-mlserver-cuda@sha256:4c8168e9955daad321eedcd65bbcd27c9f210cfd56f8317f3fa12b10324de3fe","livenessProbe":{"failureThreshold":10,"httpGet":{"path":"/v2/health/live","port":8080},"initialDelaySeconds":30,"periodSeconds":15},"name":"mlserver","ports":[{"containerPort":8080,"name":"rest"},{"containerPort":8081,"name":"grpc"},{"containerPort":8082,"name":"metrics"}],"readinessProbe":{"failureThreshold":60,"httpGet":{"path":"/v2/health/ready","port":8080},"initialDelaySeconds":15,"periodSeconds":5},"resources":{"limits":{"cpu":"28","memory":"32Gi","nvidia.com/gpu":"1"},"requests":{"cpu":"28","memory":"32Gi","nvidia.com/gpu":"1"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}},"volumeMounts":[{"mountPath":"/mnt/models","name":"models"}]}],"nodeSelector":{"nvidia.com/gpu.product":"Tesla-T4"},"securityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"volumes":[{"name":"models","persistentVolumeClaim":{"claimName":"rfdetr-models"}}]}}}}
+  creationTimestamp: "2026-11-09T14:00:36Z"
+  generation: 679
+  labels:
+    app: mlserver-rfdetr
+    purpose: rhoaieng-102092
+  name: mlserver-rfdetr
+  namespace: mlserver-perf
+  resourceVersion: "65078621"
+  uid: a56c8763-4c62-4f96-918e-aca9e8c9ba0b
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: mlserver-rfdetr
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-11-09T20:31:49+05:30"
+        rhoaieng-102092/restarted-at: "2026-11-12T02:49:19.408421+00:00"
+      labels:
+        app: mlserver-rfdetr
+        purpose: rhoaieng-102092
+    spec:
+      containers:
+      - env:
+        - name: MLSERVER_MODEL_ONNX_PROVIDERS
+          value: '["CUDAExecutionProvider","CPUExecutionProvider"]'
+        - name: MLSERVER_PARALLEL_WORKERS
+          value: "1"
+        - name: MLSERVER_REST_WORKER_JSON
+          value: "false"
+        - name: MLSERVER_GRPC_RAW_INPUT_BUFFERS
+          value: "false"
+        - name: MLSERVER_PARALLEL_INFERENCE_TRANSPORT
+          value: zmq
+        - name: MLSERVER_MODEL_ONNX_CUDA_GRAPH
+          value: "false"
+        - name: MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC
+          value: "false"
+        - name: MLSERVER_REST_BINARY_TENSOR
+          value: "true"
+        image: quay.io/syedali/mlserver-cuda@sha256:be187c53a63e8a09d3de1c1f5376642dc9434db685a9dfbb483a6e3d45a895bf
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /v2/health/live
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: mlserver
+        ports:
+        - containerPort: 8080
+          name: rest
+          protocol: TCP
+        - containerPort: 8081
+          name: grpc
+          protocol: TCP
+        - containerPort: 8082
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 60
+          httpGet:
+            path: /v2/health/ready
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: "28"
+            memory: 32Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "28"
+            memory: 32Gi
+            nvidia.com/gpu: "1"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /mnt/models
+          name: models
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        nvidia.com/gpu.product: Tesla-T4
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: rfdetr-models
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2026-11-12T02:49:39Z"
+    lastUpdateTime: "2026-11-12T02:49:39Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2026-11-09T14:00:36Z"
+    lastUpdateTime: "2026-11-12T02:49:39Z"
+    message: ReplicaSet "mlserver-rfdetr-c876f69c7" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 679
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

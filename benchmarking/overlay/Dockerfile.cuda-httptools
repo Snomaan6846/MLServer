@@ -1,0 +1,7 @@
+# RHOAIENG-102092 overlay: zmq overlay + httptools parser.
+# uvicorn 0.32.0 http=auto picks httptools when importable; otherwise
+# falls back to pure-Python h11. Serving path otherwise unchanged.
+FROM quay.io/syedali/mlserver-cuda:odh-master-zmq
+USER 0
+RUN pip3 install --no-cache-dir httptools
+USER 1000

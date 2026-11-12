@@ -1,0 +1,23 @@
+name: "rfdetr-small"
+platform: "onnxruntime_onnx"
+max_batch_size: 0
+input [
+  {
+    name: "input"
+    data_type: TYPE_FP32
+    dims: [ 1, 3, 512, 512 ]
+  }
+]
+output [
+  {
+    name: "dets"
+    data_type: TYPE_FP32
+    dims: [ 1, 300, 4 ]
+  },
+  {
+    name: "labels"
+    data_type: TYPE_FP32
+    dims: [ 1, 300, 91 ]
+  }
+]
+instance_group [ { count: 1 kind: KIND_GPU } ]

@@ -1,0 +1,146 @@
+{
+  "session": "gpu-rest-factorial",
+  "round_offset": 0,
+  "rounds": 3,
+  "concurrency": [
+    8
+  ],
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 20,
+  "variants": [
+    {
+      "name": "gpu-stock-ov",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-stock-ov"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w1-json",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w1-json"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w2-queue",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w2-queue"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w2-zmq",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w2-zmq"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w4-queue",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w4-queue"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w4-zmq",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w4-zmq"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w8-queue",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w8-queue"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    },
+    {
+      "name": "gpu-fc-w8-zmq",
+      "prepare_argv": [
+        "python3",
+        "/tools/hook.py",
+        "gpu-fc-w8-zmq"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/j0-0.bin"
+        ],
+        "min_response_bytes": 500000
+      }
+    }
+  ]
+}

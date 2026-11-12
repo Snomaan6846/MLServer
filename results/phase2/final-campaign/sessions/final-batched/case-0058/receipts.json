@@ -1,0 +1,55 @@
+{
+  "variant": "batched-binary-json",
+  "deployment": "mlserver-rfdetr",
+  "service": "mlserver-rfdetr",
+  "device": "cuda",
+  "model": "rfdetr-small-batched",
+  "reference_capture": false,
+  "image": "quay.io/syedali/mlserver-cuda@sha256:be187c53a63e8a09d3de1c1f5376642dc9434db685a9dfbb483a6e3d45a895bf",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:be187c53a63e8a09d3de1c1f5376642dc9434db685a9dfbb483a6e3d45a895bf",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "1",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+    "MLSERVER_REST_BINARY_TENSOR": "true"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    }
+  },
+  "old_pod_uid": "a10f265e-0388-4528-8c3d-84ee3c7a9428",
+  "pod_uid": "3d68d80d-1ade-4868-a472-951e6941f7ae",
+  "pod_name": "mlserver-rfdetr-768b6bfc8b-xtdv6",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-12T02:15:59+00:00",
+  "providers_line": "2026-11-12 02:16:07,811 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CUDAExecutionProvider', 'CPUExecutionProvider']",
+  "model_ready_seconds": 0.012823642930015922,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.6973397040273994,
+      "rest_response_sha256": "e4efc9895adcdf1fbe4b2b9cfb4e0e2b9e05964d340632467c0fe367445adcdf",
+      "rest_response_bytes": 542350,
+      "rest_reference": "verified"
+    },
+    "grpc": {
+      "grpc_latency_s": 0.2886314659845084,
+      "grpc_response_sha256": "3b48269d1912700496a86c8fe9ea9cbe68af9e1eabf2dbb71fe6663099cd7489",
+      "grpc_response_bytes": 114135,
+      "grpc_reference": "verified"
+    }
+  },
+  "hook_utc": "2026-11-12T02:16:20.307886+00:00",
+  "hook_duration_s": 22.495733581949025
+}

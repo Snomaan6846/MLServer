@@ -1,57 +1,65 @@
 # MLServer performance resources
 
-Model preparation, a small reviewer benchmark, and the CPU/GPU performance
-reports. This is the orphan `resources` branch: it contains no MLServer server
-code and is independent of the implementation PR's history.
+Benchmarking harness, model preparation and study reports for MLServer
+serving-performance work (RHOAIENG-102092 and its predecessor studies).
+This is the orphan `resources` branch: it contains no MLServer server code
+and is independent of the implementation PR's history.
 
-| Directory | Contents | Start here |
-| --- | --- | --- |
-| [`model-preparation/`](model-preparation/) | RF-DETR Small downloads, pinned ONNX export, normalized COCO input, serving and correctness checks | [Preparation guide](model-preparation/README.md) |
-| [`benchmarking/`](benchmarking/) | One-command REST or raw-gRPC load test against an already-running model | [Benchmark guide](benchmarking/README.md) |
-| [`reports/cpu/`](reports/cpu/) | CPU ONNX/REST study, including the single-instance OVMS comparison | [CPU report](reports/cpu/PERFORMANCE_REDESIGN.md) |
-| [`reports/gpu/`](reports/gpu/) | RF-DETR Small REST and gRPC study on one RTX 4070 | [GPU report](reports/gpu/GPU_PERFORMANCE_STUDY.md) |
+| Start here | For |
+| --- | --- |
+| [`INDEX.md`](INDEX.md) | Master index — every file in this repository and the local data tree, with descriptions and references |
+| [`BENCHMARKING_GUIDE.md`](BENCHMARKING_GUIDE.md) | Ramp-up — concepts, setup, running campaigns and sweeps, acceptance gates, known traps |
+| [`BENCHMARKING_HISTORY.md`](BENCHMARKING_HISTORY.md) | The study ledger — evidence and decisions for every experiment |
+| [`reports/`](reports/README.md) | Phase-2 final report, phase-3 roadmap, PR draft, predecessor studies |
 
-The reports preserve the measured studies and their diagram prompts. They
-describe different workloads; the CPU OVMS measurements are not GPU results.
-The quick benchmark is a serving check. The [study guide](benchmarking/STUDY_GUIDE.rst) adds timed sweeps, raw samples, tuning and profiling instructions.
-Raw captures, generated requests, model weights and model binaries are not
-checked in. The preparation script downloads the public assets and generates
-the fixture locally.
+## Layout
+
+| Directory | Contents |
+| --- | --- |
+| [`benchmarking/`](benchmarking/README.md) | All tooling: bootstrap + campaign orchestrators, cluster prepare-hook / sampler / summarizer / validator, load clients, paired analysis, image-build overlays |
+| [`assets/`](assets/MANIFEST.json) | Fresh-start kit: model SHA contracts + settings, wire payloads, parity references, cluster state — one command rebuilds the environment (models regenerate from the pinned export env, SHA-verified) |
+| [`results/phase2/`](results/phase2/README.md) | Version-controlled evidence snapshot: distilled results and per-trial provenance receipts for every phase-2 session |
+| `benchmark-results/` | Raw working data: per-request samples, telemetry, models, payloads, references, archives (gitignored; durable campaign copies on the `rfdetr-models` PVC) |
+| [`model-preparation/`](model-preparation/README.md) | RF-DETR Small fixture: public-asset download, pinned ONNX export, input normalization, correctness checks |
+| [`reports/`](reports/README.md) | Measured studies and the implementation PR draft |
 
 ## Checkouts and environments
 
-Use two sibling checkouts. Keep the implementation branch in `MLServer` and
-this branch in `MLServer-resources`; the directory named `MLServer` is required
-by the relative Poetry dependencies below. For PR 356, the implementation is
-on `winning-combination`:
+Use two sibling checkouts: the implementation in `MLServer` (branch
+`rhoaieng-102092`) and this repository in `MLServer-resources`. The
+directory named `MLServer` is required by the relative Poetry dependencies.
 
 ```bash
-git clone --branch winning-combination \
-  https://github.com/RH-steve-grubb/MLServer.git MLServer
+git clone --branch rhoaieng-102092 \
+  git@github.com:Snomaan6846/MLServer.git MLServer
 git clone --single-branch --branch resources \
-  https://github.com/RH-steve-grubb/MLServer.git MLServer-resources
+  git@github.com:Snomaan6846/MLServer.git MLServer-resources
 cd MLServer-resources
 
 poetry env use python3.12
 poetry install
 ```
 
-Existing checkouts can be used with the same layout. The root Poetry
-environment installs the sibling MLServer and ONNX runtime as editable
-dependencies, with PyZMQ, ONNX Runtime GPU 1.23.2 and CUDA/cuDNN packages.
-It does not install PyTorch. A compatible NVIDIA driver is needed to run CUDA
-inference; the load client itself does not need a GPU.
+The root Poetry environment installs the sibling MLServer and ONNX runtime
+as editable dependencies, with PyZMQ, ONNX Runtime GPU and CUDA/cuDNN
+packages. A compatible NVIDIA driver is needed to run CUDA inference; the
+load client itself does not need a GPU. Keep the separate
+[`model-preparation/export-env/`](model-preparation/export-env/) for model
+export — its pins (including numpy, matched to MLServer's `poetry.lock`)
+must not leak into other environments.
 
-The separate [`model-preparation/export-env/`](model-preparation/export-env/)
-pins the CPU PyTorch/RF-DETR stack for exporting the model. Keep the export and
-serving environments separate. Both use Python 3.12; the measured study used
-3.12.13 with the GIL enabled.
+Cluster benchmarking additionally needs `oc` access to the `mlserver-perf`
+namespace, podman and skopeo; see the guide's prerequisites section.
 
-Follow the preparation guide once, start the server, then use the benchmark
-guide. Set performance options in the MLServer repository's `settings.json`
-and the model's `model-settings.json`; see the implementation branch's
-[performance options](https://github.com/RH-steve-grubb/MLServer/blob/winning-combination/docs/user-guide/performance.md).
-These resources do not automatically enable the optimizations.
+## Quick check versus measured study
+
+- **Quick serving check**: `benchmarking/inference.py` sends a prepared
+  request to an already-running model — see
+  [benchmarking/README.md](benchmarking/README.md).
+- **Measured study**: timed sweeps with per-trial correctness gates,
+  utilization sampling and paired statistics — see
+  [BENCHMARKING_GUIDE.md](BENCHMARKING_GUIDE.md). This is how every
+  number in the ledger and reports was produced.
 
 ## Utility checks
 
@@ -60,14 +68,6 @@ make lint
 make test
 ```
 
-These check the resource scripts and their loopback REST/gRPC clients. They do
-not download the model, run a performance study or launch GPU inference.
-
-## Reproducible studies
-
-- [Timed sweeps, payloads, accounting and worker/thread tuning](benchmarking/STUDY_GUIDE.rst)
-- [Root, CPU/GIL, host-stage and CUDA/NVTX profiling](benchmarking/PROFILING.rst)
-- [OpenShift predictor and route measurements](benchmarking/OPENSHIFT.rst)
-
-These guides and tools are reusable measurement resources. They do not choose
-implementation changes or define a project acceptance plan.
+These check the resource scripts and their loopback REST/gRPC clients.
+They do not download the model, run a performance study or launch GPU
+inference.

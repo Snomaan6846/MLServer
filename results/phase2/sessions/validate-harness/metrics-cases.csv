@@ -1,0 +1,2 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,pod
+case-0000,0,1,gpu-stock,True,3.9416,60,252.735,257.729,261.562,265.302,196.264,2.928,0.000,382.000,mlserver-rfdetr-cf8f56666-qdks6
