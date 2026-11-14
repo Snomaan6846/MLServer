@@ -1,0 +1,452 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 32,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 20,
+    "concurrency": [
+      1
+    ],
+    "session": "phase6b-cpu-latency",
+    "variants": [
+      {
+        "name": "cpu-w1t2",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "cpu-w1t2"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      },
+      {
+        "name": "cpu-w1t8",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "cpu-w1t8"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "phase6b-cpu-latency",
+      "round": 0,
+      "concurrency": 1,
+      "variant": "cpu-w1t2",
+      "valid": true,
+      "requested_start_ns": 1277278754115020,
+      "drained_ns": 1277338803104269,
+      "duration_seconds": 60.048989249,
+      "successful": 118,
+      "attempted": 118,
+      "rps": 1.9650622179617296,
+      "latency_ms": {
+        "p50": 507.9281195,
+        "p95": 524.8055734,
+        "p99": 528.43324704
+      },
+      "clients": [
+        {
+          "started_ns": 1277278755615873,
+          "admission_deadline_ns": 1277338755615873,
+          "drained_ns": 1277338803104269,
+          "cpu_seconds": 0.214312387,
+          "attempted": 118,
+          "successful": 118,
+          "valid": true,
+          "requested_start_ns": 1277278754115020,
+          "start_lateness_ms": 1.500853,
+          "latency_ms": {
+            "p50": 507.9281195,
+            "p95": 524.8055734,
+            "p99": 528.43324704
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 61203,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0001",
+      "session": "phase6b-cpu-latency",
+      "round": 0,
+      "concurrency": 1,
+      "variant": "cpu-w1t8",
+      "valid": true,
+      "requested_start_ns": 1277422943863326,
+      "drained_ns": 1277483089260167,
+      "duration_seconds": 60.145396841,
+      "successful": 304,
+      "attempted": 304,
+      "rps": 5.054418392211336,
+      "latency_ms": {
+        "p50": 195.7555765,
+        "p95": 214.02256879999985,
+        "p99": 239.4118115799998
+      },
+      "clients": [
+        {
+          "started_ns": 1277422945989579,
+          "admission_deadline_ns": 1277482945989579,
+          "drained_ns": 1277483089260167,
+          "cpu_seconds": 0.503170925,
+          "attempted": 304,
+          "successful": 304,
+          "valid": true,
+          "requested_start_ns": 1277422943863326,
+          "start_lateness_ms": 2.126253,
+          "latency_ms": {
+            "p50": 195.7555765,
+            "p95": 214.02256879999985,
+            "p99": 239.4118115799998
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 61260,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0002",
+      "session": "phase6b-cpu-latency",
+      "round": 1,
+      "concurrency": 1,
+      "variant": "cpu-w1t8",
+      "valid": true,
+      "requested_start_ns": 1277567506882179,
+      "drained_ns": 1277627582354707,
+      "duration_seconds": 60.075472528,
+      "successful": 304,
+      "attempted": 304,
+      "rps": 5.060301437634329,
+      "latency_ms": {
+        "p50": 194.8926755,
+        "p95": 216.49560604999988,
+        "p99": 238.89495599999998
+      },
+      "clients": [
+        {
+          "started_ns": 1277567508279057,
+          "admission_deadline_ns": 1277627508279057,
+          "drained_ns": 1277627582354707,
+          "cpu_seconds": 0.53887458,
+          "attempted": 304,
+          "successful": 304,
+          "valid": true,
+          "requested_start_ns": 1277567506882179,
+          "start_lateness_ms": 1.396878,
+          "latency_ms": {
+            "p50": 194.8926755,
+            "p95": 216.49560604999988,
+            "p99": 238.89495599999998
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 61317,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0003",
+      "session": "phase6b-cpu-latency",
+      "round": 1,
+      "concurrency": 1,
+      "variant": "cpu-w1t2",
+      "valid": true,
+      "requested_start_ns": 1277713854246057,
+      "drained_ns": 1277774154311242,
+      "duration_seconds": 60.300065185,
+      "successful": 118,
+      "attempted": 118,
+      "rps": 1.95688013997957,
+      "latency_ms": {
+        "p50": 509.49948500000005,
+        "p95": 526.19516825,
+        "p99": 540.01182352
+      },
+      "clients": [
+        {
+          "started_ns": 1277713855649643,
+          "admission_deadline_ns": 1277773855649643,
+          "drained_ns": 1277774154311242,
+          "cpu_seconds": 0.210022015,
+          "attempted": 118,
+          "successful": 118,
+          "valid": true,
+          "requested_start_ns": 1277713854246057,
+          "start_lateness_ms": 1.403586,
+          "latency_ms": {
+            "p50": 509.49948500000005,
+            "p95": 526.19516825,
+            "p99": 540.01182352
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 61374,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0004",
+      "session": "phase6b-cpu-latency",
+      "round": 2,
+      "concurrency": 1,
+      "variant": "cpu-w1t2",
+      "valid": true,
+      "requested_start_ns": 1277858151791421,
+      "drained_ns": 1277918293264143,
+      "duration_seconds": 60.141472722,
+      "successful": 115,
+      "attempted": 115,
+      "rps": 1.9121580299767504,
+      "latency_ms": {
+        "p50": 522.161835,
+        "p95": 540.1426935999999,
+        "p99": 546.10476112
+      },
+      "clients": [
+        {
+          "started_ns": 1277858153683346,
+          "admission_deadline_ns": 1277918153683346,
+          "drained_ns": 1277918293264143,
+          "cpu_seconds": 0.203196324,
+          "attempted": 115,
+          "successful": 115,
+          "valid": true,
+          "requested_start_ns": 1277858151791421,
+          "start_lateness_ms": 1.891925,
+          "latency_ms": {
+            "p50": 522.161835,
+            "p95": 540.1426935999999,
+            "p99": 546.10476112
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 61431,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0005",
+      "session": "phase6b-cpu-latency",
+      "round": 2,
+      "concurrency": 1,
+      "variant": "cpu-w1t8",
+      "valid": true,
+      "requested_start_ns": 1278011605063854,
+      "drained_ns": 1278071693478892,
+      "duration_seconds": 60.088415038,
+      "successful": 308,
+      "attempted": 308,
+      "rps": 5.1257800660114,
+      "latency_ms": {
+        "p50": 192.48686350000003,
+        "p95": 215.34195419999998,
+        "p99": 232.41131082
+      },
+      "clients": [
+        {
+          "started_ns": 1278011606797090,
+          "admission_deadline_ns": 1278071606797090,
+          "drained_ns": 1278071693478892,
+          "cpu_seconds": 0.547559884,
+          "attempted": 308,
+          "successful": 308,
+          "valid": true,
+          "requested_start_ns": 1278011605063854,
+          "start_lateness_ms": 1.733236,
+          "latency_ms": {
+            "p50": 192.48686350000003,
+            "p95": 215.34195419999998,
+            "p99": 232.41131082
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 61488,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    }
+  ]
+}

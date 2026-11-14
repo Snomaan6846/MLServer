@@ -1,0 +1,34 @@
+{
+  "sessions": {
+    "wb-A1-core": {
+      "trials_total": 48,
+      "trials_valid": 48,
+      "receipts": 48
+    },
+    "wb-A2-jsonworker": {
+      "trials_total": 12,
+      "trials_valid": 12,
+      "receipts": 12
+    },
+    "wb-A3-orthogonality": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6
+    },
+    "wb-A4-batched": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6
+    },
+    "wb-A5-graph": {
+      "trials_total": 3,
+      "trials_valid": 3,
+      "receipts": 3
+    },
+    "wb-A6-soak": {
+      "trials_total": 1,
+      "trials_valid": 1,
+      "receipts": 1
+    }
+  }
+}

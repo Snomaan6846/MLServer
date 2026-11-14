@@ -1,0 +1,407 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 32,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 20,
+    "concurrency": [
+      8
+    ],
+    "session": "phase4b-cpu-interop",
+    "variants": [
+      {
+        "name": "cpu-interop-seq",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "cpu-interop-seq"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      },
+      {
+        "name": "cpu-interop-par",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "cpu-interop-par"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "phase4b-cpu-interop",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "cpu-interop-seq",
+      "valid": true,
+      "requested_start_ns": 1257000822800751,
+      "drained_ns": 1257062163148211,
+      "duration_seconds": 61.34034746,
+      "successful": 326,
+      "attempted": 326,
+      "rps": 5.314609608505795,
+      "latency_ms": {
+        "p50": 1500.3653359999998,
+        "p95": 1560.0250235,
+        "p99": 1632.676184
+      },
+      "clients": [
+        {
+          "started_ns": 1257000824262007,
+          "admission_deadline_ns": 1257060824262007,
+          "drained_ns": 1257062163148211,
+          "cpu_seconds": 0.341191685,
+          "attempted": 164,
+          "successful": 164,
+          "valid": true,
+          "requested_start_ns": 1257000822800751,
+          "start_lateness_ms": 1.461256,
+          "latency_ms": {
+            "p50": 1501.031266,
+            "p95": 1557.67604225,
+            "p99": 1613.13674912
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 55486,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1257000824844747,
+          "admission_deadline_ns": 1257060824844747,
+          "drained_ns": 1257061984514540,
+          "cpu_seconds": 0.332633969,
+          "attempted": 162,
+          "successful": 162,
+          "valid": true,
+          "requested_start_ns": 1257000822800751,
+          "start_lateness_ms": 2.043996,
+          "latency_ms": {
+            "p50": 1499.6796555,
+            "p95": 1562.4295175,
+            "p99": 1627.58358944
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 55487,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0001",
+      "session": "phase4b-cpu-interop",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "cpu-interop-par",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'cpu-interop-par']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0002",
+      "session": "phase4b-cpu-interop",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "cpu-interop-par",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'cpu-interop-par']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0003",
+      "session": "phase4b-cpu-interop",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "cpu-interop-seq",
+      "valid": true,
+      "requested_start_ns": 1257994920633802,
+      "drained_ns": 1258056331905172,
+      "duration_seconds": 61.41127137,
+      "successful": 329,
+      "attempted": 329,
+      "rps": 5.357322730184017,
+      "latency_ms": {
+        "p50": 1488.13367,
+        "p95": 1535.4543266,
+        "p99": 1547.33780884
+      },
+      "clients": [
+        {
+          "started_ns": 1257994922774941,
+          "admission_deadline_ns": 1258054922774941,
+          "drained_ns": 1258056150258728,
+          "cpu_seconds": 0.327990306,
+          "attempted": 164,
+          "successful": 164,
+          "valid": true,
+          "requested_start_ns": 1257994920633802,
+          "start_lateness_ms": 2.141139,
+          "latency_ms": {
+            "p50": 1488.8396925,
+            "p95": 1536.14876135,
+            "p99": 1545.688447
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 55603,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1257994922312133,
+          "admission_deadline_ns": 1258054922312133,
+          "drained_ns": 1258056331905172,
+          "cpu_seconds": 0.338876831,
+          "attempted": 165,
+          "successful": 165,
+          "valid": true,
+          "requested_start_ns": 1257994920633802,
+          "start_lateness_ms": 1.678331,
+          "latency_ms": {
+            "p50": 1488.13367,
+            "p95": 1534.9862962,
+            "p99": 1547.37886
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 55604,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0004",
+      "session": "phase4b-cpu-interop",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "cpu-interop-seq",
+      "valid": true,
+      "requested_start_ns": 1258141915982235,
+      "drained_ns": 1258203361043111,
+      "duration_seconds": 61.445060876,
+      "successful": 332,
+      "attempted": 332,
+      "rps": 5.403200766128247,
+      "latency_ms": {
+        "p50": 1476.5044705,
+        "p95": 1533.7515796999999,
+        "p99": 1549.8206522
+      },
+      "clients": [
+        {
+          "started_ns": 1258141918127674,
+          "admission_deadline_ns": 1258201918127674,
+          "drained_ns": 1258203175218627,
+          "cpu_seconds": 0.342180615,
+          "attempted": 166,
+          "successful": 166,
+          "valid": true,
+          "requested_start_ns": 1258141915982235,
+          "start_lateness_ms": 2.145439,
+          "latency_ms": {
+            "p50": 1476.1719444999999,
+            "p95": 1533.8657015,
+            "p99": 1551.6357213
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 55678,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1258141918128485,
+          "admission_deadline_ns": 1258201918128485,
+          "drained_ns": 1258203361043111,
+          "cpu_seconds": 0.344170285,
+          "attempted": 166,
+          "successful": 166,
+          "valid": true,
+          "requested_start_ns": 1258141915982235,
+          "start_lateness_ms": 2.14625,
+          "latency_ms": {
+            "p50": 1476.7712825,
+            "p95": 1533.42616975,
+            "p99": 1548.093969
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 55679,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0005",
+      "session": "phase4b-cpu-interop",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "cpu-interop-par",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'cpu-interop-par']' returned non-zero exit status 1."
+    }
+  ]
+}

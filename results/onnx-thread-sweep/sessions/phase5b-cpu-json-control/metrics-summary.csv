@@ -1,0 +1,3 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-json-baseline,8,3,1.711,1.02,4645.735,4704.150,4745.033,1020.374,7.0,null,1602.3
+cpu-json-optimal,8,3,3.773,5.15,2087.203,2236.783,2306.288,1283.797,17.1,null,1572.6

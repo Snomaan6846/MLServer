@@ -1,0 +1,258 @@
+{
+  "round_offset": 0,
+  "rounds": 3,
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 20,
+  "concurrency": [
+    8
+  ],
+  "session": "phase3a-cpu-factorial",
+  "variants": [
+    {
+      "name": "cpu-w1t1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w1t1"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w1t2",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w1t2"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w1t4",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w1t4"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w1t8",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w1t8"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w2t1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w2t1"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w2t2",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w2t2"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w2t4",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w2t4"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w2t8",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w2t8"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w4t1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w4t1"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w4t2",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w4t2"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w4t4",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w4t4"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w4t8",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w4t8"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-rest.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "225"
+        },
+        "min_response_bytes": 100000
+      }
+    }
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "wb-stock-rest": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-stock-rest",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "false",
+      "MLSERVER_REST_WORKER_BINARY": "false",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-binary-frontend": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-binary-frontend",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "false",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-binary-worker": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-binary-worker",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "true",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-json-worker-binoff": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-json-worker-binoff",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "true",
+      "MLSERVER_REST_BINARY_TENSOR": "false",
+      "MLSERVER_REST_WORKER_BINARY": "false",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-json-worker-binon": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-json-worker-binon",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "true",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "false",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-json-worker-wbinon": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-json-worker-wbinon",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "true",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "true",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-batched-frontend": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-batched-frontend",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "false",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    },
+    "model": "rfdetr-small-batched"
+  },
+  "wb-batched-workerbin": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-batched-workerbin",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "true",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    },
+    "model": "rfdetr-small-batched"
+  },
+  "wb-binary-worker-graph": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-binary-worker-graph",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "true",
+      "MLSERVER_REST_WORKER_BINARY": "true",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "true",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  },
+  "wb-stock-rest-queue": {
+    "deployment": "mlserver-rfdetr",
+    "service": "mlserver-rfdetr",
+    "device": "cuda",
+    "expect_cuda": true,
+    "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+    "name": "wb-stock-rest-queue",
+    "env": {
+      "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+      "MLSERVER_PARALLEL_WORKERS": "1",
+      "MLSERVER_REST_WORKER_JSON": "false",
+      "MLSERVER_REST_BINARY_TENSOR": "false",
+      "MLSERVER_REST_WORKER_BINARY": "false",
+      "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "queue",
+      "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+      "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+      "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+      "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+    }
+  }
+}

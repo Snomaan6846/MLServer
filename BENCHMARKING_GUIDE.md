@@ -1,6 +1,10 @@
 # Benchmarking guide — ramp-up and operations
 
 This guide gets a new contributor from zero to running trustworthy
+
+> **See also:** `reports/FINAL_REPORT.md` — the comprehensive engineering report
+> with all campaign findings, configuration recommendations, and correctness
+> verification across 1,213 gated trials.
 benchmarks with the harness in this repository. It covers the concepts,
 the moving parts, the standard runs, and the traps we already hit so you
 do not have to hit them again.

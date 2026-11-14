@@ -1,5 +1,12 @@
 # ONNX Thread Configuration Benchmark Matrix — Complete Plan
 
+> **Status: executed.** Results (with per-phase data and PENDING markers
+> for the final phases) are consolidated in `reports/FINAL_RESULTS.md`
+> §6; distilled per-session evidence in `results/onnx-thread-sweep/`;
+> raw data in `benchmark-results/onnx-thread-sweep/` (local).
+> cuDNN `DEFAULT` was excluded from the confirm run — numerically
+> divergent under the bit-exact gate (see FINAL_RESULTS.md §7).
+
 **Research goal:** determine the optimal ONNX Runtime session configuration
 (intra-op threads, inter-op threads, spinning, affinity, cuDNN algo search)
 and its interaction with MLServer worker count, across both REST and gRPC

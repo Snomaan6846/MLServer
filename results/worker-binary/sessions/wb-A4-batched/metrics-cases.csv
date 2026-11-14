@@ -1,0 +1,7 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,4,wb-batched-frontend,True,8.2908,501,479.800,487.471,489.954,500.038,183.317,5.846,31.636,776.000,1278.2,mlserver-rfdetr-6b76b4766d-lxhcc
+case-0001,0,4,wb-batched-workerbin,True,8.3042,502,480.566,488.548,492.219,499.207,171.817,5.865,25.250,776.000,1297.2,mlserver-rfdetr-8d8d48765-kzh54
+case-0002,1,4,wb-batched-workerbin,True,8.2525,499,483.291,490.990,492.759,499.573,158.997,5.837,16.833,776.000,1268.0,mlserver-rfdetr-59fdc6b9c5-lt5t4
+case-0003,1,4,wb-batched-frontend,True,8.2912,501,481.757,489.521,492.641,500.736,174.369,5.880,26.250,780.000,1279.4,mlserver-rfdetr-d8d9f45b7-t5bxq
+case-0004,2,4,wb-batched-frontend,True,8.2517,499,481.731,491.169,495.287,501.387,151.487,5.874,37.500,778.000,1258.8,mlserver-rfdetr-6fb84fc7d9-b9bqq
+case-0005,2,4,wb-batched-workerbin,True,1.7375,108,2264.266,2298.072,2306.059,2850.794,994.469,6.555,5.167,520.000,1692.0,mlserver-rfdetr-5d9846b56b-455hj

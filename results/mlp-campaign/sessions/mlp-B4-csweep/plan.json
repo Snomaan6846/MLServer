@@ -1,0 +1,94 @@
+{
+  "round_offset": 0,
+  "rounds": 3,
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 256,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 20,
+  "concurrency": [
+    2,
+    16,
+    128
+  ],
+  "session": "mlp-B4-csweep",
+  "variants": [
+    {
+      "name": "mlp-json-frontend@r1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "mlp-json-frontend"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+        "payloads": [
+          "/store/payloads/j0-mlp-small-1.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "min_response_bytes": 20
+      }
+    },
+    {
+      "name": "mlp-json-worker@r1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "mlp-json-worker"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+        "payloads": [
+          "/store/payloads/j0-mlp-small-1.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "min_response_bytes": 20
+      }
+    },
+    {
+      "name": "mlp-bin-worker@r1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "mlp-bin-worker"
+      ],
+      "spec": {
+        "protocol": "rest",
+        "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+        "payloads": [
+          "/store/payloads/triton-binary-mlp-small-1.bin"
+        ],
+        "headers": {
+          "Content-Type": "application/octet-stream",
+          "Inference-Header-Content-Length": "164"
+        },
+        "min_response_bytes": 20
+      }
+    },
+    {
+      "name": "mlp-grpc-raw@r1",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "mlp-grpc-raw"
+      ],
+      "spec": {
+        "protocol": "grpc",
+        "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+        "payloads": [
+          "/store/payloads/g-mlp-small-1.bin"
+        ],
+        "min_response_bytes": 20
+      }
+    }
+  ]
+}

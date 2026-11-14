@@ -1,0 +1,29 @@
+{
+  "sessions": {
+    "mlp-B2-core": {
+      "trials_total": 54,
+      "trials_valid": 54,
+      "receipts": 54
+    },
+    "mlp-B3-wsweep": {
+      "trials_total": 46,
+      "trials_valid": 46,
+      "receipts": 47
+    },
+    "mlp-B4-csweep": {
+      "trials_total": 36,
+      "trials_valid": 36,
+      "receipts": 36
+    },
+    "mlp-B5-transport": {
+      "trials_total": 9,
+      "trials_valid": 9,
+      "receipts": 9
+    },
+    "mlp-B6-threads": {
+      "trials_total": 3,
+      "trials_valid": 3,
+      "receipts": 3
+    }
+  }
+}

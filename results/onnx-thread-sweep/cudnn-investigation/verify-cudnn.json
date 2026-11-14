@@ -1,0 +1,18 @@
+{
+  "phase": "manual cuDNN EXHAUSTIVE verification",
+  "health_ready_seconds": 12.040839579887688,
+  "model_ready_seconds": 0.0034583162050694227,
+  "first_inference_seconds": 0.535481093917042,
+  "first_inference_bytes": 542365,
+  "first_inference_parity": {
+    "bit_exact": true,
+    "reason": "all outputs byte-identical"
+  },
+  "second_inference_seconds": 0.3000284119043499,
+  "second_inference_parity": {
+    "bit_exact": true,
+    "reason": "all outputs byte-identical"
+  },
+  "payload_sha256_ok": true,
+  "total_seconds": 12.94642071891576
+}

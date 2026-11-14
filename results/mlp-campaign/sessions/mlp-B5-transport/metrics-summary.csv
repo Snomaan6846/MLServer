@@ -1,0 +1,4 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+mlp-bin-worker-queue@r1,64,3,966.769,0.79,65.619,71.078,76.710,1.765,6.9,null,243.9
+mlp-json-frontend-queue@r1,64,3,732.739,4.62,86.468,93.088,98.612,1.597,5.6,null,248.6
+mlp-json-worker-queue@r1,64,3,955.742,1.90,66.190,71.284,76.639,1.718,6.6,null,249.0

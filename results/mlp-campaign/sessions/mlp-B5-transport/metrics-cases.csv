@@ -1,0 +1,10 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,64,mlp-json-frontend-queue@r1,True,732.7392,43992,86.144,93.595,95.294,98.769,1.689,5.570,null,null,248.6,mlserver-rfdetr-cpu-5685955f8-wrz9b
+case-0001,0,64,mlp-json-worker-queue@r1,True,955.7415,57373,66.640,70.698,71.684,73.670,1.966,6.553,null,null,247.7,mlserver-rfdetr-cpu-5cfc7d84b8-g5w8p
+case-0002,0,64,mlp-bin-worker-queue@r1,True,969.1742,58178,65.249,72.175,74.801,78.135,1.621,6.879,null,null,242.4,mlserver-rfdetr-cpu-d7d5d6ff4-dzd8t
+case-0003,1,64,mlp-bin-worker-queue@r1,True,966.7692,58033,65.402,71.055,72.660,74.853,1.955,6.906,null,null,242.0,mlserver-rfdetr-cpu-8575cc87fb-npmh9
+case-0004,1,64,mlp-json-worker-queue@r1,True,950.1353,57036,66.198,74.317,75.580,78.665,1.820,6.570,null,null,245.3,mlserver-rfdetr-cpu-6b478f8599-mmh42
+case-0005,1,64,mlp-json-frontend-queue@r1,True,718.0697,43111,88.815,93.749,95.284,98.789,1.463,5.444,null,null,248.0,mlserver-rfdetr-cpu-79fdb86946-hsjdh
+case-0006,2,64,mlp-json-frontend-queue@r1,True,751.9441,45156,84.410,90.093,92.328,98.011,1.640,5.677,null,null,247.1,mlserver-rfdetr-cpu-694fb7b5f6-cllhk
+case-0007,2,64,mlp-json-worker-queue@r1,True,968.3162,58128,65.709,69.767,71.398,75.058,1.368,6.588,null,null,249.0,mlserver-rfdetr-cpu-6cbf646577-t6t4b
+case-0008,2,64,mlp-bin-worker-queue@r1,True,961.5187,57720,65.992,70.416,71.892,76.291,1.718,6.936,null,null,243.9,mlserver-rfdetr-cpu-65c76f5754-rvszx

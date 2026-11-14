@@ -1,0 +1,57 @@
+{
+  "variant": "mlp-json-worker",
+  "deployment": "mlserver-rfdetr-cpu",
+  "service": "mlserver-rfdetr-cpu",
+  "device": "cpu",
+  "model": "mlp-small",
+  "reference_capture": false,
+  "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "4",
+    "MLSERVER_REST_WORKER_JSON": "true",
+    "MLSERVER_REST_BINARY_TENSOR": "false",
+    "MLSERVER_REST_WORKER_BINARY": "false",
+    "MLSERVER_GRPC_RAW_INPUT_BUFFERS": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+    "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+    "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi"
+    }
+  },
+  "old_pod_uid": "f17bf4a5-df49-4ecc-b1ad-ab646e86d6c8",
+  "pod_uid": "f34b2cce-3789-4b90-8ade-0815bb736074",
+  "pod_name": "mlserver-rfdetr-cpu-5446c4559f-x4scw",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-13T19:18:37+00:00",
+  "providers_line": "2026-11-13 19:18:51,904 [mlserver][mlp-small] INFO - ONNX model 'mlp-small' loaded with execution providers: ['CPUExecutionProvider']",
+  "model_ready_seconds": 0.01300366292707622,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.012290055863559246,
+      "rest_response_sha256": "df5d00b05494e6ad33f9595d2fa613cb87f305f63fbddb4e654f278c862b3c9d",
+      "rest_response_bytes": 345,
+      "rest_reference": "verified"
+    },
+    "grpc": {
+      "grpc_latency_s": 0.03467538394033909,
+      "grpc_response_sha256": "f595e9d8c6e870d91139d739fa72dfb3dcad42820bcaba57649a97fa44e2d73f",
+      "grpc_response_bytes": 84,
+      "grpc_reference": "verified"
+    },
+    "binary_rest": null
+  },
+  "hook_utc": "2026-11-13T19:19:06.048835+00:00",
+  "hook_duration_s": 30.65457213204354
+}

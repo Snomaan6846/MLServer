@@ -19,15 +19,18 @@ it references. If something is not listed here, it does not belong.
 | Path | What it is |
 | --- | --- |
 | `INDEX.md` | This file — master index |
-| `BENCHMARKING_HISTORY.md` | Study ledger: system specs, summary matrix, scope changes, execution log (entries P2-B01 through P2-V03) |
+| `BENCHMARKING_HISTORY.md` | Study ledger: system specs, summary matrix, scope changes, execution log (entries P2-B01 through P3-V03), failure register, naming conventions |
 | `BENCHMARKING_GUIDE.md` | Ramp-up guide: how to run benchmarking with this harness |
 | `README.md` | Orientation and entry points |
 | `benchmarking/` | All benchmarking tooling (tracked) |
 | `assets/` | Everything needed to bootstrap a fresh cluster: model SHA contracts + settings, wire payloads, parity references, cluster state (tracked) |
 | `results/phase2/` | Version-controlled evidence snapshot: distilled results and per-trial provenance receipts for every phase-2 session (tracked) |
+| `results/onnx-thread-sweep/` | Version-controlled evidence snapshot for the ONNX thread-configuration campaign (tracked) |
+| `results/worker-binary/` | Version-controlled evidence snapshot for the worker-binary feature campaign (tracked) |
+| `results/mlp-campaign/` | Version-controlled evidence snapshot for the phase-1 MLP replication campaign (tracked) |
 | `benchmark-results/` | Raw working data: per-request samples, telemetry streams, models, payloads, references, archives (gitignored, local) |
 | `model-preparation/` | Model fixture preparation and export (tooling tracked, artifacts local) |
-| `reports/` | Study reports and the PR draft |
+| `reports/` | Study reports and the final engineering report |
 | `Makefile`, `pyproject.toml`, `poetry.lock`, `.flake8`, `LICENSE` | Repo hygiene: lint/test targets, dependency pins for the resource scripts, license |
 
 ## 2. Tracked content
@@ -37,7 +40,7 @@ it references. If something is not listed here, it does not belong.
 | File | Description |
 | --- | --- |
 | `README.md` | Orientation; points here, the guide, the ledger and the reports |
-| `BENCHMARKING_HISTORY.md` | Ledger. Sections: *System & Baseline Specs* (cluster, node, images, model), *Benchmark Summary Matrix* (headline numbers), *Scope Changes* (user decisions), *Incremental Execution Log* (entries P2-B01 through P2-V03, one per experiment with evidence) |
+| `BENCHMARKING_HISTORY.md` | Ledger. Sections: *Abbreviations & Conventions* (naming patterns, campaign prefixes, wire tracks, modifiers), *System & Baseline Specs*, *Benchmark Summary Matrix*, *Incremental Execution Log* (P2-B01 through P3-V03), *Failure Register*, *Data Provenance Map* |
 | `BENCHMARKING_GUIDE.md` | Ramp-up and operations guide for the benchmarking harness |
 | `INDEX.md` | This file |
 
@@ -45,202 +48,103 @@ it references. If something is not listed here, it does not belong.
 
 | File | Description |
 | --- | --- |
-| `bootstrap-cluster.sh` | Fresh-cluster setup: namespace, PVCs, RBAC, client image build + deploy, model regeneration (if absent) + upload (SHA-verified), serving deployment, payload/reference/tooling upload — ends with both models ready |
-| `export-models.py` | Exports both benchmark models in the pinned export environment and verifies them against `assets/MANIFEST.json` (GitHub LFS is unavailable on public forks, so models ship as SHA contracts + reproduction scripts) |
-| `run-final-campaign.sh` | Full campaign orchestrator: pre-flight, hermetic test gate (`tox -e mlserver-venv` from the MLServer `poetry.lock`), model export, ship-image build/push, tooling sync to the client pod, sessions A–D, batched-model deployment + reference capture, consolidated results, PVC archival. Retry with exponential backoff and automatic cluster re-login throughout |
-| `resume-campaign.sh` | Resume driver: re-checks prerequisites and runs a missing session plus results/archival (used when a campaign aborts after completed sessions) |
-| `write-variants.py` | Writes `benchmark-results/variants.json`: every campaign variant (deployment, env, image, model) consumed by the prepare hook |
-| `write-plans.py` | Writes the four session plans and paired-analysis specs into `benchmark-results/final-campaign/` |
-| `build-gbatched.py` | Builds the batched-model gRPC wire file (`g-batched-0.bin`) from the reference `g-0.bin` by swapping the protobuf `model_name` |
-| `generate-results.py` | Consolidates all sessions into `RESULTS.md` (tables, paired ratios, regression checks, computed summary) |
-| `batched-model-settings.json` | Model settings for the dynamic-batch deployment (`max_batch_size=4`, `max_batch_time=5ms`); minimal delta from the original model's settings |
+| `bootstrap-cluster.sh` | Fresh-cluster setup: namespace, PVCs, RBAC, client image build + deploy, model regeneration + upload, serving deployment, payload/reference/tooling upload |
+| `export-models.py` | Exports both benchmark models in the pinned export environment and verifies them against `assets/MANIFEST.json` |
+| `run-final-campaign.sh` | Phase-2 campaign orchestrator: pre-flight, hermetic test gate, model export, ship-image build/push, tooling sync, sessions A–D, consolidated results, PVC archival |
+| `resume-campaign.sh` | Resume driver: re-checks prerequisites and runs a missing session plus results/archival |
+| `write-variants.py` | Writes `benchmark-results/variants.json`: every phase-2 campaign variant consumed by the prepare hook |
+| `write-plans.py` | Writes the four phase-2 session plans and paired-analysis specs |
+| `build-gbatched.py` | Builds the batched-model gRPC wire file by swapping the protobuf `model_name` |
+| `generate-results.py` | Consolidates all phase-2 sessions into `RESULTS.md` |
+| `batched-model-settings.json` | Model settings for the dynamic-batch deployment |
+| `write-worker-binary-plans.py` | Writes the worker-binary campaign variants and session plans (A1–A6) |
+| `run-worker-binary-campaign.sh` | Worker-binary campaign orchestrator: reference refresh with cross-image stability proof, stale-sweep guard, model-state control, sessions A1–A6 |
+| `write-mlp-plans.py` | Writes the phase-1 MLP replication campaign variants and session plans (B2–B6) |
+| `run-mlp-campaign.sh` | MLP campaign orchestrator: single-model deployment, reference capture, sessions B2–B6, PVC restore |
+| `distill-thread-sweep.py` | Distills the ONNX thread-sweep campaign into tracked evidence under `results/onnx-thread-sweep/` |
 
 ### 2.3 `benchmarking/cluster/` — in-cluster measurement tooling
 
 | File | Description |
 | --- | --- |
-| `hook.py` | Sweep prepare hook, invoked once per trial: maps variant → deployment config, scales conflicting deployments to zero, patches image/env (with stale-env deletion — no residue across variants), forces a fresh pod (UID proof), waits model readiness, verifies execution providers from server logs, and enforces REST bit-exact / gRPC byte-exact parity against captured references. Supports per-variant model targeting and a deliberate one-time `--capture-refs` mode. Writes `receipts.json` per trial |
+| `hook.py` | Sweep prepare hook: maps variant → deployment config, scales conflicting deployments to zero, patches image/env, forces a fresh pod (UID proof), waits model readiness, verifies providers, enforces REST bit-exact / gRPC byte-exact / binary tensor-payload parity. Configurable timeouts via `BENCHMARK_MODEL_READY_TIMEOUT` and `BENCHMARK_PARITY_TIMEOUT` |
 | `triton_hook.py` | Same contract for the Triton reference deployment |
-| `sampler.py` | Workstation-side read-only utilization sampler: kubelet Summary API (per-pod CPU, memory working set, PSI) + DCGM (GPU util, framebuffer, temperature, power), one JSON line per interval, pod-attributed |
-| `summarize.py` | Session post-processing: pooled latency percentiles, CPU-ms/request integration from cumulative counters, GPU/memory window alignment, per-case CSV and per-cell aggregates. Treats `0.0` GPU utilization as a real measurement (never as missing) |
-| `validate_session.py` | Session completeness gate: every trial must have RPS, latency percentiles, CPU-ms/request, GPU% and memory; exits nonzero on gaps |
-| `manifests/` | Creation manifests (apply-ready): `pvc-rfdetr-models.yaml`, `sweep-rbac.yaml`, `client-build.yaml` (ImageStream + BuildConfig + client-store PVC), `client-deploy.yaml`, `mlserver-baseline.yaml` (GPU serving deployment + service), `mlserver-cpu.yaml`, `model-loader.yaml` (PVC upload pod), `gpu-provider-check.yaml` |
-| `captures/` | Live-state captures from the working cluster (deployments, services, triton deployment) — reference for what ran, not for creation |
-| `README.md` | Tooling notes and in-cluster requirements (ServiceAccount, `/store` layout) |
+| `sampler.py` | Workstation-side utilization sampler: kubelet Summary API + DCGM, one JSON line per interval |
+| `summarize.py` | Session post-processing: pooled latency percentiles, CPU-ms/request integration, GPU/memory window alignment |
+| `validate_session.py` | Session completeness gate |
+| `manifests/` | Creation manifests (apply-ready) |
+| `captures/` | Live-state captures from the working cluster |
 
 ### 2.4 `benchmarking/study_tools/` — load generation and analysis
 
 | File | Description |
 | --- | --- |
-| `sweep.py` | Session driver: reads a frozen JSON plan, runs prepare-hook + timed load per trial, enforces a synchronized start gate, writes per-case results and `SUMMARY.json` |
-| `client.py` | Timed full-response load client (REST and raw gRPC), per-payload header overrides for mixed wire formats, per-request validation (status + minimum response size), warmup/measured phases |
-| `analyze.py` | Paired bootstrap analysis (20k resamples) of control vs candidate RPS/latency/CPU ratios with CI95; one comparison per invocation; never converts missing trials into wins |
-| `payloads.py` | Builds the wire-payload corpus (legacy JSON, short FP32 JSON, raw gRPC protobuf × 8 deterministic inputs) with SHA-256 manifest |
-| `launch_server.py` | Starts a local serving instance with prepared CUDA library paths (workstation-side checks) |
-| `preflight.py` | Pre-flight checks for workstation-side runs |
+| `sweep.py` | Session driver: reads a frozen JSON plan, runs prepare-hook + timed load per trial |
+| `client.py` | Timed full-response load client (REST and raw gRPC) |
+| `analyze.py` | Paired bootstrap analysis (20k resamples) |
+| `payloads.py` | Builds the wire-payload corpus |
+| `launch_server.py` | Starts a local serving instance |
+| `preflight.py` | Pre-flight checks |
 
 ### 2.5 `benchmarking/overlay/` — image build recipes
 
 | File | Description |
 | --- | --- |
-| `Dockerfile.cuda-binary` | Ship-image recipe: official CUDA base + MLServer wheel overlay (used for all campaign variants) |
+| `Dockerfile.cuda-binary` | Ship-image recipe: official CUDA base + MLServer wheel overlay |
 | `Dockerfile.cuda-zmq`, `Dockerfile.cpu-zmq` | ZMQ-extra overlays |
 | `Dockerfile.cuda-httptools` | httptools evaluation overlay (experiment, closed) |
-| `Dockerfile.cuda-prof`, `Dockerfile.cuda-prof-branch` | Profiling overlays (py-spy/memray instrumented) |
+| `Dockerfile.cuda-prof`, `Dockerfile.cuda-prof-branch` | Profiling overlays |
 
-### 2.6 `benchmarking/` — top level and legacy
-
-| File | Description |
-| --- | --- |
-| `README.md` | Benchmarking entry point (points to the guide) |
-| `inference.py`, `__init__.py` | Single-request benchmark client (predecessor of `study_tools/`; simple serving check) |
-| `STUDY_GUIDE.rst` | Baseline study guide: timed sweeps, payloads, accounting, worker/thread tuning (predecessor workflows) |
-| `PROFILING.rst` | Root/CPU/GIL/host-stage and CUDA/NVTX profiling instructions |
-| `OPENSHIFT.rst` | OpenShift predictor and route measurements |
-| `templates/sweep.example.json` | Example sweep plan |
-| `tests/` | Unit tests for the resource scripts (`test_study_tools.py`, `test_inference.py`, `test_grpc.py`) — run via `make test` |
-| `profiling/legacy-queueing-sources.tar.gz`, `profiling/SOURCE_MANIFEST.json` | Archived queueing-model sources with manifest |
-
-### 2.7 `model-preparation/`
+### 2.6 `reports/` — study reports
 
 | File | Description |
 | --- | --- |
-| `README.md` | Preparation guide: downloads, export, fixture normalization |
-| `prepare.py` | Downloads public RF-DETR Small assets, exports the pinned ONNX model, builds the normalized input fixture |
-| `validate.py` | Correctness checks on the prepared fixture |
-| `serve.py` | CUDA-environment helper for local serving |
-| `REFERENCE_MANIFEST.json` | SHA-256 manifest of the prepared bundle (model, sample, references) |
-| `tests/test_prepare.py` | Unit tests |
-| `export-env/poetry.toml`, `export-env/poetry.lock` | Pinned export environment (rfdetr 1.11.2, CPU torch, numpy 1.26.4 matching MLServer's lock) |
+| `reports/README.md` | Report index |
+| `reports/FINAL_REPORT.md` | **The comprehensive engineering report** — all campaigns, all findings, configuration decision matrix, correctness verification, phase-1 alignment, appendices |
+| `reports/gpu/PHASE2_PERFORMANCE_WORK.md` | Phase-2 report: baseline, accepted changes, closed experiments, profiling attribution, final campaign |
+| `reports/gpu/PHASE3_ROADMAP.md` | Phase-3 enhancement roadmap |
+| `reports/gpu/ONNX_THREAD_MATRIX.md` | Thread-configuration benchmark matrix (executed) |
+| `reports/gpu/PR_DRAFT_rhoaieng-102092.md` | **Historical record** — pre-submission draft for PR #378 (merged) |
+| `reports/gpu/GPU_PERFORMANCE_STUDY.md` | Predecessor GPU study (RTX 4070) |
+| `reports/cpu/PERFORMANCE_REDESIGN.md` | Predecessor CPU study (REST/JSON, CPU ONNX, OVMS comparison) |
 
-### 2.8 `reports/`
-
-| File | Description |
-| --- | --- |
-| `reports/README.md` | Report index with scope/status per report |
-| `gpu/PHASE2_PERFORMANCE_WORK.md` | Phase-2 final report: baseline, accepted changes (binary tensor 4.0×, gRPC converter +19.5%), closed experiments, profiling attribution, final campaign (159/159 gated trials), remaining gap, durability map |
-| `gpu/PHASE3_ROADMAP.md` | Enhancement roadmap; Track C1 documents the measured adaptive-batcher collapse at high concurrency |
-| `gpu/PR_DRAFT_rhoaieng-102092.md` | PR description for `rhoaieng-102092` — ready to submit |
-| `gpu/ONNX_THREAD_MATRIX.md` | Planned benchmark matrix for ONNX thread configuration (W×T×spinning×inter_op sweep on GPU and CPU paths) — fills the thread-tuning gap; feeds RHOAIENG-99489 |
-| `gpu/GPU_PERFORMANCE_STUDY.md` | Predecessor study (RTX 4070; input representation, worker JSON, ZeroMQ, CUDA execution) |
-| `cpu/PERFORMANCE_REDESIGN.md` | Predecessor CPU study (REST/JSON, CPU ONNX, OVMS comparison) |
-
-### 2.9 `results/phase2/` — versioned evidence snapshot
+### 2.7 `results/` — versioned evidence snapshots
 
 | Path | Description |
 | --- | --- |
-| `README.md` | What the snapshot contains and what deliberately stays out |
-| `final-campaign/RESULTS.md` | Consolidated campaign results (tables, paired ratios, regression checks) |
-| `final-campaign/sessions/<name>/` | Per session: `SUMMARY.json` (every trial), `metrics-*.csv/json`, `paired-*.json`, and `case-*/receipts.json` (per-trial provenance: image digest, pod UID, env, providers, parity hashes) |
-| `final-campaign/plans/`, `paired-specs/` | The frozen inputs that produced the sessions |
-| `final-campaign/ship-image.txt` | The exact image digest benchmarked |
-| `final-campaign/capture-batched-receipts.json` | Receipts of the one-time batched-reference capture |
-| `sessions/<name>/` | The intermediate experiment sessions (ledger entries 001–012): `plan.json`, `SUMMARY.json`, `metrics-*`, per-trial `receipts.json` |
+| `results/phase2/` | Phase-2 final campaign: distilled results, per-trial receipts, plans, paired-specs |
+| `results/onnx-thread-sweep/` | ONNX thread-configuration campaign: per-session SUMMARY/metrics/receipts, variants, session log, cudnn/interop/affinity investigations |
+| `results/worker-binary/` | Worker-binary feature campaign: per-session SUMMARY/metrics/receipts (A1–A6), variants, session log |
+| `results/mlp-campaign/` | Phase-1 MLP replication campaign: per-session SUMMARY/metrics/receipts (B2–B6), variants, session log |
 
-The raw captures behind this snapshot (per-request latency samples,
-sampler streams, client logs, models, payloads, reference binaries,
-archives) stay in `benchmark-results/` and the PVC archive.
-
-### 2.10 `assets/` — fresh-start kit
+### 2.8 `assets/` — fresh-start kit
 
 | Path | Description |
 | --- | --- |
-| `MANIFEST.json` | SHA-256 of every asset — the bootstrap verifies uploads against it |
-| `models/rfdetr-small/` | Original model SHA contract (`a018914e…`) + model settings; the binary regenerates via `campaign/export-models.py` and is gitignored locally |
-| `models/rfdetr-small-batched/` | Dynamic-batch model SHA contract (`6d4e2e3b…`, `max_batch_size=4`) + model settings; regenerates the same way |
-| `payloads/` | Essential wire payloads: `j0-0.bin` (legacy JSON), `j1-0.bin` (short FP32 JSON), `g-0.bin` (raw gRPC), `g-batched-0.bin` (batched-model gRPC), `triton-binary-rest.bin` (binary REST), `input-0.npy` (corpus source) + the corpus `MANIFEST.json`. The full 8-input corpus regenerates via `study_tools/payloads.py` |
+| `MANIFEST.json` | SHA-256 of every asset |
+| `models/` | Model SHA contracts + model settings |
+| `payloads/` | Essential wire payloads + corpus `MANIFEST.json` |
 | `references/` | Every parity reference: original + batched, REST + gRPC, CUDA + CPU |
-| `cluster-state/` | Server-wide PVC `pvc-settings.json`, `images.json` (variant→image map), `triton-repo/` (Triton reference config; serves the same model bytes) |
+| `cluster-state/` | Cluster deployment/service captures, Triton config |
+
+### 2.9 `model-preparation/`
+
+| Path | Description |
+| --- | --- |
+| `prepare.py`, `serve.py`, `validate.py` | Model preparation, local serving, validation |
+| `export-env/` | Pinned export environment |
+| `REFERENCE_MANIFEST.json` | Reference SHA contracts |
 
 ## 3. Local data (gitignored)
 
-Raw working data. The distilled, version-controlled evidence extracted
-from these trees lives in `results/phase2/`; everything here stays local
-(durable campaign copies also live on the `rfdetr-models` PVC).
-
-### 3.1 `benchmark-results/` root
-
-| Path | Description |
-| --- | --- |
-| `variants.json` | Current variant registry consumed by the prepare hook (written by `write-variants.py`) |
-| `images.json` | Variant → container image mapping (official digests + overlay tags) for hooks without an explicit image |
-| `payloads/` | Wire-payload corpus: `j0-*/j1-*/g-*` tracks × 8 inputs, `input-*.npy`, `triton-binary-rest.bin`, `g-batched-0.bin` source `g-0.bin`, `MANIFEST.json` with SHA-256 of every body |
-| `references/` | Canonical per-device parity references: `cuda-rest-response.bin`, `cuda-grpc-response.bin`, `cpu-*` equivalents, plus SHA-256 sidecars. The batched-model references live in `final-campaign/references/` |
-| `plans/` | Frozen sweep plans for the pre-campaign sessions (29 files) |
-| `samples/` | Utilization sampler output per session (28 JSONL files) |
-| `phase3-binary-tensor-design.md` | Design notes for the binary tensor extension (pre-implementation) |
-| `jira-draft.md`, `jira-comment-19449251-adf.json` | Jira milestone comment draft and the posted ADF payload (baseline/profiling milestone) |
-| `infra/scripts/` | Historical session runners and utilities (`run-gpu-sessions.sh`, `run-cpu-sessions.sh`, `run-paired-sessions.sh`, `capture_refs.py`, `rest_check.py`, `find_t4.sh`, `build_adf.py`) — superseded by `benchmarking/campaign/` |
-| `infra/logs/` | Setup logs (model preparation, payload generation) |
-| `profiles/` | Early flamegraph captures (`gpu-prof-stock.svg`, `gpu-prof-w1json.svg`) |
-| `phase1-context/` | Source discussion threads that motivated the work |
-| `phase3-research/notes.md` | Industry serving-engine comparison research notes |
-
-### 3.2 `benchmark-results/sessions/` — experiment sessions
-
-Every directory holds `SUMMARY.json`, `plan.json`, per-case `case-*/`
-(`result.json`, `receipts.json`, `samples.jsonl`, `start.json`,
-`prepare.log`, client logs) and the summarizer's `metrics-*.csv/json`.
-
-| Session | Cases | Variants | Purpose |
-| --- | --- | --- | --- |
-| `validate-harness` | 1 | gpu-stock | Harness validation trial |
-| `gpu-rest-stock` / `gpu-grpc-stock` | 15 | gpu-stock | GPU baseline (stock) |
-| `cpu-rest-stock` / `cpu-grpc-stock` | 15 | cpu-stock | CPU baseline (stock) |
-| `gpu-rest-paired` / `gpu-grpc-paired` | 30 | stock ↔ opt-in | Opt-in config vs stock, GPU |
-| `cpu-rest-paired` / `cpu-grpc-paired` | 30 | stock ↔ opt-in | Opt-in config vs stock, CPU |
-| `triton-rest` / `triton-grpc` / `triton-rest-binary` | 15 | triton-stock | Triton reference engine measurements |
-| `gpu-rest-factorial` | 24 | stock + 8 fc-* | REST regression factorial: transport × worker count |
-| `gpu-rest-stock-wsweep` | 12 | stock + sw-* | Stock worker-count sweep |
-| `gpu-binary-wsweep` | 38 | binary w1/w2/w4 | Binary extension worker-count sweep |
-| `gpu-binary-gain` | 28 | stock-ov ↔ binary-rest | Binary extension gain measurement |
-| `gpu-binary-fallback` | 30 | stock-ov ↔ binary-rest | JSON fallback no-regression sweep |
-| `gpu-httptools-paired` | 30 | stock-ov ↔ httptools | httptools evaluation (closed: no gain) |
-| `gpu-msgpack-ipc` / `-v2` / `-v3` | 30 | pickle ↔ msgpack | Zero-copy IPC serialization arc (archived) |
-| `gpu-binary-graph` | 16 | binary + graph | CUDA graph replay evaluation |
-| `gpu-prof` / `gpu-prof3` / `gpu-prof3-memray` | 2/2/1 | prof variants | py-spy and memray profiling captures (flamegraphs under `gpu-prof3/profiles/`) |
-| `gpu-grpc-deepcopy-fix` | 30 | optin-control ↔ optin-fix | gRPC converter deep-copy elimination measurement |
-| `gpu-binary-review-fixes` | 30 | binary-prefix ↔ binary-ship | Review-fix re-benchmark (no performance cost) |
-| `gpu-final-rest` | 15 | binary-ship | Final independent REST sweep of the ship candidate |
-| `gpu-soak` | 1 | binary-ship | 60-minute sustained-load soak (PASS) |
-
-### 3.3 `benchmark-results/final-campaign/` — the final campaign
-
-| Path | Description |
-| --- | --- |
-| `RESULTS.md` | Consolidated results: per-session tables, paired bootstrap ratios with CI95, regression checks, computed summary |
-| `sessions/final-unbatched-rest` | 60 trials — stock / binary / JSON-fallback / CUDA-graph (REST) |
-| `sessions/final-unbatched-grpc` | 30 trials — stock / opt-in (gRPC) |
-| `sessions/final-batched` | 60 trials — dynamic-batch model, four variants |
-| `sessions/final-mixed` | 9 trials — alternating binary/JSON co-batching |
-| `plans/` | The four session plans |
-| `paired-specs/` | Paired-analysis comparison specs per session |
-| `samples/` | Utilization sampler output per session |
-| `references/` | Batched-model parity references (captured once, compared every trial) |
-| `model-dynamic/` | Exported dynamic-batch ONNX model (batch=2 inference verified) |
-| `logs/` | Campaign log (all launch attempts preserved: `campaign.log*`), per-step and per-session logs |
-| `ship-image.txt` | Ship image digest (`quay.io/syedali/mlserver-cuda@sha256:…`) — verified in every session's receipts |
-| `capture-batched-receipts.json` | Receipts of the deliberate one-time reference capture |
-| `g-batched-0.bin` | Batched-model gRPC wire file (built by `build-gbatched.py`) |
-| `rhoaieng-102092-final-campaign-*.tar.gz` + `.sha256` | Archive of the campaign (also uploaded to the PVC) |
-
-### 3.4 `model-preparation/` local artifacts
-
-| Path | Description |
-| --- | --- |
-| `rfdetr-small-original/` | Original fixed-batch model + settings, pulled from the PVC — SHA-256 verified `a018914e…` |
-| `rfdetr-small-bundle/` | Prepared bundle (model, sample, references, provenance) per `REFERENCE_MANIFEST.json` |
-| `export-env/.venv/` | Local export virtualenv (not tracked) |
+| Path | Size | Description |
+| --- | --- | --- |
+| `benchmark-results/` | ~3.0 GB | Raw working data: per-request samples, telemetry, all campaign sessions |
+| `.venv/` | ~3.6 GB | Python virtual environment for benchmarking scripts |
+| `benchmarking/overlay/dist/` | ~6 MB | Built wheel artifacts (not tracked) |
 
 ## 4. External references
 
-| What | Where |
-| --- | --- |
-| Implementation branch | `MLServer` sibling checkout, branch `rhoaieng-102092` (fork `Snomaan6846/MLServer`; commits `1aa92105` + `a87caa21` on master `c39ea879`) |
-| Ship image | `quay.io/syedali/mlserver-cuda` tag `rhoaieng-102092-final`, digest in `final-campaign/ship-image.txt` |
-| Official baseline image | `quay.io/opendatahub/odh-mlserver-cuda@sha256:4c8168e9…` |
-| Original model SHA-256 | `a018914e11d589b8b51154f00ed1103f148a320a3960f768bd44f57d55d0ab51` |
-| Cluster | OpenShift, context `default/api-syedali-cluster-pool-q7c2q-gcp-rh-ods-com:6443/htpasswd-cluster-admin-user`, namespace `mlserver-perf`, GPU node `syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4` (Tesla T4) |
-| Durable archives | `rfdetr-models` PVC, `/mnt/models/archives/` |
-| Archived experiment lineage | Fork branch `rhoaieng-102092-msgpack-archive` |
-| RF-DETR weights cache | `~/.roboflow/models/rf-detr-small.pth` (re-downloadable; rfdetr 1.11.2 pinned) |
+- PR #378: https://github.com/opendatahub-io/MLServer/pull/378 (merged)
+- Jira: https://redhat.atlassian.net/browse/RHOAIENG-102092
+- Predecessor studies: `reports/gpu/GPU_PERFORMANCE_STUDY.md`, `reports/cpu/PERFORMANCE_REDESIGN.md`

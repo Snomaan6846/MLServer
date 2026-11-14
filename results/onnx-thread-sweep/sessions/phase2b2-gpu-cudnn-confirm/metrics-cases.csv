@@ -1,0 +1,4 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,8,gpu-cudnn-exhaustive,True,31.1474,1876,256.522,262.698,263.622,265.598,43.498,4.828,84.167,520.000,1071.6,mlserver-rfdetr-5b9f46bf77-vpcfr
+case-0001,1,8,gpu-cudnn-exhaustive,True,31.5272,1899,253.273,257.352,258.389,259.695,39.460,4.807,81.455,520.000,1095.2,mlserver-rfdetr-d4dd66fb9-nf6k7
+case-0002,2,8,gpu-cudnn-exhaustive,True,31.5875,1903,252.960,257.304,258.156,260.056,29.966,4.790,82.909,522.000,1086.5,mlserver-rfdetr-7b9875ff49-8tt59

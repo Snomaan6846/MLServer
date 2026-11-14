@@ -1,0 +1,3 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-batched-frontend,4,3,8.291,0.48,481.195,489.361,501.139,169.724,5.9,31.8,1279.4
+wb-batched-workerbin,4,3,8.252,79.57,482.589,595.915,2297.573,441.761,6.1,15.7,1692.0

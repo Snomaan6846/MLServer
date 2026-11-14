@@ -1,0 +1,5 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-json-worker-binoff,4,3,5.885,2.10,678.328,689.142,699.612,172.980,4.2,23.3,1096.3
+wb-json-worker-binoff,8,3,5.829,1.36,1369.638,1391.406,1412.232,195.273,4.1,21.9,1233.4
+wb-json-worker-binon,4,3,5.730,3.60,691.894,706.479,718.391,189.494,4.2,18.1,1111.8
+wb-json-worker-binon,8,3,5.858,1.23,1358.039,1375.403,1394.979,178.989,4.2,26.6,1229.2

@@ -1,0 +1,150 @@
+    model = await callback(model)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/registry.py", line 347, in load_model
+    loaded = await pool.load_model(model)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/pool.py", line 355, in load_model
+    await self._dispatcher.dispatch_update(load_message)
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 333, in dispatch_update
+    raise non_stop
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 353, in dispatch_update_to_worker
+    return await self._async_responses.schedule_and_wait(worker_update, worker)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 70, in schedule_and_wait
+    return await self._wait(message_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 98, in _wait
+    response_message = await future
+                       ^^^^^^^^^^^^
+mlserver.parallel.errors.WorkerError: builtins.TypeError: (): incompatible function arguments. The following argument types are supported:
+    1. (arg0: onnxruntime.capi.onnxruntime_pybind11_state.SessionOptions, arg1: onnxruntime.capi.onnxruntime_pybind11_state.ExecutionMode) -> None
+
+Invoked with: <onnxruntime.capi.onnxruntime_pybind11_state.SessionOptions object at 0x7f7c358e2470>, 1
+2026-11-13 04:25:25,426 [mlserver][rfdetr-small-batched] INFO - Unloaded model 'rfdetr-small-batched' successfully.
+2026-11-13 04:25:25,426 [mlserver.grpc] INFO - Waiting for gRPC server shutdown
+2026-11-13 04:25:25,428 [mlserver.grpc] INFO - gRPC server shutdown complete
+2026-11-13 04:25:25,428 [mlserver.parallel] INFO - Waiting for shutdown of default inference pool...
+INFO:     Shutting down
+2026-11-13 04:25:25,624 [mlserver.parallel] INFO - Shutdown of default inference pool complete
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+2026-11-13 04:25:25,724 [mlserver.grpc] INFO - Waiting for gRPC server shutdown
+2026-11-13 04:25:25,724 [mlserver.grpc] INFO - gRPC server shutdown complete
+Traceback (most recent call last):
+  File "/usr/local/bin/mlserver", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/cli/main.py", line 422, in main
+    root()
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1157, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1078, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1688, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1434, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 783, in invoke
+    return __callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/cli/main.py", line 29, in wrapper
+    return asyncio.run(f(*args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/usr/local/lib/python3.12/site-packages/mlserver/cli/main.py", line 118, in start
+    await server.start(models_settings)
+  File "/usr/local/lib/python3.12/site-packages/mlserver/server.py", line 150, in start
+    await asyncio.gather(*self._startup_model_tasks)
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 224, in wrapped
+    return await _defer_cancellation(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 182, in _defer_cancellation
+    await asyncio.shield(task)
+  File "/usr/lib64/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/registry.py", line 497, in load
+    return await self._models[model_settings.name].load(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/registry.py", line 209, in load
+    new_model = await self._load_model(new_model, False)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/registry.py", line 233, in _load_model
+    model = await callback(model)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/registry.py", line 347, in load_model
+    loaded = await pool.load_model(model)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/pool.py", line 355, in load_model
+    await self._dispatcher.dispatch_update(load_message)
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 252, in wrapped
+    return await method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/utils.py", line 216, in wrapped
+    return await operation_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 333, in dispatch_update
+    raise non_stop
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 353, in dispatch_update_to_worker
+    return await self._async_responses.schedule_and_wait(worker_update, worker)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 70, in schedule_and_wait
+    return await self._wait(message_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/dispatcher.py", line 98, in _wait
+    response_message = await future
+                       ^^^^^^^^^^^^
+mlserver.parallel.errors.WorkerError: builtins.TypeError: (): incompatible function arguments. The following argument types are supported:
+    1. (arg0: onnxruntime.capi.onnxruntime_pybind11_state.SessionOptions, arg1: onnxruntime.capi.onnxruntime_pybind11_state.ExecutionMode) -> None
+
+Invoked with: <onnxruntime.capi.onnxruntime_pybind11_state.SessionOptions object at 0x7f7c358e2470>, 1

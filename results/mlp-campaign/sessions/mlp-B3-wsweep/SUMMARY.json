@@ -1,0 +1,5194 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 256,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 20,
+    "concurrency": [
+      64
+    ],
+    "session": "mlp-B3-wsweep",
+    "variants": [
+      {
+        "name": "mlp-json-frontend-w1@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-frontend-w1"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-frontend-w2@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-frontend-w2"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-frontend-w8@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-frontend-w8"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-frontend-w12@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-frontend-w12"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-worker-w1@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-worker-w1"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-worker-w2@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-worker-w2"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-worker-w8@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-worker-w8"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-json-worker-w12@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-json-worker-w12"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/j0-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-bin-worker-w1@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-bin-worker-w1"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "164"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-bin-worker-w2@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-bin-worker-w2"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "164"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-bin-worker-w8@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-bin-worker-w8"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "164"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-bin-worker-w12@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-bin-worker-w12"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/mlp-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-mlp-small-1.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "164"
+          },
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-grpc-raw-w1@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-grpc-raw-w1"
+        ],
+        "spec": {
+          "protocol": "grpc",
+          "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+          "payloads": [
+            "/store/payloads/g-mlp-small-1.bin"
+          ],
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-grpc-raw-w2@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-grpc-raw-w2"
+        ],
+        "spec": {
+          "protocol": "grpc",
+          "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+          "payloads": [
+            "/store/payloads/g-mlp-small-1.bin"
+          ],
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-grpc-raw-w8@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-grpc-raw-w8"
+        ],
+        "spec": {
+          "protocol": "grpc",
+          "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+          "payloads": [
+            "/store/payloads/g-mlp-small-1.bin"
+          ],
+          "min_response_bytes": 20
+        }
+      },
+      {
+        "name": "mlp-grpc-raw-w12@r1",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "mlp-grpc-raw-w12"
+        ],
+        "spec": {
+          "protocol": "grpc",
+          "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+          "payloads": [
+            "/store/payloads/g-mlp-small-1.bin"
+          ],
+          "min_response_bytes": 20
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1324145790257208,
+      "drained_ns": 1324205824531262,
+      "duration_seconds": 60.034274054,
+      "successful": 47421,
+      "attempted": 47421,
+      "rps": 789.898782774411,
+      "latency_ms": {
+        "p50": 80.602563,
+        "p95": 86.943687,
+        "p99": 90.49987620000003
+      },
+      "clients": [
+        {
+          "started_ns": 1324145792399074,
+          "admission_deadline_ns": 1324205792399074,
+          "drained_ns": 1324205824531262,
+          "cpu_seconds": 7.286042403,
+          "attempted": 23710,
+          "successful": 23710,
+          "valid": true,
+          "requested_start_ns": 1324145790257208,
+          "start_lateness_ms": 2.141866,
+          "latency_ms": {
+            "p50": 80.60136,
+            "p95": 86.9457858,
+            "p99": 90.48566545
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76634,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1324145791843609,
+          "admission_deadline_ns": 1324205791843609,
+          "drained_ns": 1324205824133643,
+          "cpu_seconds": 7.212738239,
+          "attempted": 23711,
+          "successful": 23711,
+          "valid": true,
+          "requested_start_ns": 1324145790257208,
+          "start_lateness_ms": 1.586401,
+          "latency_ms": {
+            "p50": 80.604161,
+            "p95": 86.94108800000001,
+            "p99": 90.52413280000003
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76635,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0001",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1324290084230202,
+      "drained_ns": 1324350119738020,
+      "duration_seconds": 60.035507818,
+      "successful": 48064,
+      "attempted": 48064,
+      "rps": 800.5928782297954,
+      "latency_ms": {
+        "p50": 79.372492,
+        "p95": 84.50753765,
+        "p99": 86.80195394
+      },
+      "clients": [
+        {
+          "started_ns": 1324290085744369,
+          "admission_deadline_ns": 1324350085744369,
+          "drained_ns": 1324350118343678,
+          "cpu_seconds": 7.378849629,
+          "attempted": 24032,
+          "successful": 24032,
+          "valid": true,
+          "requested_start_ns": 1324290084230202,
+          "start_lateness_ms": 1.514167,
+          "latency_ms": {
+            "p50": 79.36635100000001,
+            "p95": 84.50382585,
+            "p99": 86.75838828999998
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76709,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1324290086251619,
+          "admission_deadline_ns": 1324350086251619,
+          "drained_ns": 1324350119738020,
+          "cpu_seconds": 7.384963187,
+          "attempted": 24032,
+          "successful": 24032,
+          "valid": true,
+          "requested_start_ns": 1324290084230202,
+          "start_lateness_ms": 2.021417,
+          "latency_ms": {
+            "p50": 79.37665150000001,
+            "p95": 84.5096743,
+            "p99": 86.84570753999999
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76710,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0002",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1324432792225085,
+      "drained_ns": 1324492828358064,
+      "duration_seconds": 60.036132979,
+      "successful": 49027,
+      "attempted": 49027,
+      "rps": 816.6248818382277,
+      "latency_ms": {
+        "p50": 77.872797,
+        "p95": 82.9713316,
+        "p99": 85.41005586
+      },
+      "clients": [
+        {
+          "started_ns": 1324432793837418,
+          "admission_deadline_ns": 1324492793837418,
+          "drained_ns": 1324492827467834,
+          "cpu_seconds": 7.615601602,
+          "attempted": 24513,
+          "successful": 24513,
+          "valid": true,
+          "requested_start_ns": 1324432792225085,
+          "start_lateness_ms": 1.612333,
+          "latency_ms": {
+            "p50": 77.874646,
+            "p95": 82.9864052,
+            "p99": 85.41304908000001
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76784,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1324432793785837,
+          "admission_deadline_ns": 1324492793785837,
+          "drained_ns": 1324492828358064,
+          "cpu_seconds": 7.623612154,
+          "attempted": 24514,
+          "successful": 24514,
+          "valid": true,
+          "requested_start_ns": 1324432792225085,
+          "start_lateness_ms": 1.560752,
+          "latency_ms": {
+            "p50": 77.8703495,
+            "p95": 82.96569935,
+            "p99": 85.4081131
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76785,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0003",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1324585688877437,
+      "drained_ns": 1324645723305756,
+      "duration_seconds": 60.034428319,
+      "successful": 47650,
+      "attempted": 47650,
+      "rps": 793.7112309424539,
+      "latency_ms": {
+        "p50": 79.762096,
+        "p95": 87.79742865,
+        "p99": 92.05767379000001
+      },
+      "clients": [
+        {
+          "started_ns": 1324585690780753,
+          "admission_deadline_ns": 1324645690780753,
+          "drained_ns": 1324645721492256,
+          "cpu_seconds": 7.691183386,
+          "attempted": 23823,
+          "successful": 23823,
+          "valid": true,
+          "requested_start_ns": 1324585688877437,
+          "start_lateness_ms": 1.903316,
+          "latency_ms": {
+            "p50": 79.760567,
+            "p95": 87.814889,
+            "p99": 92.109528
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76859,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1324585690605990,
+          "admission_deadline_ns": 1324645690605990,
+          "drained_ns": 1324645723305756,
+          "cpu_seconds": 7.695810723,
+          "attempted": 23827,
+          "successful": 23827,
+          "valid": true,
+          "requested_start_ns": 1324585688877437,
+          "start_lateness_ms": 1.728553,
+          "latency_ms": {
+            "p50": 79.764746,
+            "p95": 87.78029980000001,
+            "p99": 92.00332216000001
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76860,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0004",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1324729644645346,
+      "drained_ns": 1324789669474981,
+      "duration_seconds": 60.024829635,
+      "successful": 64188,
+      "attempted": 64188,
+      "rps": 1069.3574707386172,
+      "latency_ms": {
+        "p50": 59.5199,
+        "p95": 63.6967761,
+        "p99": 65.74748405
+      },
+      "clients": [
+        {
+          "started_ns": 1324729646298135,
+          "admission_deadline_ns": 1324789646298135,
+          "drained_ns": 1324789669474981,
+          "cpu_seconds": 9.826193099,
+          "attempted": 32096,
+          "successful": 32096,
+          "valid": true,
+          "requested_start_ns": 1324729644645346,
+          "start_lateness_ms": 1.652789,
+          "latency_ms": {
+            "p50": 59.519814,
+            "p95": 63.70400975,
+            "p99": 65.72300724999998
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76934,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1324729646704983,
+          "admission_deadline_ns": 1324789646704983,
+          "drained_ns": 1324789669265349,
+          "cpu_seconds": 9.773376183,
+          "attempted": 32092,
+          "successful": 32092,
+          "valid": true,
+          "requested_start_ns": 1324729644645346,
+          "start_lateness_ms": 2.059637,
+          "latency_ms": {
+            "p50": 59.519980000000004,
+            "p95": 63.693427150000005,
+            "p99": 65.7810753
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 76935,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0005",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1324873638202616,
+      "drained_ns": 1324933662725589,
+      "duration_seconds": 60.024522973,
+      "successful": 62699,
+      "attempted": 62699,
+      "rps": 1044.5564061909,
+      "latency_ms": {
+        "p50": 60.763593,
+        "p95": 65.79146779999999,
+        "p99": 68.94775454
+      },
+      "clients": [
+        {
+          "started_ns": 1324873639774889,
+          "admission_deadline_ns": 1324933639774889,
+          "drained_ns": 1324933662380974,
+          "cpu_seconds": 9.423085151,
+          "attempted": 31350,
+          "successful": 31350,
+          "valid": true,
+          "requested_start_ns": 1324873638202616,
+          "start_lateness_ms": 1.572273,
+          "latency_ms": {
+            "p50": 60.761909,
+            "p95": 65.8006298,
+            "p99": 68.95496955
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 77009,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1324873639950073,
+          "admission_deadline_ns": 1324933639950073,
+          "drained_ns": 1324933662725589,
+          "cpu_seconds": 9.475525256,
+          "attempted": 31349,
+          "successful": 31349,
+          "valid": true,
+          "requested_start_ns": 1324873638202616,
+          "start_lateness_ms": 1.747457,
+          "latency_ms": {
+            "p50": 60.765044,
+            "p95": 65.7815066,
+            "p99": 68.93715624
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 77010,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0006",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1325016538712770,
+      "drained_ns": 1325076564460131,
+      "duration_seconds": 60.025747361,
+      "successful": 63726,
+      "attempted": 63726,
+      "rps": 1061.6444242959003,
+      "latency_ms": {
+        "p50": 59.89886799999999,
+        "p95": 63.56135425,
+        "p99": 64.7927635
+      },
+      "clients": [
+        {
+          "started_ns": 1325016540320491,
+          "admission_deadline_ns": 1325076540320491,
+          "drained_ns": 1325076564460131,
+          "cpu_seconds": 9.575466428,
+          "attempted": 31865,
+          "successful": 31865,
+          "valid": true,
+          "requested_start_ns": 1325016538712770,
+          "start_lateness_ms": 1.607721,
+          "latency_ms": {
+            "p50": 59.897742,
+            "p95": 63.5511244,
+            "p99": 64.78496892
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 77084,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325016540320713,
+          "admission_deadline_ns": 1325076540320713,
+          "drained_ns": 1325076563936941,
+          "cpu_seconds": 9.573040771,
+          "attempted": 31861,
+          "successful": 31861,
+          "valid": true,
+          "requested_start_ns": 1325016538712770,
+          "start_lateness_ms": 1.607943,
+          "latency_ms": {
+            "p50": 59.900881,
+            "p95": 63.568757,
+            "p99": 64.8042108
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 77085,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0007",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1325167436694644,
+      "drained_ns": 1325227465064388,
+      "duration_seconds": 60.028369744,
+      "successful": 61138,
+      "attempted": 61138,
+      "rps": 1018.4850973086923,
+      "latency_ms": {
+        "p50": 62.3351235,
+        "p95": 66.74524774999999,
+        "p99": 69.29825693999997
+      },
+      "clients": [
+        {
+          "started_ns": 1325167438174069,
+          "admission_deadline_ns": 1325227438174069,
+          "drained_ns": 1325227464297068,
+          "cpu_seconds": 9.143865394,
+          "attempted": 30568,
+          "successful": 30568,
+          "valid": true,
+          "requested_start_ns": 1325167436694644,
+          "start_lateness_ms": 1.479425,
+          "latency_ms": {
+            "p50": 62.3382375,
+            "p95": 66.74659869999999,
+            "p99": 69.26870187999992
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 77159,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325167438066373,
+          "admission_deadline_ns": 1325227438066373,
+          "drained_ns": 1325227465064388,
+          "cpu_seconds": 9.107072929,
+          "attempted": 30570,
+          "successful": 30570,
+          "valid": true,
+          "requested_start_ns": 1325167436694644,
+          "start_lateness_ms": 1.371729,
+          "latency_ms": {
+            "p50": 62.3317215,
+            "p95": 66.74450895,
+            "p99": 69.30660779
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 77160,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0008",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1325320333288933,
+      "drained_ns": 1325380360180252,
+      "duration_seconds": 60.026891319,
+      "successful": 60624,
+      "attempted": 60624,
+      "rps": 1009.9473530592613,
+      "latency_ms": {
+        "p50": 62.040706,
+        "p95": 73.0433185,
+        "p99": 77.53657859
+      },
+      "clients": [
+        {
+          "started_ns": 1325320334643224,
+          "admission_deadline_ns": 1325380334643224,
+          "drained_ns": 1325380359904258,
+          "cpu_seconds": 9.055523755,
+          "attempted": 30312,
+          "successful": 30312,
+          "valid": true,
+          "requested_start_ns": 1325320333288933,
+          "start_lateness_ms": 1.354291,
+          "latency_ms": {
+            "p50": 62.040366,
+            "p95": 73.04153975,
+            "p99": 77.53344478
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77236,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325320334643286,
+          "admission_deadline_ns": 1325380334643286,
+          "drained_ns": 1325380360180252,
+          "cpu_seconds": 9.015084653,
+          "attempted": 30312,
+          "successful": 30312,
+          "valid": true,
+          "requested_start_ns": 1325320333288933,
+          "start_lateness_ms": 1.354353,
+          "latency_ms": {
+            "p50": 62.041208,
+            "p95": 73.04492795,
+            "p99": 77.54354369
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77237,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0009",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1325474325499482,
+      "drained_ns": 1325534350285692,
+      "duration_seconds": 60.02478621,
+      "successful": 63507,
+      "attempted": 63507,
+      "rps": 1058.0129311550945,
+      "latency_ms": {
+        "p50": 60.10805,
+        "p95": 64.0462453,
+        "p99": 66.01148354
+      },
+      "clients": [
+        {
+          "started_ns": 1325474327330750,
+          "admission_deadline_ns": 1325534327330750,
+          "drained_ns": 1325534350285692,
+          "cpu_seconds": 9.170443853,
+          "attempted": 31751,
+          "successful": 31751,
+          "valid": true,
+          "requested_start_ns": 1325474325499482,
+          "start_lateness_ms": 1.831268,
+          "latency_ms": {
+            "p50": 60.105001,
+            "p95": 64.05774650000001,
+            "p99": 66.0238925
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77330,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325474327134542,
+          "admission_deadline_ns": 1325534327134542,
+          "drained_ns": 1325534350067583,
+          "cpu_seconds": 9.361517171,
+          "attempted": 31756,
+          "successful": 31756,
+          "valid": true,
+          "requested_start_ns": 1325474325499482,
+          "start_lateness_ms": 1.63506,
+          "latency_ms": {
+            "p50": 60.111414999999994,
+            "p95": 64.03691450000001,
+            "p99": 65.99506035
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77331,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0010",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1325618120090951,
+      "drained_ns": 1325678144031494,
+      "duration_seconds": 60.023940543,
+      "successful": 63485,
+      "attempted": 63485,
+      "rps": 1057.6613168960569,
+      "latency_ms": {
+        "p50": 59.868924,
+        "p95": 65.226497,
+        "p99": 69.28066023999999
+      },
+      "clients": [
+        {
+          "started_ns": 1325618121831543,
+          "admission_deadline_ns": 1325678121831543,
+          "drained_ns": 1325678143716984,
+          "cpu_seconds": 9.04551309,
+          "attempted": 31742,
+          "successful": 31742,
+          "valid": true,
+          "requested_start_ns": 1325618120090951,
+          "start_lateness_ms": 1.740592,
+          "latency_ms": {
+            "p50": 59.865792,
+            "p95": 65.2426213,
+            "p99": 69.29541624000001
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77407,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325618121308330,
+          "admission_deadline_ns": 1325678121308330,
+          "drained_ns": 1325678144031494,
+          "cpu_seconds": 9.004112576,
+          "attempted": 31743,
+          "successful": 31743,
+          "valid": true,
+          "requested_start_ns": 1325618120090951,
+          "start_lateness_ms": 1.217379,
+          "latency_ms": {
+            "p50": 59.870855,
+            "p95": 65.2199567,
+            "p99": 69.26691417999999
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77408,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0011",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1325762023193473,
+      "drained_ns": 1325822066908500,
+      "duration_seconds": 60.043715027,
+      "successful": 64875,
+      "attempted": 64875,
+      "rps": 1080.4627923310127,
+      "latency_ms": {
+        "p50": 58.832662,
+        "p95": 62.5309989,
+        "p99": 64.03988444000001
+      },
+      "clients": [
+        {
+          "started_ns": 1325762024163770,
+          "admission_deadline_ns": 1325822024163770,
+          "drained_ns": 1325822066236030,
+          "cpu_seconds": 9.318873787,
+          "attempted": 32433,
+          "successful": 32433,
+          "valid": true,
+          "requested_start_ns": 1325762023193473,
+          "start_lateness_ms": 0.970297,
+          "latency_ms": {
+            "p50": 58.833252,
+            "p95": 62.5267262,
+            "p99": 64.03545424
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77484,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325762024461811,
+          "admission_deadline_ns": 1325822024461811,
+          "drained_ns": 1325822066908500,
+          "cpu_seconds": 9.336297948,
+          "attempted": 32442,
+          "successful": 32442,
+          "valid": true,
+          "requested_start_ns": 1325762023193473,
+          "start_lateness_ms": 1.268338,
+          "latency_ms": {
+            "p50": 58.8320745,
+            "p95": 62.532479099999996,
+            "p99": 64.04105396
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 77485,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0012",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1325914025636629,
+      "drained_ns": 1325974088332426,
+      "duration_seconds": 60.062695797,
+      "successful": 65392,
+      "attempted": 65392,
+      "rps": 1088.7290211050797,
+      "latency_ms": {
+        "p50": 58.082994,
+        "p95": 64.3759641,
+        "p99": 67.24555397
+      },
+      "clients": [
+        {
+          "started_ns": 1325914026849884,
+          "admission_deadline_ns": 1325974026849884,
+          "drained_ns": 1325974088332426,
+          "cpu_seconds": 11.081374116,
+          "attempted": 32711,
+          "successful": 32711,
+          "valid": true,
+          "requested_start_ns": 1325914025636629,
+          "start_lateness_ms": 1.213255,
+          "latency_ms": {
+            "p50": 58.09675,
+            "p95": 64.366657,
+            "p99": 67.343098
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77559,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1325914027784075,
+          "admission_deadline_ns": 1325974027784075,
+          "drained_ns": 1325974086324095,
+          "cpu_seconds": 11.266166348,
+          "attempted": 32681,
+          "successful": 32681,
+          "valid": true,
+          "requested_start_ns": 1325914025636629,
+          "start_lateness_ms": 2.147446,
+          "latency_ms": {
+            "p50": 58.068494,
+            "p95": 64.381894,
+            "p99": 67.1192104
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77560,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0013",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1326068023144853,
+      "drained_ns": 1326128087092324,
+      "duration_seconds": 60.063947471,
+      "successful": 65233,
+      "attempted": 65233,
+      "rps": 1086.0591543953337,
+      "latency_ms": {
+        "p50": 58.367383,
+        "p95": 64.176068,
+        "p99": 66.06111812
+      },
+      "clients": [
+        {
+          "started_ns": 1326068024977457,
+          "admission_deadline_ns": 1326128024977457,
+          "drained_ns": 1326128083863275,
+          "cpu_seconds": 11.548895019,
+          "attempted": 32609,
+          "successful": 32609,
+          "valid": true,
+          "requested_start_ns": 1326068023144853,
+          "start_lateness_ms": 1.832604,
+          "latency_ms": {
+            "p50": 58.368012,
+            "p95": 64.1736076,
+            "p99": 66.05332564
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77675,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326068024684123,
+          "admission_deadline_ns": 1326128024684123,
+          "drained_ns": 1326128087092324,
+          "cpu_seconds": 11.792154094,
+          "attempted": 32624,
+          "successful": 32624,
+          "valid": true,
+          "requested_start_ns": 1326068023144853,
+          "start_lateness_ms": 1.53927,
+          "latency_ms": {
+            "p50": 58.36721,
+            "p95": 64.1809568,
+            "p99": 66.06288142
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77676,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0014",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1326211975473191,
+      "drained_ns": 1326272040990512,
+      "duration_seconds": 60.065517321,
+      "successful": 61789,
+      "attempted": 61789,
+      "rps": 1028.6933794274912,
+      "latency_ms": {
+        "p50": 61.450179,
+        "p95": 68.313788,
+        "p99": 72.00899320000002
+      },
+      "clients": [
+        {
+          "started_ns": 1326211977175688,
+          "admission_deadline_ns": 1326271977175688,
+          "drained_ns": 1326272040990512,
+          "cpu_seconds": 11.168113122,
+          "attempted": 30890,
+          "successful": 30890,
+          "valid": true,
+          "requested_start_ns": 1326211975473191,
+          "start_lateness_ms": 1.702497,
+          "latency_ms": {
+            "p50": 61.462263,
+            "p95": 68.30295395,
+            "p99": 71.94196407
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77786,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326211977171024,
+          "admission_deadline_ns": 1326271977171024,
+          "drained_ns": 1326272040148487,
+          "cpu_seconds": 11.207443894,
+          "attempted": 30899,
+          "successful": 30899,
+          "valid": true,
+          "requested_start_ns": 1326211975473191,
+          "start_lateness_ms": 1.697833,
+          "latency_ms": {
+            "p50": 61.441249,
+            "p95": 68.3221161,
+            "p99": 72.05736052
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77787,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0015",
+      "session": "mlp-B3-wsweep",
+      "round": 0,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1326355973961133,
+      "drained_ns": 1326416040418118,
+      "duration_seconds": 60.066456985,
+      "successful": 64064,
+      "attempted": 64064,
+      "rps": 1066.5520028257747,
+      "latency_ms": {
+        "p50": 58.591098,
+        "p95": 69.1501621,
+        "p99": 73.74239081000003
+      },
+      "clients": [
+        {
+          "started_ns": 1326355975365432,
+          "admission_deadline_ns": 1326415975365432,
+          "drained_ns": 1326416039833526,
+          "cpu_seconds": 10.894779727,
+          "attempted": 32032,
+          "successful": 32032,
+          "valid": true,
+          "requested_start_ns": 1326355973961133,
+          "start_lateness_ms": 1.404299,
+          "latency_ms": {
+            "p50": 58.5989795,
+            "p95": 69.13126545,
+            "p99": 73.71768033999999
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77897,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326355975831031,
+          "admission_deadline_ns": 1326415975831031,
+          "drained_ns": 1326416040418118,
+          "cpu_seconds": 11.056372758,
+          "attempted": 32032,
+          "successful": 32032,
+          "valid": true,
+          "requested_start_ns": 1326355973961133,
+          "start_lateness_ms": 1.869898,
+          "latency_ms": {
+            "p50": 58.584295,
+            "p95": 69.16339355,
+            "p99": 73.76609728999999
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 77898,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0016",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1326508172420840,
+      "drained_ns": 1326568230097421,
+      "duration_seconds": 60.057676581,
+      "successful": 65122,
+      "attempted": 65122,
+      "rps": 1084.3243313312284,
+      "latency_ms": {
+        "p50": 58.145976000000005,
+        "p95": 64.7273578,
+        "p99": 69.32527277000001
+      },
+      "clients": [
+        {
+          "started_ns": 1326508173895989,
+          "admission_deadline_ns": 1326568173895989,
+          "drained_ns": 1326568230097421,
+          "cpu_seconds": 11.349912222,
+          "attempted": 32557,
+          "successful": 32557,
+          "valid": true,
+          "requested_start_ns": 1326508172420840,
+          "start_lateness_ms": 1.475149,
+          "latency_ms": {
+            "p50": 58.139108,
+            "p95": 64.73978079999999,
+            "p99": 69.33150323999999
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78008,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326508173684644,
+          "admission_deadline_ns": 1326568173684644,
+          "drained_ns": 1326568226657142,
+          "cpu_seconds": 11.176834713,
+          "attempted": 32565,
+          "successful": 32565,
+          "valid": true,
+          "requested_start_ns": 1326508172420840,
+          "start_lateness_ms": 1.263804,
+          "latency_ms": {
+            "p50": 58.151688,
+            "p95": 64.7100944,
+            "p99": 69.28097400000001
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78009,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0017",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1326652072426487,
+      "drained_ns": 1326712133231675,
+      "duration_seconds": 60.060805188,
+      "successful": 64605,
+      "attempted": 64605,
+      "rps": 1075.659904954253,
+      "latency_ms": {
+        "p50": 58.395113,
+        "p95": 65.7901004,
+        "p99": 70.62061276
+      },
+      "clients": [
+        {
+          "started_ns": 1326652074501518,
+          "admission_deadline_ns": 1326712074501518,
+          "drained_ns": 1326712133231675,
+          "cpu_seconds": 11.243828035,
+          "attempted": 32307,
+          "successful": 32307,
+          "valid": true,
+          "requested_start_ns": 1326652072426487,
+          "start_lateness_ms": 2.075031,
+          "latency_ms": {
+            "p50": 58.396602,
+            "p95": 65.77837269999999,
+            "p99": 70.66029705999999
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78119,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326652074606377,
+          "admission_deadline_ns": 1326712074606377,
+          "drained_ns": 1326712128119456,
+          "cpu_seconds": 11.308151336,
+          "attempted": 32298,
+          "successful": 32298,
+          "valid": true,
+          "requested_start_ns": 1326652072426487,
+          "start_lateness_ms": 2.17989,
+          "latency_ms": {
+            "p50": 58.393119,
+            "p95": 65.80012615,
+            "p99": 70.59368229999998
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78120,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0018",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1326796072116067,
+      "drained_ns": 1326856128685458,
+      "duration_seconds": 60.056569391,
+      "successful": 64388,
+      "attempted": 64388,
+      "rps": 1072.1225113742362,
+      "latency_ms": {
+        "p50": 58.873894,
+        "p95": 65.58243705,
+        "p99": 70.8843237
+      },
+      "clients": [
+        {
+          "started_ns": 1326796074192990,
+          "admission_deadline_ns": 1326856074192990,
+          "drained_ns": 1326856127937592,
+          "cpu_seconds": 11.246940506,
+          "attempted": 32190,
+          "successful": 32190,
+          "valid": true,
+          "requested_start_ns": 1326796072116067,
+          "start_lateness_ms": 2.076923,
+          "latency_ms": {
+            "p50": 58.8842505,
+            "p95": 65.58193625,
+            "p99": 70.76291884000001
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78230,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326796074135401,
+          "admission_deadline_ns": 1326856074135401,
+          "drained_ns": 1326856128685458,
+          "cpu_seconds": 11.379920986,
+          "attempted": 32198,
+          "successful": 32198,
+          "valid": true,
+          "requested_start_ns": 1326796072116067,
+          "start_lateness_ms": 2.019334,
+          "latency_ms": {
+            "p50": 58.861644999999996,
+            "p95": 65.5827158,
+            "p99": 71.05148114999999
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78231,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0019",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1326946175724030,
+      "drained_ns": 1327006233119495,
+      "duration_seconds": 60.057395465,
+      "successful": 63828,
+      "attempted": 63828,
+      "rps": 1062.783350922992,
+      "latency_ms": {
+        "p50": 59.063424499999996,
+        "p95": 67.17382354999997,
+        "p99": 70.59733833
+      },
+      "clients": [
+        {
+          "started_ns": 1326946177574037,
+          "admission_deadline_ns": 1327006177574037,
+          "drained_ns": 1327006233119495,
+          "cpu_seconds": 11.432960094,
+          "attempted": 31912,
+          "successful": 31912,
+          "valid": true,
+          "requested_start_ns": 1326946175724030,
+          "start_lateness_ms": 1.850007,
+          "latency_ms": {
+            "p50": 59.067304500000006,
+            "p95": 67.19609305,
+            "p99": 70.60277703
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78341,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1326946177190579,
+          "admission_deadline_ns": 1327006177190579,
+          "drained_ns": 1327006231405508,
+          "cpu_seconds": 11.32768507,
+          "attempted": 31916,
+          "successful": 31916,
+          "valid": true,
+          "requested_start_ns": 1326946175724030,
+          "start_lateness_ms": 1.466549,
+          "latency_ms": {
+            "p50": 59.060938,
+            "p95": 67.15865875,
+            "p99": 70.58963095
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 78342,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0020",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1327090152025290,
+      "drained_ns": 1327150178499227,
+      "duration_seconds": 60.026473937,
+      "successful": 62648,
+      "attempted": 62648,
+      "rps": 1043.6728311869758,
+      "latency_ms": {
+        "p50": 60.9043095,
+        "p95": 64.92915105,
+        "p99": 69.12354291
+      },
+      "clients": [
+        {
+          "started_ns": 1327090153404551,
+          "admission_deadline_ns": 1327150153404551,
+          "drained_ns": 1327150178499227,
+          "cpu_seconds": 8.992898034,
+          "attempted": 31325,
+          "successful": 31325,
+          "valid": true,
+          "requested_start_ns": 1327090152025290,
+          "start_lateness_ms": 1.379261,
+          "latency_ms": {
+            "p50": 60.906271,
+            "p95": 64.9284584,
+            "p99": 69.129162
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78454,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327090153607833,
+          "admission_deadline_ns": 1327150153607833,
+          "drained_ns": 1327150178272237,
+          "cpu_seconds": 8.834977437,
+          "attempted": 31323,
+          "successful": 31323,
+          "valid": true,
+          "requested_start_ns": 1327090152025290,
+          "start_lateness_ms": 1.582543,
+          "latency_ms": {
+            "p50": 60.902876,
+            "p95": 64.9293527,
+            "p99": 69.11669188
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78455,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0021",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1327233028391582,
+      "drained_ns": 1327293055811951,
+      "duration_seconds": 60.027420369,
+      "successful": 62115,
+      "attempted": 62115,
+      "rps": 1034.7771005011919,
+      "latency_ms": {
+        "p50": 61.42711,
+        "p95": 67.4604432,
+        "p99": 69.42884708
+      },
+      "clients": [
+        {
+          "started_ns": 1327233030234375,
+          "admission_deadline_ns": 1327293030234375,
+          "drained_ns": 1327293054416653,
+          "cpu_seconds": 8.945539691,
+          "attempted": 31055,
+          "successful": 31055,
+          "valid": true,
+          "requested_start_ns": 1327233028391582,
+          "start_lateness_ms": 1.842793,
+          "latency_ms": {
+            "p50": 61.429353,
+            "p95": 67.4705753,
+            "p99": 69.42404131999999
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78547,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327233029727664,
+          "admission_deadline_ns": 1327293029727664,
+          "drained_ns": 1327293055811951,
+          "cpu_seconds": 8.861325678,
+          "attempted": 31060,
+          "successful": 31060,
+          "valid": true,
+          "requested_start_ns": 1327233028391582,
+          "start_lateness_ms": 1.336082,
+          "latency_ms": {
+            "p50": 61.423473,
+            "p95": 67.43810165,
+            "p99": 69.42964837
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78548,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0022",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1327376827803057,
+      "drained_ns": 1327436852691625,
+      "duration_seconds": 60.024888568,
+      "successful": 64397,
+      "attempted": 64397,
+      "rps": 1072.8383098462064,
+      "latency_ms": {
+        "p50": 59.262409,
+        "p95": 62.9734204,
+        "p99": 64.48717732
+      },
+      "clients": [
+        {
+          "started_ns": 1327376829467022,
+          "admission_deadline_ns": 1327436829467022,
+          "drained_ns": 1327436852403914,
+          "cpu_seconds": 9.148689673,
+          "attempted": 32199,
+          "successful": 32199,
+          "valid": true,
+          "requested_start_ns": 1327376827803057,
+          "start_lateness_ms": 1.663965,
+          "latency_ms": {
+            "p50": 59.262379,
+            "p95": 62.9760511,
+            "p99": 64.50278316
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78624,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327376829467767,
+          "admission_deadline_ns": 1327436829467767,
+          "drained_ns": 1327436852691625,
+          "cpu_seconds": 9.309843665,
+          "attempted": 32198,
+          "successful": 32198,
+          "valid": true,
+          "requested_start_ns": 1327376827803057,
+          "start_lateness_ms": 1.66471,
+          "latency_ms": {
+            "p50": 59.262451,
+            "p95": 62.9699742,
+            "p99": 64.47529627
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78625,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0023",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1327527765829250,
+      "drained_ns": 1327587790473870,
+      "duration_seconds": 60.02464462,
+      "successful": 63071,
+      "attempted": 63071,
+      "rps": 1050.7517437093659,
+      "latency_ms": {
+        "p50": 60.404438,
+        "p95": 64.577952,
+        "p99": 66.32770810000001
+      },
+      "clients": [
+        {
+          "started_ns": 1327527767672895,
+          "admission_deadline_ns": 1327587767672895,
+          "drained_ns": 1327587790230312,
+          "cpu_seconds": 9.005661762,
+          "attempted": 31535,
+          "successful": 31535,
+          "valid": true,
+          "requested_start_ns": 1327527765829250,
+          "start_lateness_ms": 1.843645,
+          "latency_ms": {
+            "p50": 60.406849,
+            "p95": 64.5753423,
+            "p99": 66.30955822
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78701,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327527767815665,
+          "admission_deadline_ns": 1327587767815665,
+          "drained_ns": 1327587790473870,
+          "cpu_seconds": 8.865056209,
+          "attempted": 31536,
+          "successful": 31536,
+          "valid": true,
+          "requested_start_ns": 1327527765829250,
+          "start_lateness_ms": 1.986415,
+          "latency_ms": {
+            "p50": 60.402053499999994,
+            "p95": 64.58069625,
+            "p99": 66.32938705000001
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 78702,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0024",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1327672618339330,
+      "drained_ns": 1327732645319373,
+      "duration_seconds": 60.026980043,
+      "successful": 61760,
+      "attempted": 61760,
+      "rps": 1028.8706837451853,
+      "latency_ms": {
+        "p50": 61.327625,
+        "p95": 68.27419674999997,
+        "p99": 71.23639628
+      },
+      "clients": [
+        {
+          "started_ns": 1327672619140983,
+          "admission_deadline_ns": 1327732619140983,
+          "drained_ns": 1327732643313198,
+          "cpu_seconds": 8.926759986,
+          "attempted": 30880,
+          "successful": 30880,
+          "valid": true,
+          "requested_start_ns": 1327672618339330,
+          "start_lateness_ms": 0.801653,
+          "latency_ms": {
+            "p50": 61.327028,
+            "p95": 68.25821239999999,
+            "p99": 71.24320433
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 78776,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327672619763219,
+          "admission_deadline_ns": 1327732619763219,
+          "drained_ns": 1327732645319373,
+          "cpu_seconds": 8.836437107,
+          "attempted": 30880,
+          "successful": 30880,
+          "valid": true,
+          "requested_start_ns": 1327672618339330,
+          "start_lateness_ms": 1.423889,
+          "latency_ms": {
+            "p50": 61.3292735,
+            "p95": 68.29425135,
+            "p99": 71.2214333
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 78777,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0025",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1327816323148247,
+      "drained_ns": 1327876346990794,
+      "duration_seconds": 60.023842547,
+      "successful": 64081,
+      "attempted": 64081,
+      "rps": 1067.592431288003,
+      "latency_ms": {
+        "p50": 59.551161,
+        "p95": 63.770726,
+        "p99": 68.06302339999998
+      },
+      "clients": [
+        {
+          "started_ns": 1327816324836561,
+          "admission_deadline_ns": 1327876324836561,
+          "drained_ns": 1327876346990794,
+          "cpu_seconds": 9.038627528,
+          "attempted": 32038,
+          "successful": 32038,
+          "valid": true,
+          "requested_start_ns": 1327816323148247,
+          "start_lateness_ms": 1.688314,
+          "latency_ms": {
+            "p50": 59.5511905,
+            "p95": 63.78947255,
+            "p99": 68.06097288000002
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 78851,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327816324309264,
+          "admission_deadline_ns": 1327876324309264,
+          "drained_ns": 1327876346758085,
+          "cpu_seconds": 9.218079824,
+          "attempted": 32043,
+          "successful": 32043,
+          "valid": true,
+          "requested_start_ns": 1327816323148247,
+          "start_lateness_ms": 1.161017,
+          "latency_ms": {
+            "p50": 59.551127,
+            "p95": 63.763732,
+            "p99": 68.0606406
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 78852,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0026",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1327959624173489,
+      "drained_ns": 1328019649894442,
+      "duration_seconds": 60.025720953,
+      "successful": 63123,
+      "attempted": 63123,
+      "rps": 1051.5991977743201,
+      "latency_ms": {
+        "p50": 60.087557,
+        "p95": 66.22600510000001,
+        "p99": 70.95049648
+      },
+      "clients": [
+        {
+          "started_ns": 1327959626250567,
+          "admission_deadline_ns": 1328019626250567,
+          "drained_ns": 1328019649894442,
+          "cpu_seconds": 9.331262052,
+          "attempted": 31564,
+          "successful": 31564,
+          "valid": true,
+          "requested_start_ns": 1327959624173489,
+          "start_lateness_ms": 2.077078,
+          "latency_ms": {
+            "p50": 60.0867165,
+            "p95": 66.2147207,
+            "p99": 70.93780858
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 78926,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1327959626345901,
+          "admission_deadline_ns": 1328019626345901,
+          "drained_ns": 1328019649810746,
+          "cpu_seconds": 9.12801752,
+          "attempted": 31559,
+          "successful": 31559,
+          "valid": true,
+          "requested_start_ns": 1327959624173489,
+          "start_lateness_ms": 2.172412,
+          "latency_ms": {
+            "p50": 60.089073,
+            "p95": 66.23036780000001,
+            "p99": 70.95223865999999
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 78927,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0027",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1328112625967744,
+      "drained_ns": 1328172652807640,
+      "duration_seconds": 60.026839896,
+      "successful": 64207,
+      "attempted": 64207,
+      "rps": 1069.6381837065283,
+      "latency_ms": {
+        "p50": 59.409938,
+        "p95": 63.5640328,
+        "p99": 67.06510460000003
+      },
+      "clients": [
+        {
+          "started_ns": 1328112627202552,
+          "admission_deadline_ns": 1328172627202552,
+          "drained_ns": 1328172652233435,
+          "cpu_seconds": 9.259787581,
+          "attempted": 32106,
+          "successful": 32106,
+          "valid": true,
+          "requested_start_ns": 1328112625967744,
+          "start_lateness_ms": 1.234808,
+          "latency_ms": {
+            "p50": 59.404576500000005,
+            "p95": 63.58221775,
+            "p99": 66.96816780000003
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79001,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328112628046201,
+          "admission_deadline_ns": 1328172628046201,
+          "drained_ns": 1328172652807640,
+          "cpu_seconds": 9.193693996,
+          "attempted": 32101,
+          "successful": 32101,
+          "valid": true,
+          "requested_start_ns": 1328112625967744,
+          "start_lateness_ms": 2.078457,
+          "latency_ms": {
+            "p50": 59.413727,
+            "p95": 63.548605,
+            "p99": 67.124956
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79002,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0028",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1328256372812305,
+      "drained_ns": 1328316405200487,
+      "duration_seconds": 60.032388182,
+      "successful": 48656,
+      "attempted": 48656,
+      "rps": 810.4958252283711,
+      "latency_ms": {
+        "p50": 78.24942949999999,
+        "p95": 84.157529,
+        "p99": 86.49232315
+      },
+      "clients": [
+        {
+          "started_ns": 1328256374749224,
+          "admission_deadline_ns": 1328316374749224,
+          "drained_ns": 1328316404901394,
+          "cpu_seconds": 7.276871277,
+          "attempted": 24326,
+          "successful": 24326,
+          "valid": true,
+          "requested_start_ns": 1328256372812305,
+          "start_lateness_ms": 1.936919,
+          "latency_ms": {
+            "p50": 78.248084,
+            "p95": 84.1534585,
+            "p99": 86.53692525
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79076,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328256374213366,
+          "admission_deadline_ns": 1328316374213366,
+          "drained_ns": 1328316405200487,
+          "cpu_seconds": 7.251872745,
+          "attempted": 24330,
+          "successful": 24330,
+          "valid": true,
+          "requested_start_ns": 1328256372812305,
+          "start_lateness_ms": 1.401061,
+          "latency_ms": {
+            "p50": 78.2515215,
+            "p95": 84.1631829,
+            "p99": 86.46605359
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79077,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0029",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1328400083410535,
+      "drained_ns": 1328460117553901,
+      "duration_seconds": 60.034143366,
+      "successful": 49636,
+      "attempted": 49636,
+      "rps": 826.7961732608159,
+      "latency_ms": {
+        "p50": 76.8146835,
+        "p95": 82.40827825,
+        "p99": 84.9257147
+      },
+      "clients": [
+        {
+          "started_ns": 1328400085538405,
+          "admission_deadline_ns": 1328460085538405,
+          "drained_ns": 1328460117553901,
+          "cpu_seconds": 7.241856087,
+          "attempted": 24818,
+          "successful": 24818,
+          "valid": true,
+          "requested_start_ns": 1328400083410535,
+          "start_lateness_ms": 2.12787,
+          "latency_ms": {
+            "p50": 76.806747,
+            "p95": 82.41065149999999,
+            "p99": 84.94248471
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79151,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328400085538360,
+          "admission_deadline_ns": 1328460085538360,
+          "drained_ns": 1328460116764474,
+          "cpu_seconds": 7.374091464,
+          "attempted": 24818,
+          "successful": 24818,
+          "valid": true,
+          "requested_start_ns": 1328400083410535,
+          "start_lateness_ms": 2.127825,
+          "latency_ms": {
+            "p50": 76.82106300000001,
+            "p95": 82.40595809999999,
+            "p99": 84.90349506
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79152,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0030",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1328553875926057,
+      "drained_ns": 1328613908659834,
+      "duration_seconds": 60.032733777,
+      "successful": 48378,
+      "attempted": 48378,
+      "rps": 805.86035244883,
+      "latency_ms": {
+        "p50": 78.846947,
+        "p95": 84.0984333,
+        "p99": 87.52125195
+      },
+      "clients": [
+        {
+          "started_ns": 1328553877192439,
+          "admission_deadline_ns": 1328613877192439,
+          "drained_ns": 1328613907863541,
+          "cpu_seconds": 7.121126891,
+          "attempted": 24186,
+          "successful": 24186,
+          "valid": true,
+          "requested_start_ns": 1328553875926057,
+          "start_lateness_ms": 1.266382,
+          "latency_ms": {
+            "p50": 78.848234,
+            "p95": 84.103119,
+            "p99": 87.62755290000001
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79226,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328553877171274,
+          "admission_deadline_ns": 1328613877171274,
+          "drained_ns": 1328613908659834,
+          "cpu_seconds": 7.237963466,
+          "attempted": 24192,
+          "successful": 24192,
+          "valid": true,
+          "requested_start_ns": 1328553875926057,
+          "start_lateness_ms": 1.245217,
+          "latency_ms": {
+            "p50": 78.84600449999999,
+            "p95": 84.083712,
+            "p99": 87.44446075
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79227,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0031",
+      "session": "mlp-B3-wsweep",
+      "round": 1,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1328697672680242,
+      "drained_ns": 1328757708952651,
+      "duration_seconds": 60.036272409,
+      "successful": 47824,
+      "attempted": 47824,
+      "rps": 796.5850989914346,
+      "latency_ms": {
+        "p50": 79.9491765,
+        "p95": 84.7862121,
+        "p99": 86.42130636
+      },
+      "clients": [
+        {
+          "started_ns": 1328697673912386,
+          "admission_deadline_ns": 1328757673912386,
+          "drained_ns": 1328757708952651,
+          "cpu_seconds": 7.307694389,
+          "attempted": 23915,
+          "successful": 23915,
+          "valid": true,
+          "requested_start_ns": 1328697672680242,
+          "start_lateness_ms": 1.232144,
+          "latency_ms": {
+            "p50": 79.947956,
+            "p95": 84.7812241,
+            "p99": 86.35077722
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79302,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328697674329103,
+          "admission_deadline_ns": 1328757674329103,
+          "drained_ns": 1328757707972451,
+          "cpu_seconds": 7.260609833,
+          "attempted": 23909,
+          "successful": 23909,
+          "valid": true,
+          "requested_start_ns": 1328697672680242,
+          "start_lateness_ms": 1.648861,
+          "latency_ms": {
+            "p50": 79.951995,
+            "p95": 84.7890348,
+            "p99": 86.53056083999998
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79303,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0032",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1328842374664609,
+      "drained_ns": 1328902411094980,
+      "duration_seconds": 60.036430371,
+      "successful": 47874,
+      "attempted": 47874,
+      "rps": 797.4158307574039,
+      "latency_ms": {
+        "p50": 79.3136915,
+        "p95": 86.03626655,
+        "p99": 89.63386889999998
+      },
+      "clients": [
+        {
+          "started_ns": 1328842376544548,
+          "admission_deadline_ns": 1328902376544548,
+          "drained_ns": 1328902410525751,
+          "cpu_seconds": 7.201737887,
+          "attempted": 23937,
+          "successful": 23937,
+          "valid": true,
+          "requested_start_ns": 1328842374664609,
+          "start_lateness_ms": 1.879939,
+          "latency_ms": {
+            "p50": 79.311074,
+            "p95": 86.0362616,
+            "p99": 89.64152831999999
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79377,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328842376545468,
+          "admission_deadline_ns": 1328902376545468,
+          "drained_ns": 1328902411094980,
+          "cpu_seconds": 7.369975732,
+          "attempted": 23937,
+          "successful": 23937,
+          "valid": true,
+          "requested_start_ns": 1328842374664609,
+          "start_lateness_ms": 1.880859,
+          "latency_ms": {
+            "p50": 79.318075,
+            "p95": 86.0353424,
+            "p99": 89.61266676
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79378,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0033",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1328986172447469,
+      "drained_ns": 1329046207585073,
+      "duration_seconds": 60.035137604,
+      "successful": 48212,
+      "attempted": 48212,
+      "rps": 803.063038149641,
+      "latency_ms": {
+        "p50": 79.07049,
+        "p95": 84.73192875,
+        "p99": 87.17812241
+      },
+      "clients": [
+        {
+          "started_ns": 1328986174509157,
+          "admission_deadline_ns": 1329046174509157,
+          "drained_ns": 1329046207220314,
+          "cpu_seconds": 7.306556042,
+          "attempted": 24106,
+          "successful": 24106,
+          "valid": true,
+          "requested_start_ns": 1328986172447469,
+          "start_lateness_ms": 2.061688,
+          "latency_ms": {
+            "p50": 79.072509,
+            "p95": 84.744283,
+            "p99": 87.1516703
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79468,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1328986174507472,
+          "admission_deadline_ns": 1329046174507472,
+          "drained_ns": 1329046207585073,
+          "cpu_seconds": 7.490502725,
+          "attempted": 24106,
+          "successful": 24106,
+          "valid": true,
+          "requested_start_ns": 1328986172447469,
+          "start_lateness_ms": 2.060003,
+          "latency_ms": {
+            "p50": 79.0693115,
+            "p95": 84.72438375,
+            "p99": 87.2011295
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79469,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0034",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1329129082042708,
+      "drained_ns": 1329189118458466,
+      "duration_seconds": 60.036415758,
+      "successful": 47770,
+      "attempted": 47770,
+      "rps": 795.6837428895734,
+      "latency_ms": {
+        "p50": 79.7987905,
+        "p95": 85.29265294999999,
+        "p99": 87.81734750999999
+      },
+      "clients": [
+        {
+          "started_ns": 1329129084143035,
+          "admission_deadline_ns": 1329189084143035,
+          "drained_ns": 1329189118458466,
+          "cpu_seconds": 7.326593421,
+          "attempted": 23883,
+          "successful": 23883,
+          "valid": true,
+          "requested_start_ns": 1329129082042708,
+          "start_lateness_ms": 2.100327,
+          "latency_ms": {
+            "p50": 79.805885,
+            "p95": 85.3026617,
+            "p99": 87.82170534000001
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79543,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1329129083666568,
+          "admission_deadline_ns": 1329189083666568,
+          "drained_ns": 1329189118147965,
+          "cpu_seconds": 7.189977722,
+          "attempted": 23887,
+          "successful": 23887,
+          "valid": true,
+          "requested_start_ns": 1329129082042708,
+          "start_lateness_ms": 1.62386,
+          "latency_ms": {
+            "p50": 79.791248,
+            "p95": 85.2739038,
+            "p99": 87.80502711999999
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79544,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0035",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-frontend-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1329271772661527,
+      "drained_ns": 1329331807846978,
+      "duration_seconds": 60.035185451,
+      "successful": 49255,
+      "attempted": 49255,
+      "rps": 820.4355434231371,
+      "latency_ms": {
+        "p50": 77.446207,
+        "p95": 82.50977069999999,
+        "p99": 84.77430113999999
+      },
+      "clients": [
+        {
+          "started_ns": 1329271773930632,
+          "admission_deadline_ns": 1329331773930632,
+          "drained_ns": 1329331807369983,
+          "cpu_seconds": 7.496388811,
+          "attempted": 24629,
+          "successful": 24629,
+          "valid": true,
+          "requested_start_ns": 1329271772661527,
+          "start_lateness_ms": 1.269105,
+          "latency_ms": {
+            "p50": 77.447379,
+            "p95": 82.5296466,
+            "p99": 84.8049158
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79618,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1329271774532577,
+          "admission_deadline_ns": 1329331774532577,
+          "drained_ns": 1329331807846978,
+          "cpu_seconds": 7.477954767,
+          "attempted": 24626,
+          "successful": 24626,
+          "valid": true,
+          "requested_start_ns": 1329271772661527,
+          "start_lateness_ms": 1.87105,
+          "latency_ms": {
+            "p50": 77.4452655,
+            "p95": 82.49406475,
+            "p99": 84.76672325
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79619,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0036",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1329414527650204,
+      "drained_ns": 1329474552822455,
+      "duration_seconds": 60.025172251,
+      "successful": 63330,
+      "attempted": 63330,
+      "rps": 1055.057363853628,
+      "latency_ms": {
+        "p50": 60.2218795,
+        "p95": 63.96569695,
+        "p99": 65.295715
+      },
+      "clients": [
+        {
+          "started_ns": 1329414528919094,
+          "admission_deadline_ns": 1329474528919094,
+          "drained_ns": 1329474552493717,
+          "cpu_seconds": 9.555925902,
+          "attempted": 31666,
+          "successful": 31666,
+          "valid": true,
+          "requested_start_ns": 1329414527650204,
+          "start_lateness_ms": 1.26889,
+          "latency_ms": {
+            "p50": 60.222167,
+            "p95": 63.96548825,
+            "p99": 65.29493795
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79693,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1329414529255584,
+          "admission_deadline_ns": 1329474529255584,
+          "drained_ns": 1329474552822455,
+          "cpu_seconds": 9.796810841,
+          "attempted": 31664,
+          "successful": 31664,
+          "valid": true,
+          "requested_start_ns": 1329414527650204,
+          "start_lateness_ms": 1.60538,
+          "latency_ms": {
+            "p50": 60.221520999999996,
+            "p95": 63.96574735,
+            "p99": 65.2985496
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79694,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0037",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1329565526694345,
+      "drained_ns": 1329625551266920,
+      "duration_seconds": 60.024572575,
+      "successful": 64506,
+      "attempted": 64506,
+      "rps": 1074.6598806580507,
+      "latency_ms": {
+        "p50": 59.0161495,
+        "p95": 63.243461999999994,
+        "p99": 65.32232344999998
+      },
+      "clients": [
+        {
+          "started_ns": 1329565528667751,
+          "admission_deadline_ns": 1329625528667751,
+          "drained_ns": 1329625551266920,
+          "cpu_seconds": 9.523669108,
+          "attempted": 32251,
+          "successful": 32251,
+          "valid": true,
+          "requested_start_ns": 1329565526694345,
+          "start_lateness_ms": 1.973406,
+          "latency_ms": {
+            "p50": 59.01665,
+            "p95": 63.257695,
+            "p99": 65.30621500000001
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79768,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1329565527997320,
+          "admission_deadline_ns": 1329625527997320,
+          "drained_ns": 1329625551067381,
+          "cpu_seconds": 9.477117052,
+          "attempted": 32255,
+          "successful": 32255,
+          "valid": true,
+          "requested_start_ns": 1329565526694345,
+          "start_lateness_ms": 1.302975,
+          "latency_ms": {
+            "p50": 59.015322,
+            "p95": 63.2314226,
+            "p99": 65.33199515999999
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79769,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0038",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1329718432984609,
+      "drained_ns": 1329778459852513,
+      "duration_seconds": 60.026867904,
+      "successful": 62920,
+      "attempted": 62920,
+      "rps": 1048.197285599291,
+      "latency_ms": {
+        "p50": 60.349588999999995,
+        "p95": 65.10351324999999,
+        "p99": 70.45617963999999
+      },
+      "clients": [
+        {
+          "started_ns": 1329718434229138,
+          "admission_deadline_ns": 1329778434229138,
+          "drained_ns": 1329778459852513,
+          "cpu_seconds": 9.117345572,
+          "attempted": 31463,
+          "successful": 31463,
+          "valid": true,
+          "requested_start_ns": 1329718432984609,
+          "start_lateness_ms": 1.244529,
+          "latency_ms": {
+            "p50": 60.350282,
+            "p95": 65.0999413,
+            "p99": 70.45016878
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79843,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1329718435084770,
+          "admission_deadline_ns": 1329778435084770,
+          "drained_ns": 1329778459236198,
+          "cpu_seconds": 9.23764239,
+          "attempted": 31457,
+          "successful": 31457,
+          "valid": true,
+          "requested_start_ns": 1329718432984609,
+          "start_lateness_ms": 2.100161,
+          "latency_ms": {
+            "p50": 60.349107,
+            "p95": 65.10958819999999,
+            "p99": 70.45765428
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79844,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0039",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-json-worker-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1329862374507665,
+      "drained_ns": 1329922399586498,
+      "duration_seconds": 60.025078833,
+      "successful": 64383,
+      "attempted": 64383,
+      "rps": 1072.601673362637,
+      "latency_ms": {
+        "p50": 59.241745,
+        "p95": 63.382292299999996,
+        "p99": 65.21247460000001
+      },
+      "clients": [
+        {
+          "started_ns": 1329862375957976,
+          "admission_deadline_ns": 1329922375957976,
+          "drained_ns": 1329922399299001,
+          "cpu_seconds": 9.329897734,
+          "attempted": 32192,
+          "successful": 32192,
+          "valid": true,
+          "requested_start_ns": 1329862374507665,
+          "start_lateness_ms": 1.450311,
+          "latency_ms": {
+            "p50": 59.2421245,
+            "p95": 63.37710525,
+            "p99": 65.21120714
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79918,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1329862375847743,
+          "admission_deadline_ns": 1329922375847743,
+          "drained_ns": 1329922399586498,
+          "cpu_seconds": 9.397931856,
+          "attempted": 32191,
+          "successful": 32191,
+          "valid": true,
+          "requested_start_ns": 1329862374507665,
+          "start_lateness_ms": 1.340078,
+          "latency_ms": {
+            "p50": 59.241253,
+            "p95": 63.389056,
+            "p99": 65.2192921
+          },
+          "payloads": [
+            {
+              "bytes": 1148,
+              "sha256": "5488048f8310ce9bf856b3ab24f27b5e8a30bb504bafc00fe3d0b2c80597fbb8"
+            }
+          ],
+          "pid": 79919,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0040",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1330006124950457,
+      "drained_ns": 1330066149767626,
+      "duration_seconds": 60.024817169,
+      "successful": 64155,
+      "attempted": 64155,
+      "rps": 1068.807920220256,
+      "latency_ms": {
+        "p50": 59.412786,
+        "p95": 63.1220308,
+        "p99": 64.52530587999999
+      },
+      "clients": [
+        {
+          "started_ns": 1330006126622653,
+          "admission_deadline_ns": 1330066126622653,
+          "drained_ns": 1330066149500708,
+          "cpu_seconds": 9.340430225,
+          "attempted": 32075,
+          "successful": 32075,
+          "valid": true,
+          "requested_start_ns": 1330006124950457,
+          "start_lateness_ms": 1.672196,
+          "latency_ms": {
+            "p50": 59.413907,
+            "p95": 63.122388199999996,
+            "p99": 64.52468978
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 79995,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1330006126841662,
+          "admission_deadline_ns": 1330066126841662,
+          "drained_ns": 1330066149767626,
+          "cpu_seconds": 9.199152283,
+          "attempted": 32080,
+          "successful": 32080,
+          "valid": true,
+          "requested_start_ns": 1330006124950457,
+          "start_lateness_ms": 1.891205,
+          "latency_ms": {
+            "p50": 59.4122705,
+            "p95": 63.11975595,
+            "p99": 64.52516523999999
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 79996,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0041",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1330149070142660,
+      "drained_ns": 1330209093699123,
+      "duration_seconds": 60.023556463,
+      "successful": 63792,
+      "attempted": 63792,
+      "rps": 1062.7827432938427,
+      "latency_ms": {
+        "p50": 59.760712,
+        "p95": 64.18275785,
+        "p99": 65.89058172
+      },
+      "clients": [
+        {
+          "started_ns": 1330149071400432,
+          "admission_deadline_ns": 1330209071400432,
+          "drained_ns": 1330209093495062,
+          "cpu_seconds": 9.405672303,
+          "attempted": 31897,
+          "successful": 31897,
+          "valid": true,
+          "requested_start_ns": 1330149070142660,
+          "start_lateness_ms": 1.257772,
+          "latency_ms": {
+            "p50": 59.759458,
+            "p95": 64.18476079999999,
+            "p99": 65.91365324
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 80072,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1330149071501752,
+          "admission_deadline_ns": 1330209071501752,
+          "drained_ns": 1330209093699123,
+          "cpu_seconds": 9.224177278,
+          "attempted": 31895,
+          "successful": 31895,
+          "valid": true,
+          "requested_start_ns": 1330149070142660,
+          "start_lateness_ms": 1.359092,
+          "latency_ms": {
+            "p50": 59.762414,
+            "p95": 64.179745,
+            "p99": 65.88298806
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 80073,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0042",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w8@r1",
+      "valid": true,
+      "requested_start_ns": 1330302022663038,
+      "drained_ns": 1330362046573237,
+      "duration_seconds": 60.023910199,
+      "successful": 63956,
+      "attempted": 63956,
+      "rps": 1065.5087245726538,
+      "latency_ms": {
+        "p50": 59.700333,
+        "p95": 63.560413499999996,
+        "p99": 65.85382405
+      },
+      "clients": [
+        {
+          "started_ns": 1330302024690496,
+          "admission_deadline_ns": 1330362024690496,
+          "drained_ns": 1330362046298504,
+          "cpu_seconds": 9.293898126,
+          "attempted": 31976,
+          "successful": 31976,
+          "valid": true,
+          "requested_start_ns": 1330302022663038,
+          "start_lateness_ms": 2.027458,
+          "latency_ms": {
+            "p50": 59.7018355,
+            "p95": 63.561102,
+            "p99": 65.8547495
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 80149,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1330302024184301,
+          "admission_deadline_ns": 1330362024184301,
+          "drained_ns": 1330362046573237,
+          "cpu_seconds": 9.370533015,
+          "attempted": 31980,
+          "successful": 31980,
+          "valid": true,
+          "requested_start_ns": 1330302022663038,
+          "start_lateness_ms": 1.521263,
+          "latency_ms": {
+            "p50": 59.69913,
+            "p95": 63.559807,
+            "p99": 65.84234982999999
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 80150,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0043",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-bin-worker-w12@r1",
+      "valid": true,
+      "requested_start_ns": 1330455024507187,
+      "drained_ns": 1330515081884443,
+      "duration_seconds": 60.057377256,
+      "successful": 64721,
+      "attempted": 64721,
+      "rps": 1077.6527873356988,
+      "latency_ms": {
+        "p50": 58.923023,
+        "p95": 63.416516,
+        "p99": 65.48920980000001
+      },
+      "clients": [
+        {
+          "started_ns": 1330455026631396,
+          "admission_deadline_ns": 1330515026631396,
+          "drained_ns": 1330515081884443,
+          "cpu_seconds": 9.308805823,
+          "attempted": 32358,
+          "successful": 32358,
+          "valid": true,
+          "requested_start_ns": 1330455024507187,
+          "start_lateness_ms": 2.124209,
+          "latency_ms": {
+            "p50": 58.924039,
+            "p95": 63.4042325,
+            "p99": 65.52975564
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 80226,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1330455025922841,
+          "admission_deadline_ns": 1330515025922841,
+          "drained_ns": 1330515080851827,
+          "cpu_seconds": 9.312589816,
+          "attempted": 32363,
+          "successful": 32363,
+          "valid": true,
+          "requested_start_ns": 1330455024507187,
+          "start_lateness_ms": 1.415654,
+          "latency_ms": {
+            "p50": 58.921655,
+            "p95": 63.4259151,
+            "p99": 65.45763304
+          },
+          "payloads": [
+            {
+              "bytes": 380,
+              "sha256": "a36a68f1b359cfef6605d720eed4aaa9ae45e53cae8c0538140ab874807e2941"
+            }
+          ],
+          "pid": 80227,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0044",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w1@r1",
+      "valid": true,
+      "requested_start_ns": 1330598879875944,
+      "drained_ns": 1330658938636352,
+      "duration_seconds": 60.058760408,
+      "successful": 65283,
+      "attempted": 65283,
+      "rps": 1086.9854715034064,
+      "latency_ms": {
+        "p50": 57.950435,
+        "p95": 65.0317407,
+        "p99": 67.93086129999999
+      },
+      "clients": [
+        {
+          "started_ns": 1330598881961742,
+          "admission_deadline_ns": 1330658881961742,
+          "drained_ns": 1330658936604375,
+          "cpu_seconds": 11.752274554,
+          "attempted": 32638,
+          "successful": 32638,
+          "valid": true,
+          "requested_start_ns": 1330598879875944,
+          "start_lateness_ms": 2.085798,
+          "latency_ms": {
+            "p50": 57.9517725,
+            "p95": 65.02001254999999,
+            "p99": 68.02637693000001
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 80301,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1330598881992234,
+          "admission_deadline_ns": 1330658881992234,
+          "drained_ns": 1330658938636352,
+          "cpu_seconds": 11.565778307,
+          "attempted": 32645,
+          "successful": 32645,
+          "valid": true,
+          "requested_start_ns": 1330598879875944,
+          "start_lateness_ms": 2.11629,
+          "latency_ms": {
+            "p50": 57.947612,
+            "p95": 65.03959400000001,
+            "p99": 67.81033128
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 80302,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0045",
+      "session": "mlp-B3-wsweep",
+      "round": 2,
+      "concurrency": 64,
+      "variant": "mlp-grpc-raw-w2@r1",
+      "valid": true,
+      "requested_start_ns": 1330742974965300,
+      "drained_ns": 1330803031930679,
+      "duration_seconds": 60.056965379,
+      "successful": 65330,
+      "attempted": 65330,
+      "rps": 1087.800550489416,
+      "latency_ms": {
+        "p50": 57.9691885,
+        "p95": 64.35301345,
+        "p99": 67.29714427
+      },
+      "clients": [
+        {
+          "started_ns": 1330742976515941,
+          "admission_deadline_ns": 1330802976515941,
+          "drained_ns": 1330803029608377,
+          "cpu_seconds": 11.467514762,
+          "attempted": 32668,
+          "successful": 32668,
+          "valid": true,
+          "requested_start_ns": 1330742974965300,
+          "start_lateness_ms": 1.550641,
+          "latency_ms": {
+            "p50": 57.97545,
+            "p95": 64.36490175,
+            "p99": 67.30052443
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 80412,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1330742976741830,
+          "admission_deadline_ns": 1330802976741830,
+          "drained_ns": 1330803031930679,
+          "cpu_seconds": 11.508873755,
+          "attempted": 32662,
+          "successful": 32662,
+          "valid": true,
+          "requested_start_ns": 1330742974965300,
+          "start_lateness_ms": 1.77653,
+          "latency_ms": {
+            "p50": 57.962952,
+            "p95": 64.33280895,
+            "p99": 67.29201171999999
+          },
+          "payloads": [
+            {
+              "bytes": 249,
+              "sha256": "1622cfbaaa334d58911136c2196903e57e9226aa5607d61a041bd8c15a3dae03"
+            }
+          ],
+          "pid": 80413,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    }
+  ]
+}

@@ -267,6 +267,7 @@ def wait_rollout(apps, core, name: str):
 
 async def wait_model_ready(service: str, model: str) -> float:
     url = f"http://{service}.{NAMESPACE}.svc:{REST_PORT}/v2/models/{model}/ready"
+    budget = float(os.environ.get("BENCHMARK_MODEL_READY_TIMEOUT", "300"))
     began = time.monotonic()
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=10)
@@ -278,8 +279,8 @@ async def wait_model_ready(service: str, model: str) -> float:
                         return time.monotonic() - began
             except aiohttp.ClientError:
                 pass
-            if time.monotonic() - began > 300:
-                raise TimeoutError(f"Model not ready at {url} within 300s")
+            if time.monotonic() - began > budget:
+                raise TimeoutError(f"Model not ready at {url} within {budget}s")
             await asyncio.sleep(1)
 
 
@@ -306,15 +307,121 @@ def arrays_from_response(body: dict[str, Any]) -> dict[str, np.ndarray]:
     return out
 
 
-async def check_rest(
+def _binary_response_equivalent(
+    reply: bytes,
+    reply_header_length: int,
+    reference: bytes,
+    ref_header_length: int,
+) -> bool:
+    """Compare binary responses ignoring only the generated request id.
+
+    The tensor payload must be byte-exact (the model outputs), and the
+    header must match semantically (names, shapes, datatypes,
+    ``binary_data_size``). The ``id`` field is generated per request, so
+    it is the sole exemption. Boundaries come from the protocol's
+    ``Inference-Header-Content-Length`` — the tensor bytes are arbitrary
+    binary and must never be decoded as text.
+    """
+    reply_header = json.loads(reply[:reply_header_length].decode("utf-8"))
+    ref_header = json.loads(reference[:ref_header_length].decode("utf-8"))
+    reply_header.pop("id", None)
+    ref_header.pop("id", None)
+    return (
+        reply_header == ref_header
+        and reply[reply_header_length:] == reference[ref_header_length:]
+    )
+
+
+async def check_binary_rest(
     service: str, device: str, model: str, capture: bool = False
 ) -> dict[str, Any]:
-    j0 = (PAYLOADS / "j0-0.bin").read_bytes()
-    reference_path = REFERENCES / f"{device}{model_stem(model)}-rest-response.bin"
+    """Binary-frame REST parity: outputs byte-exact vs frozen reference.
+
+    Complements ``check_rest`` (which proves the JSON path and thus the
+    model outputs): this proves the binary wire path itself, so
+    frontend-parse and worker-parse variants can be gated on identical
+    tensor bytes. Only meaningful when the deployment enables
+    ``rest_binary_tensor``.
+    """
+    payload_path = PAYLOADS / f"triton-binary{model_stem(model)}-0.bin"
+    if not payload_path.exists():
+        payload_path = PAYLOADS / "triton-binary-rest.bin"
+    body = payload_path.read_bytes()
+    frames_map = json.loads((PAYLOADS / "binary-frames.json").read_text())
+    header_length = frames_map.get(payload_path.name)
+    if header_length is None:
+        raise RuntimeError(
+            f"No header length recorded for binary payload {payload_path.name}"
+        )
+    reference_path = REFERENCES / f"{device}{model_stem(model)}-binary-rest-response.bin"
+    ihcl_path = Path(str(reference_path) + ".ihcl")
     url = f"http://{service}.{NAMESPACE}.svc:{REST_PORT}/v2/models/{model}/infer"
     began = time.monotonic()
     async with aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=300)
+    ) as session:
+        async with session.post(
+            url,
+            data=body,
+            headers={
+                "Content-Type": "application/octet-stream",
+                "Inference-Header-Content-Length": str(header_length),
+            },
+        ) as response:
+            reply = await response.read()
+            if response.status != 200:
+                raise RuntimeError(
+                    f"Binary REST correctness HTTP {response.status}"
+                )
+            if "Inference-Header-Content-Length" not in response.headers:
+                raise RuntimeError(
+                    "Binary REST response missing Inference-Header-Content-Length"
+                )
+            reply_ihcl = int(response.headers["Inference-Header-Content-Length"])
+    reply_payload = reply[reply_ihcl:]
+    if capture:
+        reference_path.write_bytes(reply)
+        ihcl_path.write_text(str(reply_ihcl))
+        source = "captured"
+    else:
+        if not reference_path.exists() or not ihcl_path.exists():
+            raise RuntimeError(
+                f"Missing binary REST reference or sidecar: {reference_path}"
+            )
+        reference = reference_path.read_bytes()
+        ref_ihcl = int(ihcl_path.read_text())
+        if not _binary_response_equivalent(
+            reply, reply_ihcl, reference, ref_ihcl
+        ):
+            raise RuntimeError(
+                "Binary REST response differs from reference "
+                f"(payload sha256 got {hashlib.sha256(reply_payload).hexdigest()}, "
+                f"expected {hashlib.sha256(reference[ref_ihcl:]).hexdigest()})"
+            )
+        source = "verified"
+    return {
+        "binary_rest_latency_s": time.monotonic() - began,
+        "binary_rest_payload_sha256": hashlib.sha256(reply_payload).hexdigest(),
+        "binary_rest_response_bytes": len(reply),
+        "binary_rest_reference": source,
+    }
+
+
+async def check_rest(
+    service: str, device: str, model: str, capture: bool = False
+) -> dict[str, Any]:
+    json_payload_path = PAYLOADS / f"j0{model_stem(model)}-0.bin"
+    if not json_payload_path.exists():
+        # Models sharing the default model's input schema (e.g. the
+        # batched variant) reuse its payload.
+        json_payload_path = PAYLOADS / "j0-0.bin"
+    j0 = json_payload_path.read_bytes()
+    reference_path = REFERENCES / f"{device}{model_stem(model)}-rest-response.bin"
+    url = f"http://{service}.{NAMESPACE}.svc:{REST_PORT}/v2/models/{model}/infer"
+    parity_timeout = float(os.environ.get("BENCHMARK_PARITY_TIMEOUT", "300"))
+    began = time.monotonic()
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=parity_timeout)
     ) as session:
         async with session.post(
             url, data=j0, headers={"Content-Type": "application/json"}
@@ -358,6 +465,7 @@ async def check_grpc(
     payload_path = PAYLOADS / f"g{model_stem(model)}-0.bin"
     g0 = payload_path.read_bytes()
     reference_path = REFERENCES / f"{device}{model_stem(model)}-grpc-response.bin"
+    parity_timeout = float(os.environ.get("BENCHMARK_PARITY_TIMEOUT", "300"))
     options = [
         ("grpc.max_send_message_length", 64 * 1024 * 1024),
         ("grpc.max_receive_message_length", 64 * 1024 * 1024),
@@ -367,7 +475,7 @@ async def check_grpc(
         f"{service}.{NAMESPACE}.svc:{GRPC_PORT}", options=options
     ) as channel:
         method = channel.unary_unary(RPC)
-        response = await method(g0, timeout=300)
+        response = await method(g0, timeout=parity_timeout)
     if capture:
         reference_path.write_bytes(response)
         source = "captured"
@@ -467,6 +575,20 @@ def main() -> None:
     grpc_result = asyncio.run(
         check_grpc(config["service"], config["device"], model, args.capture_refs)
     )
+    # The binary wire path is gated only when the deployment enables the
+    # extension (stock variants would 400 on a binary frame).
+    binary_env = {
+        entry["name"]: entry["value"]
+        for entry in config["env"]
+        if isinstance(entry, dict) and "name" in entry
+    }
+    binary_result = None
+    if str(binary_env.get("MLSERVER_REST_BINARY_TENSOR", "false")).lower() == "true":
+        binary_result = asyncio.run(
+            check_binary_rest(
+                config["service"], config["device"], model, args.capture_refs
+            )
+        )
 
     applied = apps.read_namespaced_deployment(target, NAMESPACE)
     container = next(
@@ -495,7 +617,11 @@ def main() -> None:
         ),
         "providers_line": providers_line,
         "model_ready_seconds": ready_seconds,
-        "correctness": {"rest": rest, "grpc": grpc_result},
+        "correctness": {
+            "rest": rest,
+            "grpc": grpc_result,
+            "binary_rest": binary_result,
+        },
         "hook_utc": now_utc(),
         "hook_duration_s": time.monotonic() - began,
     }

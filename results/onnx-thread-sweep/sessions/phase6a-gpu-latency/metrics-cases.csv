@@ -1,0 +1,7 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,1,gpu-rest-t2,True,24.4856,1470,40.725,41.814,42.206,42.941,29.840,3.429,55.273,520.000,1036.3,mlserver-rfdetr-754c6d547-mrhv9
+case-0001,0,1,gpu-grpc-t2,True,22.9993,1380,43.413,44.815,45.253,46.193,40.338,3.269,51.000,520.000,1073.3,mlserver-rfdetr-d4b4bd8b-dsn25
+case-0002,1,1,gpu-grpc-t2,True,22.8835,1374,43.552,45.082,45.755,47.505,38.871,3.243,44.667,522.000,1061.0,mlserver-rfdetr-6ff468d947-mxf9f
+case-0003,1,1,gpu-rest-t2,True,24.4471,1467,40.792,41.885,42.302,43.015,36.992,3.384,54.333,524.000,1033.7,mlserver-rfdetr-ddd559795-jvm9d
+case-0004,2,1,gpu-rest-t2,True,24.6523,1480,40.523,41.213,41.473,42.043,46.155,3.437,56.667,520.000,1025.2,mlserver-rfdetr-7df5d975b4-965s5
+case-0005,2,1,gpu-grpc-t2,True,23.3899,1404,42.671,43.845,44.152,45.100,38.143,3.252,49.667,524.000,1072.1,mlserver-rfdetr-5fb6494b6d-mzsht

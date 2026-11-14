@@ -1,0 +1,2 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-cudnn-exhaustive,8,3,31.527,1.40,253.955,259.961,264.253,37.641,4.8,82.8,1095.2

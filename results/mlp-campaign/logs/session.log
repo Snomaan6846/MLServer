@@ -1,0 +1,152 @@
+[mlp] 2026-11-13T08:38:01Z STEP 0: upload tooling + payloads
+[mlp] 2026-11-13T08:39:03Z   > uploaded
+[mlp] 2026-11-13T08:39:03Z STEP 1: prepare single-model deployment
+[mlp] 2026-11-13T14:35:22Z STEP 0: upload tooling + payloads
+[mlp] 2026-11-13T14:36:24Z   > uploaded (stale sweeps cleared)
+[mlp] 2026-11-13T14:36:24Z STEP 1: prepare single-model deployment
+model verified on PVC: 2985522 bytes
+[mlp] 2026-11-13T14:36:48Z   > mlp-small deployed (single-model conditions)
+[mlp] 2026-11-13T14:36:48Z STEP 2: capture mlp-small references
+hook OK: variant=mlp-bin-worker model=mlp-small pod=mlserver-rfdetr-cpu-8c6bc9f97-55wbp providers=['CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[mlp] 2026-11-13T14:37:13Z === SESSION mlp-B2-core ===
+[mlp] 2026-11-13T14:37:15Z   > uploading plan
+[mlp] 2026-11-13T14:37:18Z   > starting sampler
+[mlp] 2026-11-13T14:37:18Z   > running sweep
+[mlp] 2026-11-13T16:49:28Z   > collecting
+[mlp] 2026-11-13T16:51:44Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+mlp-bin-frontend@r1,64,3,775.149,1.74,81.844,87.567,93.737,2.046,5.7,null,249.3
+mlp-bin-frontend@r100,64,3,521.516,2.43,122.788,129.344,135.498,3.741,8.3,null,255.6
+mlp-bin-frontend@r1000,64,3,83.411,2.08,756.870,815.541,846.247,22.378,7.3,null,289.7
+mlp-bin-worker@r1,64,3,1063.515,2.32,60.083,63.520,68.033,1.913,7.2,null,249.3
+mlp-bin-worker@r100,64,3,466.060,2.19,136.474,141.954,151.308,4.281,7.2,null,254.3
+mlp-bin-worker@r1000,64,3,83.504,3.06,771.220,798.977,823.737,22.536,6.9,null,290.5
+mlp-grpc-raw@r1,64,3,1074.999,3.38,58.144,63.688,69.454,1.703,6.9,null,249.4
+mlp-grpc-raw@r100,64,3,544.383,1.65,116.951,124.911,133.941,4.221,8.1,null,260.6
+mlp-grpc-raw@r1000,64,3,85.121,0.82,747.721,770.901,806.864,19.874,7.3,null,319.5
+mlp-grpc-stock@r1,64,3,1177.694,10.40,54.496,63.104,71.096,1.587,6.7,null,251.4
+mlp-grpc-stock@r100,64,3,401.522,5.84,159.149,168.120,176.197,4.814,7.7,null,274.7
+mlp-grpc-stock@r1000,64,3,57.323,2.12,1118.527,1145.893,1177.831,35.705,6.9,null,487.4
+mlp-json-frontend@r1,64,3,806.760,2.46,79.320,84.176,89.070,1.935,5.8,null,257.5
+mlp-json-frontend@r100,64,3,410.523,0.51,155.573,161.403,169.786,5.162,8.5,null,283.8
+mlp-json-frontend@r1000,64,3,56.016,1.47,1135.552,1163.146,1248.445,34.788,7.6,null,530.9
+mlp-json-worker@r1,64,3,1056.966,1.17,59.748,64.411,69.863,1.851,7.0,null,252.4
+mlp-json-worker@r100,64,3,354.191,0.97,179.229,186.906,201.194,4.673,6.6,null,267.0
+mlp-json-worker@r1000,64,3,50.961,1.04,1250.409,1290.150,1367.157,29.585,6.1,null,410.5
+[mlp] 2026-11-13T16:51:48Z   > all trials valid
+  mlp-bin-frontend@r1                C 64     775.15 RPS
+  mlp-bin-frontend@r100              C 64     521.52 RPS
+  mlp-bin-frontend@r1000             C 64      83.41 RPS
+  mlp-bin-worker@r1                  C 64    1063.52 RPS
+  mlp-bin-worker@r100                C 64     466.06 RPS
+  mlp-bin-worker@r1000               C 64      83.50 RPS
+  mlp-grpc-raw@r1                    C 64    1075.00 RPS
+  mlp-grpc-raw@r100                  C 64     544.38 RPS
+  mlp-grpc-raw@r1000                 C 64      85.12 RPS
+  mlp-grpc-stock@r1                  C 64    1177.69 RPS
+  mlp-grpc-stock@r100                C 64     401.52 RPS
+  mlp-grpc-stock@r1000               C 64      57.32 RPS
+  mlp-json-frontend@r1               C 64     806.76 RPS
+  mlp-json-frontend@r100             C 64     410.52 RPS
+  mlp-json-frontend@r1000            C 64      56.02 RPS
+  mlp-json-worker@r1                 C 64    1056.97 RPS
+  mlp-json-worker@r100               C 64     354.19 RPS
+  mlp-json-worker@r1000              C 64      50.96 RPS
+[mlp] 2026-11-13T16:51:48Z   > mlp-B2-core COMPLETE
+[mlp] 2026-11-13T16:51:48Z === SESSION mlp-B3-wsweep ===
+[mlp] 2026-11-13T16:51:51Z   > uploading plan
+[mlp] 2026-11-13T16:51:54Z   > starting sampler
+[mlp] 2026-11-13T16:51:54Z   > running sweep
+[mlp-recovery] 2026-11-13T18:46:31Z   > logged in
+[mlp-recovery] 2026-11-13T18:46:33Z === Collecting B3-wsweep (already complete on pod) ===
+[mlp-recovery] 2026-11-13T18:49:50Z   > collect B3: attempt 1 failed, retrying...
+[mlp-recovery] 2026-11-13T18:49:51Z   > logged in
+[mlp-recovery] 2026-11-13T18:53:14Z   > collect B3: attempt 2 failed, retrying...
+[mlp-recovery] 2026-11-13T18:53:15Z   > logged in
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+mlp-bin-worker-w12@r1,64,3,1077.653,3.41,59.530,62.969,65.987,1.758,7.1,null,250.9
+mlp-bin-worker-w1@r1,64,3,1050.752,5.60,60.673,64.654,74.224,1.743,7.1,null,252.6
+mlp-bin-worker-w2@r1,64,3,1062.783,1.39,59.704,62.950,65.678,1.779,7.2,null,248.7
+mlp-bin-worker-w8@r1,64,3,1057.661,2.91,60.229,64.264,69.052,2.038,7.2,null,248.9
+mlp-grpc-raw-w12@r1,64,2,1075.438,1.65,58.359,64.477,72.128,1.727,6.8,null,247.4
+mlp-grpc-raw-w1@r1,64,3,1086.985,2.39,58.320,64.110,69.691,1.533,6.8,null,249.1
+mlp-grpc-raw-w2@r1,64,3,1086.059,1.44,58.404,63.587,67.975,1.400,6.7,null,253.6
+mlp-grpc-raw-w8@r1,64,2,1052.177,4.46,60.164,66.098,70.982,1.645,6.7,null,249.3
+mlp-json-frontend-w12@r1,64,3,810.496,3.30,78.462,83.411,89.611,1.968,5.8,null,267.0
+mlp-json-frontend-w1@r1,64,3,796.585,0.94,80.015,84.776,89.458,1.772,5.7,null,254.9
+mlp-json-frontend-w2@r1,64,3,803.063,0.66,79.092,83.359,87.194,1.753,5.7,null,250.2
+mlp-json-frontend-w8@r1,64,3,816.625,3.81,78.255,82.898,86.609,2.096,5.8,null,256.7
+mlp-json-worker-w12@r1,64,3,1028.871,5.26,61.051,65.320,70.340,1.765,6.9,null,252.0
+mlp-json-worker-w1@r1,64,3,1069.357,1.36,59.754,62.931,66.026,1.728,7.0,null,252.0
+mlp-json-worker-w2@r1,64,3,1051.599,2.86,59.973,64.079,69.099,2.085,7.0,null,252.3
+mlp-json-worker-w8@r1,64,3,1061.644,1.83,59.867,63.370,68.870,1.864,7.0,null,252.6
+[mlp-recovery] 2026-11-13T18:56:52Z   > B3 collected and summarized
+[mlp-recovery] 2026-11-13T18:56:52Z === SESSION mlp-B4-csweep ===
+[mlp-recovery] 2026-11-13T18:56:52Z   > logged in
+[mlp-recovery] 2026-11-13T18:56:54Z   > uploading plan
+[mlp-recovery] 2026-11-13T18:56:57Z   > starting sampler
+[mlp-recovery] 2026-11-13T18:56:57Z   > running sweep
+[mlp-recovery] 2026-11-13T20:24:55Z   > collecting
+[mlp-recovery] 2026-11-13T20:27:43Z   > collect retry 1
+[mlp-recovery] 2026-11-13T20:31:01Z   > collect retry 2
+[mlp-recovery] 2026-11-13T20:34:13Z   > collect retry 3
+[mlp-recovery] 2026-11-13T20:37:23Z   > WARNING: collect mlp-B4-csweep failed
+[mlp-recovery] 2026-11-13T20:37:23Z === SESSION mlp-B5-transport ===
+[mlp-recovery] 2026-11-13T20:37:24Z   > logged in
+[mlp-recovery] 2026-11-13T20:37:25Z   > uploading plan
+[mlp-recovery] 2026-11-13T20:37:28Z   > starting sampler
+[mlp-recovery] 2026-11-13T20:37:28Z   > running sweep
+[mlp-recovery] 2026-11-13T20:59:50Z   > collecting
+[mlp-recovery] 2026-11-13T21:00:27Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+mlp-bin-worker-queue@r1,64,3,966.769,0.79,65.619,71.078,76.710,1.765,6.9,null,243.9
+mlp-json-frontend-queue@r1,64,3,732.739,4.62,86.468,93.088,98.612,1.597,5.6,null,248.6
+mlp-json-worker-queue@r1,64,3,955.742,1.90,66.190,71.284,76.639,1.718,6.6,null,249.0
+  mlp-bin-worker-queue@r1            C 64     966.77 RPS
+  mlp-json-frontend-queue@r1         C 64     732.74 RPS
+  mlp-json-worker-queue@r1           C 64     955.74 RPS
+[mlp-recovery] 2026-11-13T21:00:28Z   > mlp-B5-transport COMPLETE
+[mlp-recovery] 2026-11-13T21:00:28Z === SESSION mlp-B6-threads ===
+[mlp-recovery] 2026-11-13T21:00:29Z   > logged in
+[mlp-recovery] 2026-11-13T21:00:30Z   > uploading plan
+[mlp-recovery] 2026-11-13T21:00:33Z   > starting sampler
+[mlp-recovery] 2026-11-13T21:00:33Z   > running sweep
+[mlp-recovery] 2026-11-13T21:05:25Z   > sweep attempt 1 failed — retrying
+[mlp-recovery] 2026-11-13T21:05:25Z   > logged in
+[mlp-recovery] 2026-11-13T21:12:15Z   > sweep attempt 2 failed — retrying
+[mlp-recovery] 2026-11-13T21:12:16Z   > logged in
+[mlp-recovery] 2026-11-13T21:19:07Z   > sweep attempt 3 failed — retrying
+[mlp-recovery] 2026-11-13T21:19:08Z   > logged in
+[mlp-recovery] 2026-11-13T21:24:30Z   > WARNING: sweep mlp-B6-threads failed after retries — collecting what exists
+[mlp-recovery] 2026-11-13T21:24:30Z   > collecting
+[mlp-recovery] 2026-11-13T21:24:40Z   > collect retry 1
+[mlp-recovery] 2026-11-13T21:25:06Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+mlp-bin-worker-t1@r1,64,1,1096.137,0.00,57.935,61.061,65.477,1.339,6.9,null,246.1
+  mlp-bin-worker-t1@r1               C 64    1096.14 RPS
+[mlp-recovery] 2026-11-13T21:25:06Z   > mlp-B6-threads COMPLETE
+[mlp-recovery] 2026-11-13T21:25:06Z === Restoring PVC state ===
+[mlp-recovery] 2026-11-13T21:25:14Z MLP CAMPAIGN B RECOVERY COMPLETE
+[b6-rerun] 2026-11-14T08:32:38Z === B6 RERUN: fresh 3 trials ===
+[b6-rerun] 2026-11-14T08:32:38Z STEP 1: deploy mlp-small
+model verified: 2985522 bytes
+[b6-rerun] 2026-11-14T08:33:03Z   > mlp-small deployed
+[b6-rerun] 2026-11-14T08:33:07Z STEP 2: run 3 trials
+[b6-rerun] 2026-11-14T08:39:21Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T08:45:50Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T08:51:27Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T08:56:44Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T09:03:23Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T09:05:57Z === B6 RERUN: fresh 3 trials ===
+[b6-rerun] 2026-11-14T09:05:57Z STEP 1: deploy mlp-small
+model verified: 2985522 bytes
+[b6-rerun] 2026-11-14T09:06:21Z   > mlp-small deployed
+[b6-rerun] 2026-11-14T09:06:25Z STEP 2: run 3 trials
+[b6-rerun] 2026-11-14T09:12:55Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T09:19:29Z   > sweep failed — retrying
+[b6-rerun] 2026-11-14T09:23:31Z === B6 RERUN: fresh 3 trials ===
+[b6-rerun] 2026-11-14T09:23:31Z STEP 1: deploy mlp-small
+model verified: 2985522 bytes
+[b6-rerun] 2026-11-14T09:23:56Z   > mlp-small deployed
+[b6-rerun] 2026-11-14T09:24:00Z STEP 2: run 3 trials
+[b6-rerun] 2026-11-14T09:30:29Z   > sweep failed — retrying

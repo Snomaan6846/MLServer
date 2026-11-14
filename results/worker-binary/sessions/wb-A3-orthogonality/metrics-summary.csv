@@ -1,0 +1,3 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-json-worker-wbinon,4,3,5.882,0.88,678.784,689.875,702.387,178.517,4.2,23.9,1115.9
+wb-json-worker-wbinon,8,3,5.878,0.50,1360.190,1375.699,1389.504,184.916,4.2,21.6,1225.8

@@ -1,0 +1,3 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-grpc-baseline,8,3,1.754,3.06,4571.355,4687.700,4740.385,1031.026,6.7,null,1464.9
+cpu-grpc-optimal,8,3,3.838,2.18,2078.335,2136.740,2199.141,1186.404,16.7,null,1473.6

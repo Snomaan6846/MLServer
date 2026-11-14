@@ -1,0 +1,310 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 32,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 20,
+    "concurrency": [
+      8
+    ],
+    "session": "phase2b-gpu-cudnn",
+    "variants": [
+      {
+        "name": "gpu-cudnn-default",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "gpu-cudnn-default"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      },
+      {
+        "name": "gpu-cudnn-exhaustive",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "gpu-cudnn-exhaustive"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "phase2b-gpu-cudnn",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "gpu-cudnn-default",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'gpu-cudnn-default']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0001",
+      "session": "phase2b-gpu-cudnn",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "gpu-cudnn-exhaustive",
+      "valid": true,
+      "requested_start_ns": 1243900102597191,
+      "drained_ns": 1243960334390886,
+      "duration_seconds": 60.231793695,
+      "successful": 1897,
+      "attempted": 1897,
+      "rps": 31.49499431489577,
+      "latency_ms": {
+        "p50": 254.031702,
+        "p95": 258.4517746,
+        "p99": 259.78018696000004
+      },
+      "clients": [
+        {
+          "started_ns": 1243900104285386,
+          "admission_deadline_ns": 1243960104285386,
+          "drained_ns": 1243960334390886,
+          "cpu_seconds": 1.650511449,
+          "attempted": 949,
+          "successful": 949,
+          "valid": true,
+          "requested_start_ns": 1243900102597191,
+          "start_lateness_ms": 1.688195,
+          "latency_ms": {
+            "p50": 254.018724,
+            "p95": 258.3909436,
+            "p99": 259.75973816000004
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 50379,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1243900104621062,
+          "admission_deadline_ns": 1243960104621062,
+          "drained_ns": 1243960301791431,
+          "cpu_seconds": 1.664724877,
+          "attempted": 948,
+          "successful": 948,
+          "valid": true,
+          "requested_start_ns": 1243900102597191,
+          "start_lateness_ms": 2.023871,
+          "latency_ms": {
+            "p50": 254.0620085,
+            "p95": 258.5061885,
+            "p99": 259.89543257
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 50380,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0002",
+      "session": "phase2b-gpu-cudnn",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "gpu-cudnn-exhaustive",
+      "valid": false,
+      "requested_start_ns": 1244044592464293,
+      "drained_ns": 1244079912394598,
+      "duration_seconds": 35.319930305,
+      "successful": 1104,
+      "attempted": 1112,
+      "rps": 31.257139820678365,
+      "latency_ms": {
+        "p50": 252.06563,
+        "p95": 254.76146945,
+        "p99": 255.63464229000002
+      },
+      "clients": [
+        {
+          "started_ns": 1244044593963846,
+          "admission_deadline_ns": 1244104593963846,
+          "drained_ns": 1244079907259446,
+          "cpu_seconds": 0.970040779,
+          "attempted": 556,
+          "successful": 552,
+          "valid": false,
+          "requested_start_ns": 1244044592464293,
+          "start_lateness_ms": 1.499553,
+          "latency_ms": {
+            "p50": 252.066214,
+            "p95": 254.82102735,
+            "p99": 255.70716241
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 50455,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1244044593945792,
+          "admission_deadline_ns": 1244104593945792,
+          "drained_ns": 1244079912394598,
+          "cpu_seconds": 0.964822811,
+          "attempted": 556,
+          "successful": 552,
+          "valid": false,
+          "requested_start_ns": 1244044592464293,
+          "start_lateness_ms": 1.481499,
+          "latency_ms": {
+            "p50": 252.059303,
+            "p95": 254.69788185,
+            "p99": 255.53429329
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 50456,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0003",
+      "session": "phase2b-gpu-cudnn",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "gpu-cudnn-default",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'gpu-cudnn-default']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0004",
+      "session": "phase2b-gpu-cudnn",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "gpu-cudnn-default",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'gpu-cudnn-default']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0005",
+      "session": "phase2b-gpu-cudnn",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "gpu-cudnn-exhaustive",
+      "valid": false,
+      "error": "A load client failed during preparation/warmup"
+    }
+  ]
+}

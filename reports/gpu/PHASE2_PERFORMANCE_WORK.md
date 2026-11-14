@@ -136,7 +136,7 @@ local podman socket, no code-path overlap).
 | Comparison | Result |
 |---|---|
 | REST binary vs stock (C2–C16) | **4.00×** [CI95 tight]; 6.24× at C1 |
-| REST JSON fallback vs stock | 1.05× — parity (one marginal cell: C4 p99 +5.4%) |
+| REST JSON fallback vs stock | 1.05× — parity (one marginal cell: C4 p99 +5.4%; per-round analysis shows overlapping ranges — control 568/548/562 vs candidate 598/592/548, p50 improved — tail noise at n=3, see FINAL_RESULTS.md §8.7) |
 | CUDA graph on binary | +0.5% — parity (config recommendation) |
 | gRPC opt-in vs stock | **3.94×** (4.51× at C1); zero p99/memory regressions |
 | Batched binary vs batched stock (C1–C4) | 1.08–1.23× |

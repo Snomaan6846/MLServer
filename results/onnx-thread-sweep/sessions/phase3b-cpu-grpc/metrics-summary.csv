@@ -1,0 +1,3 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-w1t2,8,3,1.758,1.70,4560.203,4625.950,4691.153,1012.759,6.8,null,1468.6
+cpu-w1t8,8,3,3.821,1.29,2077.136,2128.283,2244.483,1088.502,16.5,null,1460.1

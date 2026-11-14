@@ -1,0 +1,3 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-spin-default,8,3,5.982,1.32,1338.064,1366.308,1387.371,1240.569,28.2,null,1119.6
+cpu-spin-tuned,8,3,5.975,0.83,1338.825,1367.170,1398.399,1265.982,28.2,null,1124.3

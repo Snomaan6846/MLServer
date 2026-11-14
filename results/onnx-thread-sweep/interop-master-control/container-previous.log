@@ -1,0 +1,47 @@
+/usr/local/lib/python3.12/site-packages/mlserver/grpc/servicers.py:14: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+  from .utils import (
+Traceback (most recent call last):
+  File "/usr/local/bin/mlserver", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/cli/main.py", line 422, in main
+    root()
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1157, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1078, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1688, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 1434, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/click/core.py", line 783, in invoke
+    return __callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/cli/main.py", line 29, in wrapper
+    return asyncio.run(f(*args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/usr/local/lib/python3.12/site-packages/mlserver/cli/main.py", line 117, in start
+    server = MLServer(settings)
+             ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/server.py", line 43, in __init__
+    self._inference_pool_registry = InferencePoolRegistry(
+                                    ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/registry.py", line 72, in __init__
+    self._default_pool: InferencePool | None = InferencePool(
+                                               ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/pool.py", line 134, in __init__
+    from .zmq import create_endpoint
+  File "/usr/local/lib/python3.12/site-packages/mlserver/parallel/zmq.py", line 16, in <module>
+    import zmq
+ModuleNotFoundError: No module named 'zmq'

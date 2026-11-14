@@ -1,0 +1,13 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,4,wb-json-worker-binoff,True,5.9644,361,669.106,681.393,685.360,692.980,150.127,4.136,29.818,384.000,1096.3,mlserver-rfdetr-784fb7c6f9-hhl4c
+case-0001,0,4,wb-json-worker-binon,True,5.9206,359,673.962,682.942,685.850,692.995,165.208,4.216,20.750,382.000,1111.8,mlserver-rfdetr-6dbf5d645d-bdq6z
+case-0002,0,8,wb-json-worker-binoff,True,5.7827,354,1379.154,1400.453,1406.393,1416.651,212.258,4.121,22.250,384.000,1211.8,mlserver-rfdetr-6fd4985f-g8zqz
+case-0003,0,8,wb-json-worker-binon,True,5.8539,359,1361.865,1377.415,1382.355,1401.133,191.152,4.218,20.000,384.000,1213.3,mlserver-rfdetr-85d75d9cfb-mb789
+case-0004,1,4,wb-json-worker-binon,True,5.7141,346,699.466,706.773,709.837,718.765,214.835,4.251,23.000,382.000,1094.5,mlserver-rfdetr-f5f4bf6d9-qn4c4
+case-0005,1,4,wb-json-worker-binoff,True,5.8852,357,678.952,688.337,690.603,698.145,193.841,4.201,20.000,384.000,1085.7,mlserver-rfdetr-9c957454c-cbth4
+case-0006,1,8,wb-json-worker-binon,True,5.8576,359,1364.357,1379.207,1383.637,1391.357,158.305,4.193,28.000,382.000,1229.2,mlserver-rfdetr-778d5cc86f-hjxg2
+case-0007,1,8,wb-json-worker-binoff,True,5.8621,359,1362.435,1380.259,1385.096,1392.775,198.554,4.139,23.500,382.000,1233.4,mlserver-rfdetr-68c89956dc-8cbzk
+case-0008,2,4,wb-json-worker-binoff,True,5.8406,354,682.988,691.854,694.599,709.951,174.973,4.197,20.000,384.000,1090.9,mlserver-rfdetr-6b8bbb59f5-2q9nz
+case-0009,2,4,wb-json-worker-binon,True,5.7299,347,697.024,710.218,712.724,718.916,188.440,4.212,10.667,382.000,1102.3,mlserver-rfdetr-75ffc89877-h5f9s
+case-0010,2,8,wb-json-worker-binoff,True,5.8293,357,1368.295,1388.708,1395.380,1404.651,175.007,4.168,20.000,382.000,1197.3,mlserver-rfdetr-798bdb74cf-mvzv6
+case-0011,2,8,wb-json-worker-binon,True,5.926,363,1348.027,1362.823,1366.842,1374.746,187.511,4.183,31.750,382.000,1208.2,mlserver-rfdetr-6c4b84dd84-bpspx

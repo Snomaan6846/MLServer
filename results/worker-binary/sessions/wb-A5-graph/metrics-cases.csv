@@ -1,0 +1,4 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,8,wb-binary-worker-graph,True,31.0509,1871,257.796,261.277,262.005,262.873,32.667,4.313,80.500,418.000,948.2,mlserver-rfdetr-5b57c7b794-nrndn
+case-0001,1,8,wb-binary-worker-graph,True,31.2215,1881,255.844,259.883,260.708,262.222,35.056,4.329,82.500,420.000,965.4,mlserver-rfdetr-776f6d4cd6-zmhp4
+case-0002,2,8,wb-binary-worker-graph,True,31.1905,1879,255.862,260.303,261.047,261.939,40.355,4.366,40.500,420.000,950.6,mlserver-rfdetr-6dbc98885b-wnb9x

@@ -1,3 +1,8 @@
+> **Status: HISTORICAL RECORD — PR #378 was merged.**
+> This document was the pre-submission draft. The final PR description
+> (with all review iterations and evidence) lives on the PR itself:
+> https://github.com/opendatahub-io/MLServer/pull/378
+
 # PR DRAFT — RHOAIENG-102092: REST binary tensor extension + gRPC converter fix
 
 > STATUS: **READY FOR PR** — final campaign complete (Entry 013: 159/159

@@ -1,0 +1,2 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,8,wb-binary-worker,True,30.8083,110917,259.721,261.808,262.381,263.544,39.824,4.384,80.138,382.000,1063.4,mlserver-rfdetr-65b8df9974-729zn

@@ -1,0 +1,30 @@
+20m         Normal    Pulled              pod/mlserver-rfdetr-cpu-fd688b4cf-qk98v     Container image "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34" already present on machine
+19m         Normal    SuccessfulDelete    replicaset/mlserver-rfdetr-cpu-fd688b4cf    Deleted pod: mlserver-rfdetr-cpu-fd688b4cf-qk98v
+19m         Normal    SuccessfulCreate    replicaset/mlserver-rfdetr-cpu-6558dd854c   Created pod: mlserver-rfdetr-cpu-6558dd854c-wbxc4
+19m         Normal    Started             pod/mlserver-rfdetr-cpu-6558dd854c-wbxc4    Started container mlserver
+19m         Normal    Created             pod/mlserver-rfdetr-cpu-6558dd854c-wbxc4    Created container: mlserver
+19m         Normal    Pulled              pod/mlserver-rfdetr-cpu-6558dd854c-wbxc4    Container image "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34" already present on machine
+19m         Normal    AddedInterface      pod/mlserver-rfdetr-cpu-6558dd854c-wbxc4    Add eth0 [10.131.6.152/23] from ovn-kubernetes
+17m         Normal    Killing             pod/mlserver-rfdetr-cpu-6558dd854c-wbxc4    Stopping container mlserver
+17m         Normal    SuccessfulDelete    replicaset/mlserver-rfdetr-cpu-6558dd854c   Deleted pod: mlserver-rfdetr-cpu-6558dd854c-wbxc4
+17m         Normal    SuccessfulCreate    replicaset/mlserver-rfdetr-cpu-697f48fc46   Created pod: mlserver-rfdetr-cpu-697f48fc46-5292n
+17m         Normal    AddedInterface      pod/mlserver-rfdetr-cpu-697f48fc46-5292n    Add eth0 [10.131.6.153/23] from ovn-kubernetes
+17m         Normal    Pulled              pod/mlserver-rfdetr-cpu-697f48fc46-5292n    Container image "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34" already present on machine
+17m         Normal    Started             pod/mlserver-rfdetr-cpu-697f48fc46-5292n    Started container mlserver
+17m         Normal    Created             pod/mlserver-rfdetr-cpu-697f48fc46-5292n    Created container: mlserver
+14m         Normal    SuccessfulDelete    replicaset/mlserver-rfdetr-cpu-697f48fc46   Deleted pod: mlserver-rfdetr-cpu-697f48fc46-5292n
+14m         Normal    Killing             pod/mlserver-rfdetr-cpu-697f48fc46-5292n    Stopping container mlserver
+14m         Normal    SuccessfulCreate    replicaset/mlserver-rfdetr-cpu-66498dfff6   Created pod: mlserver-rfdetr-cpu-66498dfff6-s2qmg
+14m         Normal    AddedInterface      pod/mlserver-rfdetr-cpu-66498dfff6-s2qmg    Add eth0 [10.131.6.154/23] from ovn-kubernetes
+8m59s       Warning   BackOff             pod/mlserver-rfdetr-cpu-66498dfff6-s2qmg    Back-off restarting failed container mlserver in pod mlserver-rfdetr-cpu-66498dfff6-s2qmg_mlserver-perf(42f2c400-b2f3-4548-8099-b67878b70700)
+8m17s       Normal    Started             pod/mlserver-rfdetr-cpu-66498dfff6-s2qmg    Started container mlserver
+8m17s       Normal    Created             pod/mlserver-rfdetr-cpu-66498dfff6-s2qmg    Created container: mlserver
+8m17s       Normal    Pulled              pod/mlserver-rfdetr-cpu-66498dfff6-s2qmg    Container image "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34" already present on machine
+7m6s        Normal    SuccessfulDelete    replicaset/mlserver-rfdetr-cpu-66498dfff6   Deleted pod: mlserver-rfdetr-cpu-66498dfff6-s2qmg
+7m5s        Normal    ScalingReplicaSet   deployment/mlserver-rfdetr-cpu              (combined from similar events): Scaled up replica set mlserver-rfdetr-cpu-5f44c97cbc from 0 to 1
+7m5s        Normal    SuccessfulCreate    replicaset/mlserver-rfdetr-cpu-5f44c97cbc   Created pod: mlserver-rfdetr-cpu-5f44c97cbc-rk6zv
+6m56s       Normal    AddedInterface      pod/mlserver-rfdetr-cpu-5f44c97cbc-rk6zv    Add eth0 [10.131.6.155/23] from ovn-kubernetes
+109s        Warning   BackOff             pod/mlserver-rfdetr-cpu-5f44c97cbc-rk6zv    Back-off restarting failed container mlserver in pod mlserver-rfdetr-cpu-5f44c97cbc-rk6zv_mlserver-perf(2a4f4e9c-6646-4dfd-a0e7-970818dd4be0)
+81s         Normal    Started             pod/mlserver-rfdetr-cpu-5f44c97cbc-rk6zv    Started container mlserver
+81s         Normal    Created             pod/mlserver-rfdetr-cpu-5f44c97cbc-rk6zv    Created container: mlserver
+81s         Normal    Pulled              pod/mlserver-rfdetr-cpu-5f44c97cbc-rk6zv    Container image "quay.io/opendatahub/odh-mlserver-cuda@sha256:4c8168e9955daad321eedcd65bbcd27c9f210cfd56f8317f3fa12b10324de3fe" already present on machine

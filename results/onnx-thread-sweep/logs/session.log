@@ -1,0 +1,381 @@
+[threads] 2026-11-12T15:47:51Z client pod: mlserver-client-6c7fc47bbf-7g2t2
+[threads] 2026-11-12T15:47:54Z setup complete
+[threads] 2026-11-12T15:47:54Z === SESSION phase1a-gpu-rest ===
+[threads] 2026-11-12T15:47:56Z   > uploading plan
+[threads] 2026-11-12T15:47:59Z   > starting sampler
+[threads] 2026-11-12T15:47:59Z   > running sweep
+[threads] 2026-11-12T16:17:42Z   > sweep complete
+[threads] 2026-11-12T16:17:42Z   > collecting
+[threads] 2026-11-12T16:17:47Z   > summarizing + validating
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-rest-t1,8,3,31.434,0.36,254.016,258.106,260.399,45.374,4.8,82.7,1088.1
+gpu-rest-t2,8,3,31.525,0.33,253.673,257.718,260.138,42.944,4.8,82.9,1093.7
+gpu-rest-t4,8,3,31.512,0.42,253.642,257.875,260.474,36.156,4.8,82.3,1078.2
+gpu-rest-t8,8,3,31.510,0.09,253.584,257.568,260.377,44.233,4.8,82.9,1079.2
+Session: phase1a-gpu-rest
+Trials: 12
+Data completeness: COMPLETE
+All trials have complete metric data.
+  gpu-rest-t1                    C 8    31.43 RPS
+  gpu-rest-t2                    C 8    31.52 RPS
+  gpu-rest-t4                    C 8    31.51 RPS
+  gpu-rest-t8                    C 8    31.51 RPS
+[threads] 2026-11-12T16:17:47Z   > phase1a-gpu-rest COMPLETE
+[threads] 2026-11-12T16:17:47Z === SESSION phase1b-gpu-grpc ===
+[threads] 2026-11-12T16:17:49Z   > uploading plan
+[threads] 2026-11-12T16:17:52Z   > starting sampler
+[threads] 2026-11-12T16:17:52Z   > running sweep
+[threads] 2026-11-12T16:47:10Z   > sweep complete
+[threads] 2026-11-12T16:47:10Z   > collecting
+[threads] 2026-11-12T16:47:14Z   > summarizing + validating
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-grpc-t1,8,3,31.480,0.11,253.820,257.565,260.714,46.278,5.0,68.9,1182.8
+gpu-grpc-t2,8,3,31.427,0.44,254.435,258.443,260.858,38.454,5.0,82.8,1161.1
+gpu-grpc-t4,8,3,31.468,0.67,254.392,258.602,260.917,39.881,5.0,82.6,1192.4
+gpu-grpc-t8,8,3,31.491,0.40,253.797,258.330,260.472,39.480,5.0,83.2,1183.5
+Session: phase1b-gpu-grpc
+Trials: 12
+Data completeness: COMPLETE
+All trials have complete metric data.
+  gpu-grpc-t1                    C 8    31.48 RPS
+  gpu-grpc-t2                    C 8    31.43 RPS
+  gpu-grpc-t4                    C 8    31.47 RPS
+  gpu-grpc-t8                    C 8    31.49 RPS
+[threads] 2026-11-12T16:47:14Z   > phase1b-gpu-grpc COMPLETE
+[threads] 2026-11-12T16:47:14Z === SESSION phase2a-gpu-spin ===
+[threads] 2026-11-12T16:47:17Z   > uploading plan
+[threads] 2026-11-12T16:47:19Z   > starting sampler
+[threads] 2026-11-12T16:47:19Z   > running sweep
+[threads] 2026-11-12T17:16:32Z   > sweep complete
+[threads] 2026-11-12T17:16:32Z   > collecting
+[threads] 2026-11-12T17:16:36Z   > summarizing + validating
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-spin-off,1,3,24.614,0.44,40.581,41.452,42.727,38.620,3.4,55.8,1043.1
+gpu-spin-off,8,3,31.583,0.47,253.314,257.267,259.780,39.865,4.8,82.7,1101.6
+gpu-spin-on,1,3,24.609,3.43,40.772,42.275,43.534,37.071,3.4,55.4,1047.3
+gpu-spin-on,8,3,31.551,0.08,253.119,257.088,259.576,43.466,4.8,82.9,1098.6
+Session: phase2a-gpu-spin
+Trials: 12
+Data completeness: COMPLETE
+All trials have complete metric data.
+  gpu-spin-off                   C 1    24.61 RPS
+  gpu-spin-off                   C 8    31.58 RPS
+  gpu-spin-on                    C 1    24.61 RPS
+  gpu-spin-on                    C 8    31.55 RPS
+[threads] 2026-11-12T17:16:36Z   > phase2a-gpu-spin COMPLETE
+[threads] 2026-11-12T17:16:36Z === SESSION phase2b-gpu-cudnn ===
+[threads] 2026-11-12T17:16:38Z   > uploading plan
+[threads] 2026-11-12T17:16:41Z   > starting sampler
+[threads] 2026-11-12T17:16:41Z   > running sweep
+[threads] 2026-11-12T17:45:03Z   > sweep attempt 1 failed — retrying
+[threads] 2026-11-12T18:15:09Z client pod: mlserver-client-6c7fc47bbf-7g2t2
+[threads] 2026-11-12T18:15:09Z RESUMING from Phase 2B (Phases 1A, 1B, 2A already complete)
+[threads] 2026-11-12T18:15:09Z === SESSION phase2b-gpu-cudnn ===
+[threads] 2026-11-12T18:15:11Z   > uploading plan
+[threads] 2026-11-12T18:15:14Z   > starting sampler
+[threads] 2026-11-12T18:15:14Z   > running sweep
+[threads] 2026-11-12T18:24:14Z   > sweep attempt 1 failed — retrying
+[threads] 2026-11-12T18:33:34Z   > sweep attempt 2 failed — retrying
+[threads] 2026-11-12T18:40:07Z client pod: mlserver-client-6c7fc47bbf-7g2t2
+[threads] 2026-11-12T18:40:07Z RESUMING from Phase 3A (skipping cuDNN — inconclusive) (Phases 1A, 1B, 2A already complete)
+[threads] 2026-11-12T18:40:07Z === SESSION phase3a-cpu-factorial ===
+[threads] 2026-11-12T18:40:10Z   > uploading plan
+[threads] 2026-11-12T18:40:12Z   > starting sampler
+[threads] 2026-11-12T18:40:12Z   > running sweep
+[threads] 2026-11-12T20:12:17Z   > sweep complete
+[threads] 2026-11-12T20:12:17Z   > collecting
+[threads] 2026-11-12T20:12:20Z   > summarizing + validating
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-w1t1,8,3,1.059,2.13,7512.114,7629.843,7677.226,894.302,3.6,null,1115.1
+cpu-w1t2,8,3,1.979,3.76,4027.102,4098.675,4136.488,904.562,6.8,null,1080.5
+cpu-w1t4,8,3,3.510,3.24,2288.635,2363.799,2391.806,998.722,12.3,null,1123.6
+cpu-w1t8,8,3,5.359,2.05,1480.110,1525.925,1572.494,1000.022,20.7,null,1120.6
+cpu-w2t1,8,3,1.075,2.15,7399.677,7578.309,7664.294,925.734,3.5,null,1113.3
+cpu-w2t2,8,3,2.023,2.50,3934.903,4018.660,4059.297,886.029,6.8,null,1113.9
+cpu-w2t4,8,3,3.470,1.51,2296.252,2347.561,2374.667,975.779,12.2,null,1121.6
+cpu-w2t8,8,3,5.329,1.52,1492.824,1535.279,1575.351,1052.346,20.8,null,1120.8
+cpu-w4t1,8,3,1.077,2.64,7402.418,7576.752,7606.613,904.691,3.5,null,1119.2
+cpu-w4t2,8,3,1.965,0.13,4065.761,4116.708,4150.732,1022.669,6.8,null,1115.5
+cpu-w4t4,8,3,3.449,3.81,2325.864,2401.318,2451.856,906.927,12.2,null,1114.4
+cpu-w4t8,8,3,5.392,0.99,1474.090,1524.823,1578.447,952.690,20.8,null,1115.6
+Session: phase3a-cpu-factorial
+Trials: 36
+Data completeness: INCOMPLETE
+
+Issues found (36):
+  - case-0000 (cpu-w1t1@c8): gpu_util_mean is null
+  - case-0001 (cpu-w1t2@c8): gpu_util_mean is null
+  - case-0002 (cpu-w1t4@c8): gpu_util_mean is null
+  - case-0003 (cpu-w1t8@c8): gpu_util_mean is null
+  - case-0004 (cpu-w2t1@c8): gpu_util_mean is null
+  - case-0005 (cpu-w2t2@c8): gpu_util_mean is null
+  - case-0006 (cpu-w2t4@c8): gpu_util_mean is null
+  - case-0007 (cpu-w2t8@c8): gpu_util_mean is null
+  - case-0008 (cpu-w4t1@c8): gpu_util_mean is null
+  - case-0009 (cpu-w4t2@c8): gpu_util_mean is null
+  - case-0010 (cpu-w4t4@c8): gpu_util_mean is null
+  - case-0011 (cpu-w4t8@c8): gpu_util_mean is null
+  - case-0012 (cpu-w4t8@c8): gpu_util_mean is null
+  - case-0013 (cpu-w4t4@c8): gpu_util_mean is null
+  - case-0014 (cpu-w4t2@c8): gpu_util_mean is null
+  - case-0015 (cpu-w4t1@c8): gpu_util_mean is null
+  - case-0016 (cpu-w2t8@c8): gpu_util_mean is null
+  - case-0017 (cpu-w2t4@c8): gpu_util_mean is null
+  - case-0018 (cpu-w2t2@c8): gpu_util_mean is null
+  - case-0019 (cpu-w2t1@c8): gpu_util_mean is null
+  - case-0020 (cpu-w1t8@c8): gpu_util_mean is null
+  - case-0021 (cpu-w1t4@c8): gpu_util_mean is null
+  - case-0022 (cpu-w1t2@c8): gpu_util_mean is null
+  - case-0023 (cpu-w1t1@c8): gpu_util_mean is null
+  - case-0024 (cpu-w1t1@c8): gpu_util_mean is null
+  - case-0025 (cpu-w1t2@c8): gpu_util_mean is null
+  - case-0026 (cpu-w1t4@c8): gpu_util_mean is null
+  - case-0027 (cpu-w1t8@c8): gpu_util_mean is null
+  - case-0028 (cpu-w2t1@c8): gpu_util_mean is null
+  - case-0029 (cpu-w2t2@c8): gpu_util_mean is null
+  - case-0030 (cpu-w2t4@c8): gpu_util_mean is null
+  - case-0031 (cpu-w2t8@c8): gpu_util_mean is null
+  - case-0032 (cpu-w4t1@c8): gpu_util_mean is null
+  - case-0033 (cpu-w4t2@c8): gpu_util_mean is null
+  - case-0034 (cpu-w4t4@c8): gpu_util_mean is null
+  - case-0035 (cpu-w4t8@c8): gpu_util_mean is null
+[threads] FAILED: validation failed for phase3a-cpu-factorial
+[threads] 2026-11-12T20:13:50Z RESUMING from Phase 3B (Phase 3A collected: 36/36 valid)
+[threads] 2026-11-12T20:13:50Z === SESSION phase3b-cpu-grpc ===
+[threads] 2026-11-12T20:13:52Z   > uploading plan
+[threads] 2026-11-12T20:13:55Z   > starting sampler
+[threads] 2026-11-12T20:13:55Z   > running sweep
+[threads] 2026-11-12T20:29:41Z   > sweep complete
+[threads] 2026-11-12T20:29:41Z   > collecting
+[threads] 2026-11-12T20:29:44Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-w1t2,8,3,1.758,1.70,4560.203,4625.950,4691.153,1012.759,6.8,null,1468.6
+cpu-w1t8,8,3,3.821,1.29,2077.136,2128.283,2244.483,1088.502,16.5,null,1460.1
+[threads] 2026-11-12T20:29:44Z   > all trials valid
+  cpu-w1t2                       C 8     1.76 RPS
+  cpu-w1t8                       C 8     3.82 RPS
+[threads] 2026-11-12T20:29:44Z   > phase3b-cpu-grpc COMPLETE
+[threads] 2026-11-12T20:29:44Z === Phase 3 analysis: finding best CPU W×T ===
+[threads] 2026-11-12T20:29:44Z   > best CPU W×T: cpu-w4t8
+[threads] 2026-11-12T20:29:47Z === SESSION phase4a-cpu-spin ===
+[threads] 2026-11-12T20:29:49Z   > uploading plan
+[threads] 2026-11-12T20:29:52Z   > starting sampler
+[threads] 2026-11-12T20:29:52Z   > running sweep
+[threads] 2026-11-12T20:44:39Z   > sweep complete
+[threads] 2026-11-12T20:44:39Z   > collecting
+[threads] 2026-11-12T20:45:09Z   > collect retry 1
+[threads] 2026-11-12T20:45:27Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-spin-off,8,3,5.413,0.45,1476.503,1514.496,1567.270,974.859,20.9,null,1121.4
+cpu-spin-on,8,3,6.004,1.32,1328.765,1351.278,1382.169,1157.145,28.2,null,1123.0
+[threads] 2026-11-12T20:45:28Z   > all trials valid
+  cpu-spin-off                   C 8     5.41 RPS
+  cpu-spin-on                    C 8     6.00 RPS
+[threads] 2026-11-12T20:45:28Z   > phase4a-cpu-spin COMPLETE
+[threads] 2026-11-12T20:45:28Z === SESSION phase4b-cpu-interop ===
+[threads] 2026-11-12T20:45:30Z   > uploading plan
+[threads] 2026-11-12T20:45:33Z   > starting sampler
+[threads] 2026-11-12T20:45:33Z   > running sweep
+[threads] 2026-11-12T20:54:09Z POST-SWEEP: waiting for main sweep (continue-from-3b) to finish
+[threads] 2026-11-12T21:14:01Z   > sweep attempt 1 failed — retrying
+[threads] 2026-11-12T21:43:11Z   > sweep attempt 2 failed — retrying
+[threads] 2026-11-12T22:12:17Z   > sweep attempt 3 failed — retrying
+[threads] FAILED: sweep phase4b-cpu-interop failed
+[threads] 2026-11-12T22:41:50Z POST-SWEEP: main sweep finished — starting additions
+[threads] 2026-11-12T22:41:50Z   > uploading updated hook.py / variants.json / verify_cudnn.py
+[threads] 2026-11-12T22:42:00Z === PART A: manual cuDNN EXHAUSTIVE verification ===
+[threads] 2026-11-12T22:42:00Z   > scaling: cpu deployment to 0, gpu to 1
+[threads] 2026-11-12T22:42:12Z   > patching GPU deployment with gpu-cudnn-exhaustive env
+[threads] 2026-11-12T22:46:24Z FINISHER: starting (main sweep exited; phase4b PARALLEL failure documented separately)
+[threads] 2026-11-12T22:46:24Z   > uploading updated hook.py / variants.json / verify_cudnn.py
+[threads] 2026-11-12T22:46:33Z === PART A: manual cuDNN EXHAUSTIVE verification ===
+[threads] 2026-11-12T22:46:33Z   > scaling: cpu deployment to 0, gpu to 1
+[threads] 2026-11-12T22:46:45Z   > patching GPU deployment with gpu-cudnn-exhaustive env
+[threads] 2026-11-12T22:46:46Z   > running live verification (polls through the rollout, times readiness + first inference)
+[threads] 2026-11-12T22:47:08Z   > WARNING: manual verification script failed — see stderr
+[threads] 2026-11-12T22:47:08Z === SESSION phase3b2-cpu-grpc-optin ===
+[threads] 2026-11-12T22:47:11Z   > uploading plan
+[threads] 2026-11-12T22:47:14Z   > starting sampler
+[threads] 2026-11-12T22:47:14Z   > running sweep
+[threads] 2026-11-12T23:01:38Z MASTER-CONTROL: waiting for finish-everything to finish
+[threads] 2026-11-12T23:09:35Z   > collecting
+[threads] 2026-11-12T23:09:37Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-grpcoptin-w1t2,8,3,1.980,2.35,4023.903,4084.903,4143.130,874.827,6.9,null,1173.6
+cpu-grpcoptin-w1t8,8,3,5.350,0.78,1496.246,1536.498,1567.975,911.210,20.8,null,1186.1
+cpu-grpcoptin-w4t8,8,3,5.341,0.79,1492.162,1550.394,1586.027,1033.525,20.6,null,1220.8
+[threads] 2026-11-12T23:09:38Z   > all trials valid
+  cpu-grpcoptin-w1t2             C 8     1.98 RPS
+  cpu-grpcoptin-w1t8             C 8     5.35 RPS
+  cpu-grpcoptin-w4t8             C 8     5.34 RPS
+[threads] 2026-11-12T23:09:38Z   > phase3b2-cpu-grpc-optin COMPLETE
+[threads] 2026-11-12T23:09:38Z === SESSION phase2b2-gpu-cudnn-confirm ===
+[threads] 2026-11-12T23:09:40Z   > uploading plan
+[threads] 2026-11-12T23:09:43Z   > starting sampler
+[threads] 2026-11-12T23:09:43Z   > running sweep
+[threads] 2026-11-12T23:17:09Z   > collecting
+[threads] 2026-11-12T23:17:12Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-cudnn-exhaustive,8,3,31.527,1.40,253.955,259.961,264.253,37.641,4.8,82.8,1095.2
+[threads] 2026-11-12T23:17:12Z   > all trials valid
+  gpu-cudnn-exhaustive           C 8    31.53 RPS
+[threads] 2026-11-12T23:17:12Z   > phase2b2-gpu-cudnn-confirm COMPLETE
+[threads] 2026-11-12T23:17:12Z === SESSION phase4c-cpu-affinity ===
+[threads] 2026-11-12T23:17:15Z   > uploading plan
+[threads] 2026-11-12T23:17:17Z   > starting sampler
+[threads] 2026-11-12T23:17:17Z   > running sweep
+[threads] 2026-11-12T23:45:45Z   > sweep attempt 1 failed — retrying
+[threads] 2026-11-13T00:14:54Z   > sweep attempt 2 failed — retrying
+[threads] 2026-11-13T00:15:57Z   > sweep attempt 3 failed — retrying
+[threads] 2026-11-13T00:44:57Z   > WARNING: sweep phase4c-cpu-affinity failed after retries — continuing
+[threads] 2026-11-13T00:45:19Z MASTER-CONTROL: finisher done — starting master-HEAD PARALLEL control
+[threads] 2026-11-13T00:45:19Z   > scaling: gpu deployment to 0, cpu to 1
+[threads] 2026-11-13T00:45:26Z   > patching CPU deployment: OFFICIAL master image + cpu-interop-par env
+[threads] 2026-11-13T00:45:27Z   > watching rollout for 420s (same budget as the hook)
+[threads] 2026-11-13T00:49:13Z RUN-REMAINING: waiting for master-control to finish
+[threads] 2026-11-13T00:52:28Z   > rollout ready: no
+[threads] 2026-11-13T00:52:33Z   > captured: rollout.log, pod-status.json, container.log, container-previous.log, events.txt
+[threads] 2026-11-13T00:52:33Z === re-running manual cuDNN verification (fixed script) ===
+[threads] 2026-11-13T00:52:33Z   > scaling: cpu deployment to 0, gpu to 1
+[threads] 2026-11-13T00:52:46Z   > patching GPU deployment with gpu-cudnn-exhaustive env
+[threads] 2026-11-13T00:52:47Z   > uploading fixed verify_cudnn.py
+[threads] 2026-11-13T00:52:50Z   > running live verification
+{
+  "phase": "manual cuDNN EXHAUSTIVE verification",
+  "health_ready_seconds": 12.040839579887688,
+  "model_ready_seconds": 0.0034583162050694227,
+  "first_inference_seconds": 0.535481093917042,
+  "first_inference_bytes": 542365,
+  "first_inference_parity": {
+    "bit_exact": true,
+    "reason": "all outputs byte-identical"
+  },
+  "second_inference_seconds": 0.3000284119043499,
+  "second_inference_parity": {
+    "bit_exact": true,
+    "reason": "all outputs byte-identical"
+  },
+  "payload_sha256_ok": true,
+  "total_seconds": 12.94642071891576
+}
+[threads] 2026-11-13T00:53:04Z   > resetting GPU deployment to frozen baseline env
+[threads] 2026-11-13T00:53:37Z   > resetting CPU deployment to frozen baseline env
+[threads] 2026-11-13T00:53:39Z 
+[threads] 2026-11-13T00:53:39Z MASTER-CONTROL COMPLETE
+[threads] 2026-11-13T00:53:39Z   master PARALLEL control: /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/interop-master-control/
+[threads] 2026-11-13T00:53:39Z   cuDNN verification: /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/cudnn-investigation/verify-cudnn.json
+[threads] 2026-11-13T00:53:44Z RUN-REMAINING: master-control done — starting remaining phases
+[threads] 2026-11-13T00:53:47Z === SESSION phase4c2-cpu-affinity-fixed ===
+[threads] 2026-11-13T00:53:49Z   > uploading plan
+[threads] 2026-11-13T00:53:52Z   > starting sampler
+[threads] 2026-11-13T00:53:52Z   > running sweep
+[threads] 2026-11-13T01:22:18Z   > sweep attempt 1 failed — retrying
+[threads] 2026-11-13T01:51:20Z   > sweep attempt 2 failed — retrying
+[threads] 2026-11-13T02:20:29Z   > sweep attempt 3 failed — retrying
+[threads] 2026-11-13T02:49:35Z   > WARNING: sweep phase4c2-cpu-affinity-fixed failed after retries — collecting what exists and continuing
+[threads] 2026-11-13T02:49:35Z   > collecting
+[threads] 2026-11-13T02:49:37Z   > summarizing
+Traceback (most recent call last):
+  File "/home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmarking/cluster/summarize.py", line 248, in <module>
+    main()
+  File "/home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmarking/cluster/summarize.py", line 120, in main
+    cases = load_cases(args.session)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmarking/cluster/summarize.py", line 39, in load_cases
+    start = json.loads((case_dir / "start.json").read_text())
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/syedali/.pyenv/versions/3.12.12/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/syedali/.pyenv/versions/3.12.12/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase4c2-cpu-affinity-fixed/case-0001/start.json'
+[threads] 2026-11-13T02:49:37Z   > WARNING: 3 invalid trials in phase4c2-cpu-affinity-fixed
+  cpu-w1t8                       C 8     5.34 RPS
+[threads] 2026-11-13T02:49:37Z   > phase4c2-cpu-affinity-fixed COMPLETE
+[threads] 2026-11-13T02:49:37Z === SESSION phase4d-cpu-spintune ===
+[threads] 2026-11-13T02:49:39Z   > uploading plan
+[threads] 2026-11-13T02:49:42Z   > starting sampler
+[threads] 2026-11-13T02:49:42Z   > running sweep
+[threads] 2026-11-13T03:04:32Z   > collecting
+[threads] 2026-11-13T03:04:35Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-spin-default,8,3,5.982,1.32,1338.064,1366.308,1387.371,1240.569,28.2,null,1119.6
+cpu-spin-tuned,8,3,5.975,0.83,1338.825,1367.170,1398.399,1265.982,28.2,null,1124.3
+[threads] 2026-11-13T03:04:35Z   > all trials valid
+  cpu-spin-default               C 8     5.98 RPS
+  cpu-spin-tuned                 C 8     5.97 RPS
+[threads] 2026-11-13T03:04:35Z   > phase4d-cpu-spintune COMPLETE
+[threads] 2026-11-13T03:04:36Z === SESSION phase5a-cpu-grpc-confirm ===
+[threads] 2026-11-13T03:04:38Z   > uploading plan
+[threads] 2026-11-13T03:04:41Z   > starting sampler
+[threads] 2026-11-13T03:04:41Z   > running sweep
+[threads] 2026-11-13T03:20:24Z   > collecting
+[threads] 2026-11-13T03:20:27Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-grpc-baseline,8,3,1.754,3.06,4571.355,4687.700,4740.385,1031.026,6.7,null,1464.9
+cpu-grpc-optimal,8,3,3.838,2.18,2078.335,2136.740,2199.141,1186.404,16.7,null,1473.6
+[threads] 2026-11-13T03:20:27Z   > all trials valid
+  cpu-grpc-baseline              C 8     1.75 RPS
+  cpu-grpc-optimal               C 8     3.84 RPS
+[threads] 2026-11-13T03:20:27Z   > phase5a-cpu-grpc-confirm COMPLETE
+[threads] 2026-11-13T03:20:27Z === SESSION phase5b-cpu-json-control ===
+[threads] 2026-11-13T03:20:29Z   > uploading plan
+[threads] 2026-11-13T03:20:32Z   > starting sampler
+[threads] 2026-11-13T03:20:32Z   > running sweep
+[threads] 2026-11-13T03:35:59Z   > collecting
+[threads] 2026-11-13T03:36:01Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-json-baseline,8,3,1.711,1.02,4645.735,4704.150,4745.033,1020.374,7.0,null,1602.3
+cpu-json-optimal,8,3,3.773,5.15,2087.203,2236.783,2306.288,1283.797,17.1,null,1572.6
+[threads] 2026-11-13T03:36:02Z   > all trials valid
+  cpu-json-baseline              C 8     1.71 RPS
+  cpu-json-optimal               C 8     3.77 RPS
+[threads] 2026-11-13T03:36:02Z   > phase5b-cpu-json-control COMPLETE
+[threads] 2026-11-13T03:36:02Z === SESSION phase6a-gpu-latency ===
+[threads] 2026-11-13T03:36:04Z   > uploading plan
+[threads] 2026-11-13T03:36:07Z   > starting sampler
+[threads] 2026-11-13T03:36:07Z   > running sweep
+[threads] 2026-11-13T03:50:42Z   > collecting
+[threads] 2026-11-13T03:50:45Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+gpu-grpc-t2,1,3,22.999,2.20,43.176,44.729,46.646,39.117,3.3,48.4,1073.3
+gpu-rest-t2,1,3,24.486,0.84,40.673,41.652,42.859,37.662,3.4,55.4,1036.3
+[threads] 2026-11-13T03:50:45Z   > all trials valid
+  gpu-grpc-t2                    C 1    23.00 RPS
+  gpu-rest-t2                    C 1    24.49 RPS
+[threads] 2026-11-13T03:50:45Z   > phase6a-gpu-latency COMPLETE
+[threads] 2026-11-13T03:50:45Z === SESSION phase6b-cpu-latency ===
+[threads] 2026-11-13T03:50:47Z   > uploading plan
+[threads] 2026-11-13T03:50:50Z   > starting sampler
+[threads] 2026-11-13T03:50:50Z   > running sweep
+[threads] 2026-11-13T04:05:29Z   > collecting
+[threads] 2026-11-13T04:05:32Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-w1t2,1,3,1.957,2.70,513.275,527.824,542.543,858.653,6.6,null,1071.8
+cpu-w1t8,1,3,5.060,1.41,194.471,204.716,235.645,999.760,19.4,null,1074.1
+[threads] 2026-11-13T04:05:32Z   > all trials valid
+  cpu-w1t2                       C 1     1.96 RPS
+  cpu-w1t8                       C 1     5.06 RPS
+[threads] 2026-11-13T04:05:32Z   > phase6b-cpu-latency COMPLETE
+[threads] 2026-11-13T04:05:32Z   > resetting deployments to frozen baseline env
+[threads] 2026-11-13T04:05:35Z 
+[threads] 2026-11-13T04:05:35Z RUN-REMAINING COMPLETE
+[threads] 2026-11-13T04:05:35Z   affinity fixed: /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase4c2-cpu-affinity-fixed
+[threads] 2026-11-13T04:05:35Z   spintune:       /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase4d-cpu-spintune
+[threads] 2026-11-13T04:05:35Z   grpc confirm:   /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase5a-cpu-grpc-confirm
+[threads] 2026-11-13T04:05:35Z   json control:   /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase5b-cpu-json-control
+[threads] 2026-11-13T04:05:35Z   gpu latency:    /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase6a-gpu-latency
+[threads] 2026-11-13T04:05:35Z   cpu latency:    /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/onnx-thread-sweep/sessions/phase6b-cpu-latency
+[threads] 2026-11-13T04:12:33Z === SESSION phase4c3-cpu-affinity-pinned ===
+[threads] 2026-11-13T04:12:38Z   > running sweep
+[threads] 2026-11-13T04:20:01Z   > collecting
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+cpu-affinity-pinned2,8,3,5.424,1.62,1479.235,1514.554,1545.789,916.277,21.0,null,1115.7
+  cpu-affinity-pinned2           C 8     5.42 RPS
+[threads] 2026-11-13T04:20:04Z   > phase4c3-cpu-affinity-pinned COMPLETE
+[threads] 2026-11-13T04:20:04Z   > reverting batched model-settings.json (PVC baseline restore)
+[threads] 2026-11-13T04:20:07Z   > PVC restored
+[threads] 2026-11-13T04:20:07Z   > resetting CPU deployment to frozen baseline env
+[threads] 2026-11-13T04:20:27Z PINNED-AFFINITY RUN COMPLETE

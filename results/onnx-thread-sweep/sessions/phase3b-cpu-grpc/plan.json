@@ -1,0 +1,50 @@
+{
+  "round_offset": 0,
+  "rounds": 3,
+  "clients": 2,
+  "seconds": 60,
+  "warmup_seconds": 60,
+  "warmup_requests": 32,
+  "timeout_seconds": 120,
+  "ready_timeout_seconds": 300,
+  "prepare_timeout_seconds": 900,
+  "max_start_lateness_ms": 20,
+  "concurrency": [
+    8
+  ],
+  "session": "phase3b-cpu-grpc",
+  "variants": [
+    {
+      "name": "cpu-w1t2",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w1t2"
+      ],
+      "spec": {
+        "protocol": "grpc",
+        "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+        "payloads": [
+          "/store/payloads/g-0.bin"
+        ],
+        "min_response_bytes": 100000
+      }
+    },
+    {
+      "name": "cpu-w1t8",
+      "prepare_argv": [
+        "python3",
+        "/store/tools/hook.py",
+        "cpu-w1t8"
+      ],
+      "spec": {
+        "protocol": "grpc",
+        "target": "mlserver-rfdetr-cpu.mlserver-perf.svc:8081",
+        "payloads": [
+          "/store/payloads/g-0.bin"
+        ],
+        "min_response_bytes": 100000
+      }
+    }
+  ]
+}

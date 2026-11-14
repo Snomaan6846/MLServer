@@ -1,0 +1,112 @@
+{
+  "sessions": {
+    "phase1a-gpu-rest": {
+      "trials_total": 12,
+      "trials_valid": 12,
+      "receipts": 12,
+      "files_copied": 5
+    },
+    "phase1b-gpu-grpc": {
+      "trials_total": 12,
+      "trials_valid": 12,
+      "receipts": 12,
+      "files_copied": 5
+    },
+    "phase2a-gpu-spin": {
+      "trials_total": 12,
+      "trials_valid": 12,
+      "receipts": 12,
+      "files_copied": 5
+    },
+    "phase2b-gpu-cudnn": {
+      "trials_total": 6,
+      "trials_valid": 1,
+      "receipts": 3,
+      "files_copied": 2
+    },
+    "phase2b2-gpu-cudnn-confirm": {
+      "trials_total": 3,
+      "trials_valid": 3,
+      "receipts": 3,
+      "files_copied": 5
+    },
+    "phase3a-cpu-factorial": {
+      "trials_total": 36,
+      "trials_valid": 36,
+      "receipts": 36,
+      "files_copied": 5
+    },
+    "phase3b-cpu-grpc": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    },
+    "phase3b2-cpu-grpc-optin": {
+      "trials_total": 9,
+      "trials_valid": 9,
+      "receipts": 9,
+      "files_copied": 5
+    },
+    "phase4a-cpu-spin": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    },
+    "phase4b-cpu-interop": {
+      "trials_total": 6,
+      "trials_valid": 3,
+      "receipts": 3,
+      "files_copied": 2
+    },
+    "phase4c-cpu-affinity": {
+      "trials_total": 6,
+      "trials_valid": 3,
+      "receipts": 3,
+      "files_copied": 2
+    },
+    "phase4c2-cpu-affinity-fixed": {
+      "trials_total": 6,
+      "trials_valid": 3,
+      "receipts": 3,
+      "files_copied": 2
+    },
+    "phase4c3-cpu-affinity-pinned": {
+      "trials_total": 3,
+      "trials_valid": 3,
+      "receipts": 3,
+      "files_copied": 5
+    },
+    "phase4d-cpu-spintune": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    },
+    "phase5a-cpu-grpc-confirm": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    },
+    "phase5b-cpu-json-control": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    },
+    "phase6a-gpu-latency": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    },
+    "phase6b-cpu-latency": {
+      "trials_total": 6,
+      "trials_valid": 6,
+      "receipts": 6,
+      "files_copied": 5
+    }
+  }
+}

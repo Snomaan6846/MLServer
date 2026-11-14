@@ -1,0 +1,407 @@
+{
+  "plan": {
+    "round_offset": 0,
+    "rounds": 3,
+    "clients": 2,
+    "seconds": 60,
+    "warmup_seconds": 60,
+    "warmup_requests": 32,
+    "timeout_seconds": 120,
+    "ready_timeout_seconds": 300,
+    "prepare_timeout_seconds": 900,
+    "max_start_lateness_ms": 20,
+    "concurrency": [
+      8
+    ],
+    "session": "phase4c-cpu-affinity",
+    "variants": [
+      {
+        "name": "cpu-affinity-os",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "cpu-affinity-os"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      },
+      {
+        "name": "cpu-affinity-pinned",
+        "prepare_argv": [
+          "python3",
+          "/store/tools/hook.py",
+          "cpu-affinity-pinned"
+        ],
+        "spec": {
+          "protocol": "rest",
+          "url": "http://mlserver-rfdetr-cpu.mlserver-perf.svc:8080/v2/models/rfdetr-small/infer",
+          "payloads": [
+            "/store/payloads/triton-binary-rest.bin"
+          ],
+          "headers": {
+            "Content-Type": "application/octet-stream",
+            "Inference-Header-Content-Length": "225"
+          },
+          "min_response_bytes": 100000
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "case": "case-0000",
+      "session": "phase4c-cpu-affinity",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "cpu-affinity-os",
+      "valid": true,
+      "requested_start_ns": 1264419262512345,
+      "drained_ns": 1264480696230238,
+      "duration_seconds": 61.433717893,
+      "successful": 331,
+      "attempted": 331,
+      "rps": 5.387920694894414,
+      "latency_ms": {
+        "p50": 1476.457647,
+        "p95": 1541.8579725,
+        "p99": 1560.5267853
+      },
+      "clients": [
+        {
+          "started_ns": 1264419264438024,
+          "admission_deadline_ns": 1264479264438024,
+          "drained_ns": 1264480696230238,
+          "cpu_seconds": 0.325341247,
+          "attempted": 166,
+          "successful": 166,
+          "valid": true,
+          "requested_start_ns": 1264419262512345,
+          "start_lateness_ms": 1.925679,
+          "latency_ms": {
+            "p50": 1475.538053,
+            "p95": 1542.1248245,
+            "p99": 1562.9298289499998
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 57664,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1264419264045228,
+          "admission_deadline_ns": 1264479264045228,
+          "drained_ns": 1264480320940872,
+          "cpu_seconds": 0.329724263,
+          "attempted": 165,
+          "successful": 165,
+          "valid": true,
+          "requested_start_ns": 1264419262512345,
+          "start_lateness_ms": 1.532883,
+          "latency_ms": {
+            "p50": 1479.166948,
+            "p95": 1541.1978504,
+            "p99": 1559.30761364
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 57665,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0001",
+      "session": "phase4c-cpu-affinity",
+      "round": 0,
+      "concurrency": 8,
+      "variant": "cpu-affinity-pinned",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'cpu-affinity-pinned']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0002",
+      "session": "phase4c-cpu-affinity",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "cpu-affinity-pinned",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'cpu-affinity-pinned']' returned non-zero exit status 1."
+    },
+    {
+      "case": "case-0003",
+      "session": "phase4c-cpu-affinity",
+      "round": 1,
+      "concurrency": 8,
+      "variant": "cpu-affinity-os",
+      "valid": true,
+      "requested_start_ns": 1265409643726199,
+      "drained_ns": 1265470961205876,
+      "duration_seconds": 61.317479677,
+      "successful": 329,
+      "attempted": 329,
+      "rps": 5.365517332627859,
+      "latency_ms": {
+        "p50": 1485.306894,
+        "p95": 1552.844331,
+        "p99": 1569.63590488
+      },
+      "clients": [
+        {
+          "started_ns": 1265409645768809,
+          "admission_deadline_ns": 1265469645768809,
+          "drained_ns": 1265470779555475,
+          "cpu_seconds": 0.336976816,
+          "attempted": 164,
+          "successful": 164,
+          "valid": true,
+          "requested_start_ns": 1265409643726199,
+          "start_lateness_ms": 2.04261,
+          "latency_ms": {
+            "p50": 1485.6445055,
+            "p95": 1556.4675605999998,
+            "p99": 1568.56784698
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 57781,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1265409645155456,
+          "admission_deadline_ns": 1265469645155456,
+          "drained_ns": 1265470961205876,
+          "cpu_seconds": 0.338221253,
+          "attempted": 165,
+          "successful": 165,
+          "valid": true,
+          "requested_start_ns": 1265409643726199,
+          "start_lateness_ms": 1.429257,
+          "latency_ms": {
+            "p50": 1483.425291,
+            "p95": 1551.5247525999998,
+            "p99": 1569.87569844
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 57782,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0004",
+      "session": "phase4c-cpu-affinity",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "cpu-affinity-os",
+      "valid": true,
+      "requested_start_ns": 1265556503412970,
+      "drained_ns": 1265617801145828,
+      "duration_seconds": 61.297732858,
+      "successful": 329,
+      "attempted": 329,
+      "rps": 5.367245812535169,
+      "latency_ms": {
+        "p50": 1481.62102,
+        "p95": 1557.0179152,
+        "p99": 1567.1669588
+      },
+      "clients": [
+        {
+          "started_ns": 1265556505440278,
+          "admission_deadline_ns": 1265616505440278,
+          "drained_ns": 1265617618467428,
+          "cpu_seconds": 0.331425901,
+          "attempted": 164,
+          "successful": 164,
+          "valid": true,
+          "requested_start_ns": 1265556503412970,
+          "start_lateness_ms": 2.027308,
+          "latency_ms": {
+            "p50": 1481.7158935,
+            "p95": 1557.2033557,
+            "p99": 1567.09798828
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 57856,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "started_ns": 1265556505128787,
+          "admission_deadline_ns": 1265616505128787,
+          "drained_ns": 1265617801145828,
+          "cpu_seconds": 0.332278144,
+          "attempted": 165,
+          "successful": 165,
+          "valid": true,
+          "requested_start_ns": 1265556503412970,
+          "start_lateness_ms": 1.715817,
+          "latency_ms": {
+            "p50": 1481.62102,
+            "p95": 1554.3729306,
+            "p99": 1566.4433534
+          },
+          "payloads": [
+            {
+              "bytes": 3145953,
+              "sha256": "8ab64835fbce145a036d930f0704217c966abb696341299374081e4d8e79eb5c"
+            }
+          ],
+          "pid": 57857,
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "cgroup_before": null,
+      "cgroup_after": null,
+      "cpu_ms_per_request_envelope": null
+    },
+    {
+      "case": "case-0005",
+      "session": "phase4c-cpu-affinity",
+      "round": 2,
+      "concurrency": 8,
+      "variant": "cpu-affinity-pinned",
+      "valid": false,
+      "error": "Command '['python3', '/store/tools/hook.py', 'cpu-affinity-pinned']' returned non-zero exit status 1."
+    }
+  ]
+}

@@ -1,0 +1,388 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "annotations": {
+            "k8s.ovn.org/pod-networks": "{\"default\":{\"ip_addresses\":[\"10.131.6.219/23\"],\"mac_address\":\"0a:58:0a:83:06:db\",\"gateway_ips\":[\"10.131.6.1\"],\"routes\":[{\"dest\":\"10.128.0.0/14\",\"nextHop\":\"10.131.6.1\"},{\"dest\":\"172.30.0.0/16\",\"nextHop\":\"10.131.6.1\"},{\"dest\":\"169.254.0.5/32\",\"nextHop\":\"10.131.6.1\"},{\"dest\":\"100.64.0.0/16\",\"nextHop\":\"10.131.6.1\"}],\"ip_address\":\"10.131.6.219/23\",\"gateway_ip\":\"10.131.6.1\",\"role\":\"primary\"}}",
+            "k8s.v1.cni.cncf.io/network-status": "[{\n    \"name\": \"ovn-kubernetes\",\n    \"interface\": \"eth0\",\n    \"ips\": [\n        \"10.131.6.219\"\n    ],\n    \"mac\": \"0a:58:0a:83:06:db\",\n    \"default\": true,\n    \"dns\": {}\n}]",
+            "openshift.io/scc": "restricted-v2",
+            "rhoaieng-102092/restarted-at": "2026-11-13T04:23:35.486508+00:00",
+            "seccomp.security.alpha.kubernetes.io/pod": "runtime/default",
+            "security.openshift.io/validated-scc-subject-type": "user"
+        },
+        "creationTimestamp": "2026-11-13T04:23:37Z",
+        "generateName": "mlserver-rfdetr-cpu-764f8797c9-",
+        "generation": 1,
+        "labels": {
+            "app": "mlserver-rfdetr-cpu",
+            "pod-template-hash": "764f8797c9",
+            "purpose": "rhoaieng-102092"
+        },
+        "name": "mlserver-rfdetr-cpu-764f8797c9-vvpsm",
+        "namespace": "mlserver-perf",
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "ReplicaSet",
+                "name": "mlserver-rfdetr-cpu-764f8797c9",
+                "uid": "95c2a3a1-b8cc-44a8-ace4-f9f548b08608"
+            }
+        ],
+        "resourceVersion": "66858323",
+        "uid": "3705d5dd-dab7-4417-8ba7-f836f223e35a"
+    },
+    "spec": {
+        "containers": [
+            {
+                "env": [
+                    {
+                        "name": "MLSERVER_MODEL_ONNX_PROVIDERS",
+                        "value": "[\"CPUExecutionProvider\"]"
+                    },
+                    {
+                        "name": "MLSERVER_PARALLEL_WORKERS",
+                        "value": "4"
+                    },
+                    {
+                        "name": "MLSERVER_REST_WORKER_JSON",
+                        "value": "false"
+                    },
+                    {
+                        "name": "MLSERVER_GRPC_RAW_INPUT_BUFFERS",
+                        "value": "false"
+                    },
+                    {
+                        "name": "MLSERVER_PARALLEL_INFERENCE_TRANSPORT",
+                        "value": "zmq"
+                    },
+                    {
+                        "name": "MLSERVER_MODEL_ONNX_CUDA_GRAPH",
+                        "value": "false"
+                    },
+                    {
+                        "name": "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC",
+                        "value": "false"
+                    },
+                    {
+                        "name": "MLSERVER_REST_BINARY_TENSOR",
+                        "value": "true"
+                    },
+                    {
+                        "name": "MLSERVER_MODEL_ONNX_SESSION_OPTIONS",
+                        "value": "{\"intra_op_num_threads\": 8, \"inter_op_num_threads\": 2, \"execution_mode\": 1}"
+                    },
+                    {
+                        "name": "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES",
+                        "value": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+                    }
+                ],
+                "image": "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34",
+                "imagePullPolicy": "IfNotPresent",
+                "livenessProbe": {
+                    "failureThreshold": 10,
+                    "httpGet": {
+                        "path": "/v2/health/live",
+                        "port": 8080,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 30,
+                    "periodSeconds": 15,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "name": "mlserver",
+                "ports": [
+                    {
+                        "containerPort": 8080,
+                        "name": "rest",
+                        "protocol": "TCP"
+                    },
+                    {
+                        "containerPort": 8081,
+                        "name": "grpc",
+                        "protocol": "TCP"
+                    },
+                    {
+                        "containerPort": 8082,
+                        "name": "metrics",
+                        "protocol": "TCP"
+                    }
+                ],
+                "readinessProbe": {
+                    "failureThreshold": 60,
+                    "httpGet": {
+                        "path": "/v2/health/ready",
+                        "port": 8080,
+                        "scheme": "HTTP"
+                    },
+                    "initialDelaySeconds": 15,
+                    "periodSeconds": 5,
+                    "successThreshold": 1,
+                    "timeoutSeconds": 1
+                },
+                "resources": {
+                    "limits": {
+                        "cpu": "28",
+                        "memory": "32Gi"
+                    },
+                    "requests": {
+                        "cpu": "28",
+                        "memory": "32Gi"
+                    }
+                },
+                "securityContext": {
+                    "allowPrivilegeEscalation": false,
+                    "capabilities": {
+                        "drop": [
+                            "ALL"
+                        ]
+                    },
+                    "runAsUser": 1000810000
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/mnt/models",
+                        "name": "models"
+                    },
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-86zdc",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "enableServiceLinks": true,
+        "imagePullSecrets": [
+            {
+                "name": "default-dockercfg-rc7rr"
+            }
+        ],
+        "nodeName": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+        "nodeSelector": {
+            "nvidia.com/gpu.product": "Tesla-T4"
+        },
+        "preemptionPolicy": "PreemptLowerPriority",
+        "priority": 0,
+        "restartPolicy": "Always",
+        "schedulerName": "default-scheduler",
+        "securityContext": {
+            "fsGroup": 1000810000,
+            "runAsNonRoot": true,
+            "seLinuxOptions": {
+                "level": "s0:c28,c27"
+            },
+            "seccompProfile": {
+                "type": "RuntimeDefault"
+            }
+        },
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "tolerations": [
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoExecute",
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "tolerationSeconds": 300
+            },
+            {
+                "effect": "NoSchedule",
+                "key": "node.kubernetes.io/memory-pressure",
+                "operator": "Exists"
+            }
+        ],
+        "volumes": [
+            {
+                "name": "models",
+                "persistentVolumeClaim": {
+                    "claimName": "rfdetr-models"
+                }
+            },
+            {
+                "name": "kube-api-access-86zdc",
+                "projected": {
+                    "defaultMode": 420,
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ],
+                                "name": "kube-root-ca.crt"
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        },
+                                        "path": "namespace"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "items": [
+                                    {
+                                        "key": "service-ca.crt",
+                                        "path": "service-ca.crt"
+                                    }
+                                ],
+                                "name": "openshift-service-ca.crt"
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-11-13T04:23:39Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodReadyToStartContainers"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-11-13T04:23:37Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "Initialized"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-11-13T04:23:37Z",
+                "message": "containers with unready status: [mlserver]",
+                "observedGeneration": 1,
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "Ready"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-11-13T04:23:37Z",
+                "message": "containers with unready status: [mlserver]",
+                "observedGeneration": 1,
+                "reason": "ContainersNotReady",
+                "status": "False",
+                "type": "ContainersReady"
+            },
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-11-13T04:23:37Z",
+                "observedGeneration": 1,
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "allocatedResources": {
+                    "cpu": "28",
+                    "memory": "32Gi"
+                },
+                "containerID": "cri-o://fc646b8160fb10d5d1b14aabb36a8957524c1728c4a3414cb41f48b5dbdfe744",
+                "image": "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34",
+                "imageID": "quay.io/syedali/mlserver-cuda@sha256:2bcd2f47ddb1347d823649ecf3b3d5b9b4cb4e417cd2aa6eafd5a11b19125b34",
+                "lastState": {
+                    "terminated": {
+                        "containerID": "cri-o://ece76ebcf558a1335cf001ea3014725154ffd69d93cf0841e8accb3de95ba5a9",
+                        "exitCode": 1,
+                        "finishedAt": "2026-11-13T04:24:40Z",
+                        "reason": "Error",
+                        "startedAt": "2026-11-13T04:24:37Z"
+                    }
+                },
+                "name": "mlserver",
+                "ready": false,
+                "resources": {
+                    "limits": {
+                        "cpu": "28",
+                        "memory": "32Gi"
+                    },
+                    "requests": {
+                        "cpu": "28",
+                        "memory": "32Gi"
+                    }
+                },
+                "restartCount": 4,
+                "started": false,
+                "state": {
+                    "terminated": {
+                        "containerID": "cri-o://fc646b8160fb10d5d1b14aabb36a8957524c1728c4a3414cb41f48b5dbdfe744",
+                        "exitCode": 1,
+                        "finishedAt": "2026-11-13T04:25:25Z",
+                        "reason": "Error",
+                        "startedAt": "2026-11-13T04:25:22Z"
+                    }
+                },
+                "user": {
+                    "linux": {
+                        "gid": 0,
+                        "supplementalGroups": [
+                            0,
+                            1000810000
+                        ],
+                        "uid": 1000810000
+                    }
+                },
+                "volumeMounts": [
+                    {
+                        "mountPath": "/mnt/models",
+                        "name": "models"
+                    },
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "kube-api-access-86zdc",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    }
+                ]
+            }
+        ],
+        "hostIP": "10.0.128.33",
+        "hostIPs": [
+            {
+                "ip": "10.0.128.33"
+            }
+        ],
+        "observedGeneration": 1,
+        "phase": "Running",
+        "podIP": "10.131.6.219",
+        "podIPs": [
+            {
+                "ip": "10.131.6.219"
+            }
+        ],
+        "qosClass": "Guaranteed",
+        "startTime": "2026-11-13T04:23:37Z"
+    }
+}

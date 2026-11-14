@@ -1,0 +1,2 @@
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-binary-worker,8,1,30.808,0.00,259.721,261.808,263.544,39.824,4.4,80.1,1063.4

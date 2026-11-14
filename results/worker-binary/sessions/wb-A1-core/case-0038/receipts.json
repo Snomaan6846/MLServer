@@ -1,0 +1,63 @@
+{
+  "variant": "wb-binary-frontend",
+  "deployment": "mlserver-rfdetr",
+  "service": "mlserver-rfdetr",
+  "device": "cuda",
+  "model": "rfdetr-small",
+  "reference_capture": false,
+  "image": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+  "pod_image_id": "quay.io/syedali/mlserver-cuda@sha256:b6094ab1ae67ef09287e61e70e26ab412731551dd89c5790cc4898843800030c",
+  "env_applied": {
+    "MLSERVER_MODEL_ONNX_PROVIDERS": "[\"CUDAExecutionProvider\",\"CPUExecutionProvider\"]",
+    "MLSERVER_PARALLEL_WORKERS": "1",
+    "MLSERVER_REST_WORKER_JSON": "false",
+    "MLSERVER_REST_BINARY_TENSOR": "true",
+    "MLSERVER_REST_WORKER_BINARY": "false",
+    "MLSERVER_PARALLEL_INFERENCE_TRANSPORT": "zmq",
+    "MLSERVER_MODEL_ONNX_CUDA_GRAPH": "false",
+    "MLSERVER_MODEL_ONNX_CUDA_BLOCKING_SYNC": "false",
+    "MLSERVER_MODEL_ONNX_SESSION_OPTIONS": "{\"intra_op_num_threads\": 2, \"inter_op_num_threads\": 1}",
+    "MLSERVER_MODEL_ONNX_SESSION_CONFIG_ENTRIES": "{\"session.intra_op.allow_spinning\": \"0\", \"session.inter_op.allow_spinning\": \"0\"}"
+  },
+  "resources": {
+    "requests": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    },
+    "limits": {
+      "cpu": "28",
+      "memory": "32Gi",
+      "nvidia.com/gpu": "1"
+    }
+  },
+  "old_pod_uid": "90d6336e-d1c8-4061-805d-42a7bffce94a",
+  "pod_uid": "b9179019-6bf3-4c85-9864-428fcd6d0c39",
+  "pod_name": "mlserver-rfdetr-59f54fb5d-2jvh5",
+  "pod_node": "syedali-cluster-pool-j6qh5-gpu-t4-a-8kpk4",
+  "pod_started_at": "2026-11-13T12:00:29+00:00",
+  "providers_line": "2026-11-13 12:00:37,264 [mlserver][rfdetr-small] INFO - ONNX model 'rfdetr-small' loaded with execution providers: ['CUDAExecutionProvider', 'CPUExecutionProvider']",
+  "model_ready_seconds": 0.013026752974838018,
+  "correctness": {
+    "rest": {
+      "rest_latency_s": 0.6705382841173559,
+      "rest_response_sha256": "8566ab5a79eb119b735b1dd16ce532d75c9baddd286993a856edc6d344311028",
+      "rest_response_bytes": 542365,
+      "rest_reference": "verified"
+    },
+    "grpc": {
+      "grpc_latency_s": 0.2676874890457839,
+      "grpc_response_sha256": "167e3b498805adc31882bf8128f83cbdaf82419cc37f69988fd96d08916799ba",
+      "grpc_response_bytes": 114127,
+      "grpc_reference": "verified"
+    },
+    "binary_rest": {
+      "binary_rest_latency_s": 0.09160589310340583,
+      "binary_rest_payload_sha256": "8ac6eaa8b20764a9ba0cbde4c8ec768a461686e40d369dab72b692cafe2dab60",
+      "binary_rest_response_bytes": 114349,
+      "binary_rest_reference": "verified"
+    }
+  },
+  "hook_utc": "2026-11-13T12:00:49.073346+00:00",
+  "hook_duration_s": 21.48412669217214
+}

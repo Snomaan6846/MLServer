@@ -1,0 +1,4 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,8,cpu-affinity-pinned2,True,5.3379,328,1498.228,1530.340,1539.470,1552.065,1022.335,20.856,null,null,1085.5,mlserver-rfdetr-cpu-54775c4b9f-kdzzr
+case-0001,1,8,cpu-affinity-pinned2,True,5.4235,333,1473.662,1494.516,1505.741,1541.583,936.002,21.124,null,null,1085.9,mlserver-rfdetr-cpu-64f4b55495-dwp8n
+case-0002,2,8,cpu-affinity-pinned2,True,5.4255,333,1470.019,1500.121,1510.899,1518.939,790.493,21.031,null,null,1115.7,mlserver-rfdetr-cpu-6dd847ddd4-jwnnn

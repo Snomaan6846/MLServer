@@ -1,0 +1,7 @@
+case,round,concurrency,variant,valid,rps,successful,p50_ms,p90_ms,p95_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,gpu_fb_max,mem_ws_max_mb,pod
+case-0000,0,4,wb-json-worker-wbinon,True,5.9059,358,675.870,684.836,691.126,699.469,204.532,4.256,20.917,382.000,1098.2,mlserver-rfdetr-f8757bdfb-99556
+case-0001,0,8,wb-json-worker-wbinon,True,5.8508,358,1365.236,1378.488,1382.083,1390.120,155.454,4.146,20.000,384.000,1211.3,mlserver-rfdetr-76ccb5f595-fnmmv
+case-0002,1,4,wb-json-worker-wbinon,True,5.8541,355,681.253,691.218,694.611,700.174,153.486,4.180,28.000,384.000,1108.4,mlserver-rfdetr-798fcbbbdd-rqrk5
+case-0003,1,8,wb-json-worker-wbinon,True,5.8777,360,1360.517,1374.121,1380.554,1390.687,203.150,4.167,24.538,382.000,1221.4,mlserver-rfdetr-794894c7bb-8xf9l
+case-0004,2,4,wb-json-worker-wbinon,True,5.8824,356,679.050,690.488,695.843,712.058,177.534,4.247,22.917,382.000,1115.9,mlserver-rfdetr-685dfb879d-f2txs
+case-0005,2,8,wb-json-worker-wbinon,True,5.8801,360,1356.861,1371.414,1375.811,1387.690,196.145,4.166,20.154,384.000,1225.8,mlserver-rfdetr-755484f668-t27t7

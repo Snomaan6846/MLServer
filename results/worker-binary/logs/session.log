@@ -1,0 +1,203 @@
+[wb] 2026-11-13T08:37:10Z STEP 0: upload tooling
+[wb] 2026-11-13T08:37:33Z   > uploaded
+[wb] 2026-11-13T08:37:33Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T08:37:36Z   > capturing references on the new image (default model)
+[wb] FAILED: default-model reference capture failed
+[wb] 2026-11-13T08:42:38Z STEP 0: upload tooling
+[wb] 2026-11-13T08:43:03Z   > uploaded
+[wb] 2026-11-13T08:43:03Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T08:43:05Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T08:43:08Z   > capturing references on the new image (default model)
+[wb] FAILED: default-model reference capture failed
+[wb] 2026-11-13T08:44:49Z STEP 0: upload tooling
+[wb] 2026-11-13T08:45:14Z   > uploaded
+[wb] 2026-11-13T08:45:14Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T08:45:16Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T08:45:19Z   > capturing references on the new image (default model)
+hook OK: variant=wb-binary-frontend model=rfdetr-small pod=mlserver-rfdetr-86f8589d4f-7fzfr providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T08:45:48Z   > capturing references on the new image (batched model)
+hook OK: variant=wb-batched-frontend model=rfdetr-small-batched pod=mlserver-rfdetr-c94c75cc-wwtw2 providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T08:46:25Z   > comparing frozen vs fresh references (must be byte-identical)
+  references: 10 identical, 2 new, 0 CHANGED
+    new: cuda-batched-binary-rest-response.bin
+    new: cuda-binary-rest-response.bin
+  cross-image output stability: PROVEN
+[wb] 2026-11-13T08:46:29Z   > batched model stashed (single-model conditions)
+[wb] 2026-11-13T08:46:29Z === SESSION wb-A1-core ===
+[wb] 2026-11-13T08:46:32Z   > uploading plan
+[wb] 2026-11-13T08:46:34Z   > starting sampler
+[wb] 2026-11-13T08:46:34Z   > running sweep
+[wb] 2026-11-13T09:39:46Z STEP 0: upload tooling
+[wb] 2026-11-13T09:40:12Z   > uploaded
+[wb] 2026-11-13T09:40:12Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T09:40:13Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T09:40:16Z   > capturing references on the new image (default model)
+[wb] FAILED: default-model reference capture failed
+[wb] 2026-11-13T09:48:58Z sibling CPU deployment parked
+[wb] 2026-11-13T09:48:58Z STEP 0: upload tooling
+[wb] 2026-11-13T09:49:23Z   > uploaded
+[wb] 2026-11-13T09:49:23Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T09:49:25Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T09:49:28Z   > capturing references on the new image (default model)
+[wb] FAILED: default-model reference capture failed
+[wb] 2026-11-13T09:51:54Z sibling CPU deployment parked
+[wb] 2026-11-13T09:51:54Z STEP 0: upload tooling
+[wb] 2026-11-13T09:52:19Z   > uploaded
+[wb] 2026-11-13T09:52:19Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T09:52:21Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T09:52:24Z   > capturing references on the new image (default model)
+hook OK: variant=wb-binary-frontend model=rfdetr-small pod=mlserver-rfdetr-cf6d44ccd-xchql providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T09:52:52Z   > capturing references on the new image (batched model)
+[wb] FAILED: batched-model reference capture failed
+[wb] 2026-11-13T10:00:25Z sibling CPU deployment parked
+[wb] 2026-11-13T10:00:49Z STEP 0: upload tooling
+[wb] 2026-11-13T10:01:14Z   > uploaded
+[wb] 2026-11-13T10:01:14Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T10:01:16Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T10:01:19Z   > capturing references on the new image (default model)
+hook OK: variant=wb-binary-frontend model=rfdetr-small pod=mlserver-rfdetr-76bdf4b77d-2htjq providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T10:01:52Z   > capturing references on the new image (batched model)
+hook OK: variant=wb-batched-frontend model=rfdetr-small-batched pod=mlserver-rfdetr-7d7956bd8d-m4w58 providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T10:02:19Z   > comparing frozen vs fresh references (must be byte-identical)
+  references: 10 identical, 4 new, 0 CHANGED
+    new: cuda-batched-binary-rest-response.bin
+    new: cuda-batched-binary-rest-response.bin.ihcl
+    new: cuda-binary-rest-response.bin
+    new: cuda-binary-rest-response.bin.ihcl
+  cross-image output stability: PROVEN
+[wb] 2026-11-13T10:02:23Z   > batched model stashed (single-model conditions)
+[wb] 2026-11-13T10:02:23Z === SESSION wb-A1-core ===
+[wb] 2026-11-13T10:02:25Z   > uploading plan
+[wb] 2026-11-13T10:02:28Z   > starting sampler
+[wb] 2026-11-13T10:02:28Z   > running sweep
+[wb] 2026-11-13T10:24:52Z sibling CPU deployment parked
+[wb] 2026-11-13T10:25:16Z batched model restored from stash (self-heal)
+[wb] 2026-11-13T10:25:17Z STEP 0: upload tooling
+[wb] 2026-11-13T10:25:44Z   > uploaded (stale sweeps cleared)
+[wb] 2026-11-13T10:25:44Z STEP 1: reference refresh + cross-image stability proof
+[wb] 2026-11-13T10:25:45Z   > restoring references from the existing frozen backup
+[wb] 2026-11-13T10:25:48Z   > capturing references on the new image (default model)
+hook OK: variant=wb-binary-frontend model=rfdetr-small pod=mlserver-rfdetr-6d655db754-7k47k providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T10:26:15Z   > capturing references on the new image (batched model)
+hook OK: variant=wb-batched-frontend model=rfdetr-small-batched pod=mlserver-rfdetr-86d555889-rm89x providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] ready=0.0s rest=captured grpc=captured CAPTURED references
+[wb] 2026-11-13T10:26:44Z   > comparing frozen vs fresh references (must be byte-identical)
+  references: 10 identical, 4 new, 0 CHANGED
+    new: cuda-batched-binary-rest-response.bin
+    new: cuda-batched-binary-rest-response.bin.ihcl
+    new: cuda-binary-rest-response.bin
+    new: cuda-binary-rest-response.bin.ihcl
+  cross-image output stability: PROVEN
+[wb] 2026-11-13T10:26:48Z   > batched model stashed (single-model conditions)
+[wb] 2026-11-13T10:26:48Z === SESSION wb-A1-core ===
+[wb] 2026-11-13T10:26:50Z   > uploading plan
+[wb] 2026-11-13T10:26:53Z   > starting sampler
+[wb] 2026-11-13T10:26:53Z   > running sweep
+[wb] 2026-11-13T12:24:56Z   > collecting
+[wb] 2026-11-13T12:25:02Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-binary-frontend,1,3,24.151,2.60,41.173,42.548,43.594,40.530,3.4,52.9,901.6
+wb-binary-frontend,4,3,31.369,0.66,127.230,129.821,131.674,40.975,4.8,82.3,908.8
+wb-binary-frontend,8,3,31.587,1.01,253.930,258.676,261.517,45.969,4.9,83.4,953.2
+wb-binary-frontend,16,3,31.492,0.48,508.040,515.026,518.680,43.459,4.8,83.0,977.1
+wb-binary-worker,1,3,25.886,1.47,38.566,39.487,40.438,33.630,3.4,59.7,896.0
+wb-binary-worker,4,3,31.014,1.43,128.955,131.753,133.798,36.073,4.3,81.1,915.8
+wb-binary-worker,8,3,31.041,0.43,257.740,261.109,263.100,34.695,4.3,79.9,942.8
+wb-binary-worker,16,3,30.911,0.63,516.753,523.226,526.181,36.224,4.3,81.7,965.6
+wb-stock-rest,1,3,3.969,2.12,250.659,257.291,264.768,261.842,3.4,14.4,992.8
+wb-stock-rest,4,3,8.107,3.45,488.360,558.981,599.882,231.686,6.9,35.3,1211.8
+wb-stock-rest,8,3,8.237,1.04,960.638,1034.665,1071.640,240.557,7.0,34.8,1406.9
+wb-stock-rest,16,3,8.135,2.41,1955.674,2039.254,2196.863,226.813,6.9,33.4,1815.5
+wb-stock-rest-queue,1,3,3.959,3.28,252.147,261.228,269.880,221.181,3.5,19.5,1000.3
+wb-stock-rest-queue,4,3,7.895,1.04,502.724,514.411,556.867,232.557,6.6,35.3,1203.8
+wb-stock-rest-queue,8,3,7.880,1.64,1012.671,1035.447,1096.868,218.779,6.7,32.8,1372.5
+wb-stock-rest-queue,16,3,7.774,1.25,2042.301,2100.759,2232.544,244.810,6.7,36.2,1791.8
+[wb] 2026-11-13T12:25:04Z   > all trials valid
+  wb-binary-frontend           C 1    24.15 RPS
+  wb-binary-frontend           C 4    31.37 RPS
+  wb-binary-frontend           C 8    31.59 RPS
+  wb-binary-frontend           C16    31.49 RPS
+  wb-binary-worker             C 1    25.89 RPS
+  wb-binary-worker             C 4    31.01 RPS
+  wb-binary-worker             C 8    31.04 RPS
+  wb-binary-worker             C16    30.91 RPS
+  wb-stock-rest                C 1     3.97 RPS
+  wb-stock-rest                C 4     8.11 RPS
+  wb-stock-rest                C 8     8.24 RPS
+  wb-stock-rest                C16     8.14 RPS
+  wb-stock-rest-queue          C 1     3.96 RPS
+  wb-stock-rest-queue          C 4     7.89 RPS
+  wb-stock-rest-queue          C 8     7.88 RPS
+  wb-stock-rest-queue          C16     7.77 RPS
+[wb] 2026-11-13T12:25:04Z   > wb-A1-core COMPLETE
+[wb] 2026-11-13T12:25:04Z === SESSION wb-A2-jsonworker ===
+[wb] 2026-11-13T12:25:06Z   > uploading plan
+[wb] 2026-11-13T12:25:09Z   > starting sampler
+[wb] 2026-11-13T12:25:09Z   > running sweep
+[wb] 2026-11-13T12:54:43Z   > collecting
+[wb] 2026-11-13T12:54:46Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-json-worker-binoff,4,3,5.885,2.10,678.328,689.142,699.612,172.980,4.2,23.3,1096.3
+wb-json-worker-binoff,8,3,5.829,1.36,1369.638,1391.406,1412.232,195.273,4.1,21.9,1233.4
+wb-json-worker-binon,4,3,5.730,3.60,691.894,706.479,718.391,189.494,4.2,18.1,1111.8
+wb-json-worker-binon,8,3,5.858,1.23,1358.039,1375.403,1394.979,178.989,4.2,26.6,1229.2
+[wb] 2026-11-13T12:54:47Z   > all trials valid
+  wb-json-worker-binoff        C 4     5.89 RPS
+  wb-json-worker-binoff        C 8     5.83 RPS
+  wb-json-worker-binon         C 4     5.73 RPS
+  wb-json-worker-binon         C 8     5.86 RPS
+[wb] 2026-11-13T12:54:47Z   > wb-A2-jsonworker COMPLETE
+[wb] 2026-11-13T12:54:47Z === SESSION wb-A3-orthogonality ===
+[wb] 2026-11-13T12:54:49Z   > uploading plan
+[wb] 2026-11-13T12:54:52Z   > starting sampler
+[wb] 2026-11-13T12:54:52Z   > running sweep
+[wb] 2026-11-13T13:09:53Z   > collecting
+[wb] 2026-11-13T13:09:56Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-json-worker-wbinon,4,3,5.882,0.88,678.784,689.875,702.387,178.517,4.2,23.9,1115.9
+wb-json-worker-wbinon,8,3,5.878,0.50,1360.190,1375.699,1389.504,184.916,4.2,21.6,1225.8
+[wb] 2026-11-13T13:09:56Z   > all trials valid
+  wb-json-worker-wbinon        C 4     5.88 RPS
+  wb-json-worker-wbinon        C 8     5.88 RPS
+[wb] 2026-11-13T13:09:56Z   > wb-A3-orthogonality COMPLETE
+[wb] 2026-11-13T13:09:56Z === SESSION wb-A5-graph ===
+[wb] 2026-11-13T13:09:58Z   > uploading plan
+[wb] 2026-11-13T13:10:01Z   > starting sampler
+[wb] 2026-11-13T13:10:01Z   > running sweep
+[wb] 2026-11-13T13:17:20Z   > collecting
+[wb] 2026-11-13T13:17:23Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-binary-worker-graph,8,3,31.191,0.55,256.444,260.644,262.546,36.026,4.3,67.8,965.4
+[wb] 2026-11-13T13:17:23Z   > all trials valid
+  wb-binary-worker-graph       C 8    31.19 RPS
+[wb] 2026-11-13T13:17:24Z   > wb-A5-graph COMPLETE
+[wb] 2026-11-13T13:17:26Z   > batched model restored (A4)
+[wb] 2026-11-13T13:17:26Z === SESSION wb-A4-batched ===
+[wb] 2026-11-13T13:17:28Z   > uploading plan
+[wb] 2026-11-13T13:17:31Z   > starting sampler
+[wb] 2026-11-13T13:17:31Z   > running sweep
+[wb] 2026-11-13T13:32:12Z   > collecting
+[wb] 2026-11-13T13:32:14Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-batched-frontend,4,3,8.291,0.48,481.195,489.361,501.139,169.724,5.9,31.8,1279.4
+wb-batched-workerbin,4,3,8.252,79.57,482.589,595.915,2297.573,441.761,6.1,15.7,1692.0
+[wb] 2026-11-13T13:32:15Z   > all trials valid
+  wb-batched-frontend          C 4     8.29 RPS
+  wb-batched-workerbin         C 4     8.25 RPS
+[wb] 2026-11-13T13:32:15Z   > wb-A4-batched COMPLETE
+[wb] 2026-11-13T13:32:17Z   > batched model stashed (soak under single-model conditions)
+[wb] 2026-11-13T13:32:17Z === SESSION wb-A6-soak ===
+[wb] 2026-11-13T13:32:20Z   > uploading plan
+[wb] 2026-11-13T13:32:22Z   > starting sampler
+[wb] 2026-11-13T13:32:22Z   > running sweep
+[wb] 2026-11-13T14:34:51Z   > collecting
+[wb] 2026-11-13T14:34:57Z   > summarizing
+variant,concurrency,trials,rps_median,rps_spread_pct,p50_ms,p90_ms,p99_ms,cpu_ms_per_req,cpu_pct,gpu_util_mean,mem_ws_max_mb
+wb-binary-worker,8,1,30.808,0.00,259.721,261.808,263.544,39.824,4.4,80.1,1063.4
+[wb] 2026-11-13T14:34:57Z   > all trials valid
+  wb-binary-worker             C 8    30.81 RPS
+[wb] 2026-11-13T14:34:57Z   > wb-A6-soak COMPLETE
+[wb] 2026-11-13T14:35:00Z   > batched model restored (final state)
+[wb] 2026-11-13T14:35:00Z STEP 3: reset GPU deployment to frozen baseline
+[wb] 2026-11-13T14:35:21Z 
+[wb] 2026-11-13T14:35:21Z WORKER-BINARY CAMPAIGN A COMPLETE
+[wb] 2026-11-13T14:35:21Z   results: /home/syedali/Workspace/mlserver-performance/MLServer-resources/benchmark-results/worker-binary-campaign
