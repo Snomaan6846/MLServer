@@ -114,8 +114,14 @@ async def start(folder: str):
     """
     settings, models_settings = await load_settings(folder)
 
-    server = MLServer(settings)
-    await server.start(models_settings)
+    if settings.frontend_workers > 1:
+        from ..frontend import FrontendSupervisor
+
+        supervisor = FrontendSupervisor(settings, models_settings)
+        await supervisor.start()
+    else:
+        server = MLServer(settings)
+        await server.start(models_settings)
 
 
 @root.command("build")

@@ -211,8 +211,8 @@ async def test_postcommit_cleanup_failure_keeps_replacement(
     sum_model_settings, monkeypatch
 ):
     # Purpose: Exercise old-instance cleanup failure after replacement publication.
-    # Expect: The replacement remains the selected ready model even though load reports
-    # cleanup failure.
+    # Expect: The replacement remains the selected ready model and the load succeeds
+    # despite the cleanup failure (the failed cleanup stays owned for the next drain).
     # Method: Make the old model's unload raise, reload the same public identity and
     # inspect the committed lookup before restoring cleanup.
     registry = MultiModelRegistry()
@@ -222,8 +222,8 @@ async def test_postcommit_cleanup_failure_keeps_replacement(
         raise RuntimeError("old resources retained")
 
     monkeypatch.setattr(old, "unload", fail)
-    with pytest.raises(RuntimeError, match="old resources retained"):
-        await registry.load(sum_model_settings)
+    replacement = await registry.load(sum_model_settings)
+    assert replacement.ready
     current = await registry.get_model(old.name, old.version)
     assert current is not old
     assert current.ready
@@ -554,9 +554,15 @@ async def test_redirected_commit_owns_both_displaced_instances(
     attempt = asyncio.create_task(registry.load(settings))
     try:
         await asyncio.wait_for(entered.wait(), 5)
-        expected = ValueError if outcome == "error" else asyncio.TimeoutError
-        with pytest.raises(expected):
-            await asyncio.wait_for(asyncio.shield(attempt), 5)
+        if outcome == "error":
+            # A post-commit cleanup failure no longer fails the load:
+            # the redirected replacement is already committed and
+            # serving; the failed cleanup stays owned for the drain.
+            replacement = await asyncio.wait_for(asyncio.shield(attempt), 5)
+            assert replacement.ready
+        else:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(attempt), 5)
         current = await registry.get_model(settings.name, "2")
         assert current is not loaded["2"]
         assert current.ready

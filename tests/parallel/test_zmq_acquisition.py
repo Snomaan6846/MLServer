@@ -13,8 +13,6 @@ from unittest.mock import Mock
 
 import pytest
 
-pytest.importorskip("zmq")
-
 
 async def socket_probe(case, directory, status):
     import zmq

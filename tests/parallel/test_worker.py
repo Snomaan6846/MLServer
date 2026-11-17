@@ -138,3 +138,45 @@ async def test_worker_env(
     assert response.outputs[0].name == "sklearn_version"
     [sklearn_version] = StringCodec.decode_output(response.outputs[0])
     assert sklearn_version == "1.6.1"
+
+
+def _worker_registry_hooks(frontend_workers: int):
+    """Construct a worker's registry hooks for the given frontend count."""
+    from mlserver.settings import Settings
+
+    # Zmq is required at frontend_workers>1 (settings validation); the
+    # endpoints only need to be well-formed strings at construction —
+    # nothing binds in __inner_init__.
+    settings = Settings(
+        parallel_workers=1,
+        parallel_inference_transport="zmq",
+        frontend_workers=frontend_workers,
+    )
+    responses: Queue = Queue()  # type: ignore[type-arg]
+    setattr(responses, "_zmq_reply_endpoints", ["ipc:///tmp/test-worker-hooks"])
+    worker = Worker(settings, responses)
+    worker._prepare_queues()
+    worker.__inner_init__()
+    return worker._model_registry
+
+
+def test_worker_skips_batcher_at_single_frontend():
+    """At frontend_workers=1 the batcher stays in the main process (the
+    previous behaviour): the worker must NOT install batching hooks —
+    exactly one placement, selected by the frontend count."""
+    from mlserver.batching import load_batching, unload_batching
+
+    registry = _worker_registry_hooks(frontend_workers=1)
+    assert load_batching not in registry._on_model_load
+    assert unload_batching not in registry._on_model_unload
+
+
+def test_worker_installs_batcher_at_multiple_frontends():
+    """At frontend_workers>1 the worker's registry installs the batcher
+    so ONE batcher in the shared worker sees the model's full traffic
+    rate regardless of the frontend count."""
+    from mlserver.batching import load_batching, unload_batching
+
+    registry = _worker_registry_hooks(frontend_workers=2)
+    assert load_batching in registry._on_model_load
+    assert unload_batching in registry._on_model_unload

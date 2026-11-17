@@ -3,6 +3,7 @@ import asyncio
 import json
 
 from asyncio import CancelledError
+from unittest.mock import Mock
 
 from mlserver.model import MLModel
 from mlserver.errors import (
@@ -1055,9 +1056,11 @@ async def test_reload_old_model_unload_failure_keeps_new_model_and_increments_me
         parameters=ModelParameters(version="v1.2.3"),
     )
 
-    # Reload should fail because old model unload fails
-    with pytest.raises(MLServerError, match="something really bad happened"):
-        await registry.load(new_settings)
+    # The reload succeeds: the replacement is already committed, and a
+    # retired instance's cleanup failure must not fail the load that
+    # published it (the cleanup stays owned for the next drain).
+    new_model = await registry.load(new_settings)
+    assert new_model.ready
 
     # New model should be in registry and ready
     registry_model = await registry.get_model()
@@ -1156,3 +1159,242 @@ async def test_unload_all_versions_attempts_all_with_failures(
     # Model completely removed from registry, even though unload failed
     with pytest.raises(ModelNotFound):
         await registry.get_models("bulk-model")
+
+
+async def test_drain_cleanup_preserves_waiter_deadline_cancellation():
+    """A waiter cancelled while a sibling cleanup still runs must
+    propagate CancelledError (the timeout wrapper turns it into
+    TimeoutError, its documented contract); it must not be
+    mistranslated as a cancelled cleanup (ModelUnloadError)."""
+    registry = SingleModelRegistry(
+        ModelSettings(name="m", implementation="tests.fixtures.SumModel")
+    )
+    v1 = Mock()
+    v1.name = "m"
+    v1.version = "v1"
+    release = asyncio.Event()
+    started = asyncio.Event()
+
+    async def slow_cleanup():
+        started.set()
+        await release.wait()
+
+    task = asyncio.create_task(slow_cleanup())
+    registry._cleanup_tasks[v1] = task
+
+    # v2's unload waits on the v1 sibling cleanup, then hits its
+    # deadline (waiter cancelled, cleanup still running).
+    v2 = Mock()
+    v2.name = "m"
+    v2.version = "v2"
+
+    waiter = asyncio.create_task(registry._drain_cleanup(models=[v2]))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=5)
+        await asyncio.sleep(0.01)  # let the waiter reach the shield
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+
+        # The cleanup itself was NOT cancelled by the waiter's deadline.
+        assert not task.cancelled()
+    finally:
+        # Drain both tasks even when an assertion fails: a pending
+        # shielded cleanup or waiter would leak into the next test.
+        release.set()
+        if not waiter.done():
+            waiter.cancel()
+        await asyncio.gather(waiter, task, return_exceptions=True)
+
+
+async def test_drain_cleanup_translates_cancelled_cleanup_task():
+    """A cleanup task cancelled while a sibling waiter shields it
+    translates to ModelUnloadError: the cancelled cleanup still owns
+    its resources and the retry must be told."""
+    registry = SingleModelRegistry(
+        ModelSettings(name="m", implementation="tests.fixtures.SumModel")
+    )
+    v1 = Mock()
+    v1.name = "m"
+    v1.version = "v1"
+    started = asyncio.Event()
+
+    async def cancellable_cleanup():
+        started.set()
+        await asyncio.sleep(10)
+
+    task = asyncio.create_task(cancellable_cleanup())
+    registry._cleanup_tasks[v1] = task
+
+    v2 = Mock()
+    v2.name = "m"
+    v2.version = "v2"
+
+    waiter = asyncio.create_task(registry._drain_cleanup(models=[v2]))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=5)
+        await asyncio.sleep(0.01)  # let the waiter reach the shield
+        # Cancel the CLEANUP task (not the waiter).
+        task.cancel()
+        with pytest.raises(ModelUnloadError, match="A prior cleanup was cancelled"):
+            await waiter
+    finally:
+        # Drain both tasks even when an assertion fails.
+        if not waiter.done():
+            waiter.cancel()
+        await asyncio.gather(waiter, task, return_exceptions=True)
+
+
+async def test_drain_cleanup_target_path_preserves_waiter_cancellation():
+    """The target-model path must also re-raise a waiter cancellation
+    instead of translating it (the pre-check only catches tasks that
+    were already cancelled before the shield)."""
+    registry = SingleModelRegistry(
+        ModelSettings(name="m", implementation="tests.fixtures.SumModel")
+    )
+    v1 = Mock()
+    v1.name = "m"
+    v1.version = "v1"
+    release = asyncio.Event()
+    started = asyncio.Event()
+
+    async def slow_cleanup():
+        started.set()
+        await release.wait()
+
+    task = asyncio.create_task(slow_cleanup())
+    registry._cleanup_tasks[v1] = task
+
+    # The waiter drains v1 itself (the target path).
+    waiter = asyncio.create_task(registry._drain_cleanup(models=[v1]))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=5)
+        await asyncio.sleep(0.01)
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+
+        assert not task.cancelled()
+    finally:
+        # Drain both tasks even when an assertion fails.
+        release.set()
+        if not waiter.done():
+            waiter.cancel()
+        await asyncio.gather(waiter, task, return_exceptions=True)
+
+
+async def test_exact_unload_of_absent_version_ignores_sibling_cleanup():
+    """An exact unload whose instance is already absent is a no-op even
+    when an unrelated version's retained cleanup is cancelled: the peer
+    must not log an apply failure for an instance it never held."""
+    registry = SingleModelRegistry(
+        ModelSettings(name="m", implementation="tests.fixtures.SumModel")
+    )
+    # v2 is serving; the unversioned slot is empty.
+    v2_settings = ModelSettings(
+        name="m",
+        implementation="tests.fixtures.SumModel",
+        parameters={"version": "v2"},
+    )
+    v2 = await registry.load(v2_settings)
+    assert v2.ready
+
+    # v1 has a CANCELLED retained cleanup (an interrupted unload).
+    v1 = Mock()
+    v1.name = "m"
+    v1.version = "v1"
+
+    async def never():
+        await asyncio.sleep(10)
+
+    cancelled = asyncio.create_task(never())
+    cancelled.cancel()
+    await asyncio.sleep(0)
+    assert cancelled.cancelled()
+    registry._cleanup_tasks[v1] = cancelled
+
+    # An exact unload of the unversioned instance (absent): the no-op
+    # must not be failed by the unrelated v1 cleanup.
+    await registry._unload_version(None, rollback=False, exact=True)
+
+    # v2 is still serving, untouched.
+    assert registry._find_exact_version("v2") is v2
+
+
+async def test_exact_unload_still_drains_matching_version_cleanup():
+    """The no-op shortcut must not skip the drain for a cleanup that
+    matches the requested version: a retry still needs to settle its
+    resources."""
+    registry = SingleModelRegistry(
+        ModelSettings(name="m", implementation="tests.fixtures.SumModel")
+    )
+    v2_settings = ModelSettings(
+        name="m",
+        implementation="tests.fixtures.SumModel",
+        parameters={"version": "v2"},
+    )
+    await registry.load(v2_settings)
+
+    # v1 has a RUNNING retained cleanup.
+    v1 = Mock()
+    v1.name = "m"
+    v1.version = "v1"
+    release = asyncio.Event()
+    started = asyncio.Event()
+
+    async def slow_cleanup():
+        started.set()
+        await release.wait()
+
+    task = asyncio.create_task(slow_cleanup())
+    registry._cleanup_tasks[v1] = task
+
+    # An exact unload of v1 waits for v1's own cleanup.
+    unload_task = asyncio.create_task(
+        registry._unload_version("v1", rollback=False, exact=True)
+    )
+    await asyncio.wait_for(started.wait(), timeout=5)
+    # Prove the unload itself reached the matching-cleanup drain: the
+    # started event fires from the standalone cleanup task, so without
+    # this check an _unload_version that returned immediately would
+    # still pass the test. A correctly-draining unload stays pending
+    # until the cleanup completes; a shortcut that skipped the drain
+    # finishes within a few loop ticks.
+    for _ in range(10):
+        await asyncio.sleep(0)
+    assert not unload_task.done()
+    release.set()
+    await asyncio.wait_for(unload_task, timeout=5)
+    await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_reload_succeeds_when_retired_cleanup_fails(
+    sum_model_settings: ModelSettings,
+):
+    """A retired instance's cleanup failure must not fail the load
+    that already published its replacement: the caller would retry or
+    roll back a model that is live and serving. The cleanup stays
+    tracked for the next operation's drain."""
+
+    async def failing_unload_hook(model: MLModel) -> MLModel:
+        raise RuntimeError("retired unload failed")
+
+    registry = SingleModelRegistry(
+        sum_model_settings,
+        on_model_unload=[failing_unload_hook],
+    )
+    first = await registry.load(sum_model_settings)
+    assert first.ready
+
+    # Reload: the replacement publishes; the old version's cleanup
+    # fails. The load must still succeed.
+    second = await registry.load(sum_model_settings)
+    assert second.ready
+    assert second is not first
+
+    # The replacement is registered and serving.
+    model = await registry.get_model()
+    assert model is second
+
+    # The retired instance's cleanup stays owned for the next drain.
+    assert first in registry._cleanup_tasks

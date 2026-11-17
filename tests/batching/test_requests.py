@@ -698,3 +698,204 @@ def test_split_response_ndarray_output_data():
         ],
     )
     assert split["request-1"].model_dump_json() == list_response.model_dump_json()
+
+
+def test_merge_request_inputs_ndarray_unequal_minibatches():
+    """Ndarray-backed inputs with different minibatch sizes must merge
+    by concatenating their elements (the list path's sum()
+    equivalent): the merged shape declares the flattened total, and a
+    list of unequal-length arrays cannot be converted by the decoder."""
+    from mlserver.codecs.numpy import NumpyCodec
+
+    req1 = InferenceRequest(
+        inputs=[NumpyCodec.encode_input("foo", np.arange(2).reshape(2, 1))]
+    )
+    req2 = InferenceRequest(
+        inputs=[NumpyCodec.encode_input("foo", np.arange(1).reshape(1, 1))]
+    )
+
+    batched = BatchedRequests({"req-1": req1, "req-2": req2})
+    merged = batched.merged_request.inputs[0]
+
+    assert merged.shape == [3, 1]
+    np.testing.assert_array_equal(merged.data.root, np.array([0, 1, 0]))
+
+    # The merged request decodes back to the declared shape.
+    decoded = NumpyCodec.decode_input(merged)
+    assert decoded.shape == (3, 1)
+
+
+def test_merge_request_inputs_ndarray_equal_minibatches():
+    """Equal-size ndarray minibatches concatenate the same way."""
+    from mlserver.codecs.numpy import NumpyCodec
+
+    req1 = InferenceRequest(
+        inputs=[NumpyCodec.encode_input("foo", np.array([1, 2]).reshape(2, 1))]
+    )
+    req2 = InferenceRequest(
+        inputs=[NumpyCodec.encode_input("foo", np.array([3, 4]).reshape(2, 1))]
+    )
+
+    batched = BatchedRequests({"req-1": req1, "req-2": req2})
+    merged = batched.merged_request.inputs[0]
+
+    assert merged.shape == [4, 1]
+    np.testing.assert_array_equal(merged.data.root, np.array([1, 2, 3, 4]))
+
+
+def test_merge_request_inputs_list_backed_still_flattens():
+    """The list path keeps its sum() flattening for list-backed data
+    (the pre-ndarray behaviour, unchanged)."""
+    requests = {
+        "req-1": InferenceRequest(
+            inputs=[
+                RequestInput(name="foo", datatype="INT32", data=[1, 2], shape=[2, 1])
+            ]
+        ),
+        "req-2": InferenceRequest(
+            inputs=[RequestInput(name="foo", datatype="INT32", data=[3], shape=[1, 1])]
+        ),
+    }
+
+    batched = BatchedRequests(requests)
+    merged = batched.merged_request.inputs[0]
+
+    assert merged.shape == [3, 1]
+    assert merged.data.root == [1, 2, 3]
+
+
+def test_merge_request_inputs_mixed_list_and_ndarray_batches():
+    """A list-backed request batched with an ndarray-backed one (a JSON
+    request batched with a binary one) must concatenate in either order:
+    the list path's sum() broadcasts a list against an ndarray
+    ([1,2] + array([3,4]) == [4,6]), silently producing the wrong
+    element count for the declared merged shape."""
+    from mlserver.codecs.numpy import NumpyCodec
+
+    ndarray_req = InferenceRequest(
+        inputs=[NumpyCodec.encode_input("foo", np.array([[3], [4]], dtype=np.int32))]
+    )
+    list_req = InferenceRequest(
+        inputs=[RequestInput(name="foo", datatype="INT32", data=[1, 2], shape=[2, 1])]
+    )
+
+    # ndarray-first: elements follow the batch's request order.
+    batched = BatchedRequests({"a": ndarray_req, "b": list_req})
+    merged = batched.merged_request.inputs[0]
+    assert merged.shape == [4, 1]
+    np.testing.assert_array_equal(merged.data.root, np.array([3, 4, 1, 2]))
+
+    # list-first: the order that used to broadcast instead of
+    # concatenating.
+    batched = BatchedRequests({"a": list_req, "b": ndarray_req})
+    merged = batched.merged_request.inputs[0]
+    assert merged.shape == [4, 1]
+    np.testing.assert_array_equal(merged.data.root, np.array([1, 2, 3, 4]))
+
+    # The merged request decodes back to the declared shape.
+    decoded = NumpyCodec.decode_input(merged)
+    assert decoded.shape == (4, 1)
+
+
+def test_merge_request_inputs_uint64_precision_preserved():
+    """The merge must convert entries to the tensor's declared dtype:
+    numpy's uint64 + int64 promotion produces float64, which cannot
+    represent 2**63 + 1 — the decoder would silently cast the rounded
+    value back to uint64."""
+    from mlserver.codecs.numpy import set_ndarray_response_pipeline
+
+    set_ndarray_response_pipeline(True)
+    from mlserver.codecs.numpy import NumpyCodec
+
+    ndarray_req = InferenceRequest(
+        inputs=[
+            NumpyCodec.encode_input("foo", np.array([[2**63 + 1]], dtype=np.uint64))
+        ]
+    )
+    list_req = InferenceRequest(
+        inputs=[RequestInput(name="foo", datatype="UINT64", data=[1], shape=[1, 1])]
+    )
+
+    batched = BatchedRequests({"a": ndarray_req, "b": list_req})
+    merged = batched.merged_request.inputs[0]
+
+    assert merged.shape == [2, 1]
+    assert merged.data.root.dtype == np.uint64
+    # The exact integer survives the merge and the decode.
+    assert int(merged.data.root[0]) == 2**63 + 1
+    decoded = NumpyCodec.decode_input(merged)
+    assert decoded.dtype == np.uint64
+    assert int(decoded[0][0]) == 2**63 + 1
+
+
+def test_merge_request_inputs_nested_json_and_ndarray_batches():
+    """A JSON request may carry nested data (shape [1,2] -> [[1,2]])
+    while ndarray-native ones are flat. concatenate() rejects the
+    dimension mismatch instead of merging, so every numeric entry
+    flattens before concatenating."""
+    from mlserver.codecs.numpy import set_ndarray_response_pipeline
+
+    set_ndarray_response_pipeline(True)
+    from mlserver.codecs.numpy import NumpyCodec
+
+    ndarray_req = InferenceRequest(
+        inputs=[NumpyCodec.encode_input("foo", np.array([[3, 4]], dtype=np.int32))]
+    )
+    nested_req = InferenceRequest(
+        inputs=[RequestInput(name="foo", datatype="INT32", data=[[1, 2]], shape=[1, 2])]
+    )
+
+    # nested-first: the order that raised a ValueError from
+    # concatenate() instead of merging.
+    batched = BatchedRequests({"a": nested_req, "b": ndarray_req})
+    merged = batched.merged_request.inputs[0]
+    assert merged.shape == [2, 2]
+    np.testing.assert_array_equal(merged.data.root, np.array([1, 2, 3, 4]))
+    decoded = NumpyCodec.decode_input(merged)
+    assert decoded.shape == (2, 2)
+
+    # ndarray-first.
+    batched = BatchedRequests({"a": ndarray_req, "b": nested_req})
+    merged = batched.merged_request.inputs[0]
+    assert merged.shape == [2, 2]
+    np.testing.assert_array_equal(merged.data.root, np.array([3, 4, 1, 2]))
+
+
+def test_merge_request_inputs_logical_bytes_not_truncated():
+    """Logical byte elements merged with a fixed-width 'S' ndarray must
+    keep their exact values: to_dtype() selects the sampled entry's 'S'
+    dtype, and a fixed-width conversion truncates longer elements
+    (b"hello" -> b"h") before the logical-elements flag is applied. The
+    normalized merge uses object dtype instead."""
+    from mlserver.codecs.numpy import NumpyCodec, set_logical_elements
+
+    fixed_req = InferenceRequest(
+        inputs=[
+            RequestInput(
+                name="foo",
+                datatype="BYTES",
+                data=np.array([b"a"], dtype="S1"),
+                shape=[1, 1],
+            )
+        ]
+    )
+    logical_req = InferenceRequest(
+        inputs=[
+            RequestInput(name="foo", datatype="BYTES", data=[b"hello"], shape=[1, 1])
+        ]
+    )
+    set_logical_elements(logical_req.inputs[0])
+
+    # fixed-width-first: the order that truncated b"hello" to b"h".
+    batched = BatchedRequests({"a": fixed_req, "b": logical_req})
+    merged = batched.merged_request.inputs[0]
+    assert sorted(merged.data.root) == [b"a", b"hello"]
+
+    # logical-first.
+    batched = BatchedRequests({"a": logical_req, "b": fixed_req})
+    merged = batched.merged_request.inputs[0]
+    assert sorted(merged.data.root) == [b"a", b"hello"]
+
+    # The merged input decodes to the exact logical elements.
+    decoded = NumpyCodec.decode_input(merged)
+    assert sorted(decoded.reshape(-1).tolist()) == [b"a", b"hello"]

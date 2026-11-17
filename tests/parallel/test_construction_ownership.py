@@ -22,8 +22,6 @@ local_environment_tarball = environments.local_environment_tarball
 
 @pytest.fixture(params=["queue", "zmq"])
 def settings(settings, request):
-    if request.param == "zmq":
-        pytest.importorskip("zmq")
     settings.parallel_inference_transport = request.param
     settings.parallel_workers = 2
     settings.parallel_workers_timeout = 1

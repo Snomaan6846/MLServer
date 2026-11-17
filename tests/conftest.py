@@ -492,3 +492,20 @@ def datatype_error_message():
         " 'FP16', 'FP32', 'FP64' or 'BYTES'"
     )
     return error_message
+
+
+@pytest.fixture(autouse=True)
+def _default_response_pipeline_gate():
+    """Reset the response-pipeline topology gate around every test.
+
+    set_ndarray_response_pipeline() flips a process-global: without
+    this reset, any test opting into the ndarray pipeline leaks it to
+    every later test in the same pytest worker, making failures
+    order- and xdist-distribution-dependent. Every test starts from
+    the default (single-frontend, list payloads = master's data flow).
+    """
+    from mlserver.codecs.numpy import set_ndarray_response_pipeline
+
+    set_ndarray_response_pipeline(False)
+    yield
+    set_ndarray_response_pipeline(False)

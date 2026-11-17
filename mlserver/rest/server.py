@@ -1,7 +1,9 @@
+import socket
 import uvicorn
 import signal
 
 from ..settings import Settings
+from ..utils import _reuse_port_sockets
 from ..handlers import DataPlane, ModelRepositoryHandlers, get_custom_handlers
 from ..model import MLModel
 
@@ -29,6 +31,8 @@ class RESTServer:
         self._settings = settings
         self._data_plane = data_plane
         self._model_repository_handlers = model_repository_handlers
+        # Pre-bound SO_REUSEPORT socket when frontend_workers > 1.
+        self._shared_port_sockets: "list[socket.socket] | None" = None
         self._app = create_app(
             self._settings,
             data_plane=self._data_plane,
@@ -93,7 +97,10 @@ class RESTServer:
             f"http://{self._settings.host}:{self._settings.http_port}"
         )
 
-        await self._server.serve()
+        if self._shared_port_sockets is not None:
+            await self._server.serve(sockets=self._shared_port_sockets)
+        else:
+            await self._server.serve()
 
     def _get_config(self):
         kwargs = {}
@@ -113,6 +120,16 @@ class RESTServer:
             }
         )
 
+        if self._settings.frontend_workers > 1:
+            # Kernel-level connection balancing across frontend processes.
+            # uvicorn has no reuse_port config: the supported pattern (its
+            # own gunicorn-worker path) is pre-bound sockets handed to
+            # Server.serve(sockets=[...]). Every resolved address gets a
+            # listener, matching the single-frontend path.
+            self._shared_port_sockets = _reuse_port_sockets(
+                self._settings.host, self._settings.http_port
+            )
+
         if self._settings.logging_settings:
             # If not None, use ours. Otherwise, let Uvicorn fall back on its
             # own config.
@@ -121,11 +138,21 @@ class RESTServer:
         return uvicorn.Config(self._app, **kwargs)
 
     async def stop(self, sig: int | None = None):
+        # stop() before start() (e.g. a failed startup unwinding) has
+        # no server to shut down; nothing to do.
+        if getattr(self, "_server", None) is None:
+            return
         if sig is None:
             # `sig` is no longer optional for `handle_exit` in
             # latest `uvicorn`
             sig = signal.SIGINT
 
         self._server.handle_exit(sig=sig, frame=None)
-        # handle_exit returns immediately; drain runs in serve().
+        # handle_exit returns immediately; drain runs in serve(). Do NOT
+        # close the shared socket here: Uvicorn's graceful shutdown closes
+        # the asyncio servers it built from the passed sockets (the fd is
+        # closed exactly once when serve() returns). Closing it in this
+        # handler would close it a second time — and the fd number can be
+        # reused in between, so that second close could hit an unrelated
+        # resource.
         clear_uvicorn_access_log_filters()

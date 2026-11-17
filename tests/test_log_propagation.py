@@ -22,7 +22,6 @@ import pytest
 from mlserver.model import MLModel
 from mlserver.settings import ModelSettings
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -28,9 +28,10 @@ from .messages import (
 )
 from .dispatcher import Dispatcher
 
-
 PredictMethod = Callable[[InferenceRequest], Awaitable[InferenceResponse]]
 InferencePoolHook = Callable[[Worker], Awaitable[None]]
+# Receives the quarantined pool's env hash (None = the default pool).
+PoolQuarantineHook = Callable[[str | None], Awaitable[None]]
 
 
 def _spawn_worker(pool: "InferencePool") -> Worker:
@@ -41,6 +42,10 @@ def _spawn_worker(pool: "InferencePool") -> Worker:
         pool._on_worker_load,
         pool._on_worker_unload,
     )
+    # Tag the worker with its pool's routing identity before any
+    # broadcast can observe it, so frontends route only same-pool
+    # models to it.
+    worker.env_hash = pool.routing_id
     # Worker construction is lightweight. Own it before queue acquisition and
     # start(), which can raise even after exposing a native child.
     pool._unstarted_workers.add(worker)
@@ -121,13 +126,30 @@ class InferencePool:
         on_worker_stop: Sequence[InferencePoolHook] = [],
         on_worker_load: Sequence[WorkerModelHook] = [],
         on_worker_unload: Sequence[WorkerModelHook] = [],
+        on_worker_ready: Sequence[InferencePoolHook] = [],
+        on_pool_quarantined: Sequence[PoolQuarantineHook] = [],
+        reply_endpoints: Sequence[str] | None = None,
     ):
-        self._on_worker_stop = on_worker_stop
-        self._on_worker_load = on_worker_load
-        self._on_worker_unload = on_worker_unload
+        # Copy the hook sequences: the defaults are shared mutable
+        # lists, and storing them by reference would let one pool's
+        # appends (e.g. a test hook) fire on every other pool.
+        self._on_worker_stop = list(on_worker_stop)
+        self._on_worker_load = list(on_worker_load)
+        self._on_worker_unload = list(on_worker_unload)
+        self._on_worker_ready = list(on_worker_ready)
+        self._on_pool_quarantined = list(on_pool_quarantined)
+        # Pre-created reply endpoints (one per frontend process). When
+        # provided, workers reply to every frontend and the pool's own
+        # dispatcher runs transport-free: data-plane requests come from
+        # the frontends, model-control acks still use the response queue.
+        self._reply_endpoints = (
+            list(reply_endpoints) if reply_endpoints is not None else None
+        )
         self._env = env
         self._pool_gid = pool_gid
         self._workers: dict[int, Worker] = {}
+        # Refcount of loaded model versions whose batcher runs in workers.
+        self._batched_names: dict[tuple[str, str], int] = {}
         # Acquisition owners are distinct from registered/routable workers.
         # Close and SIGCHLD must see them before dispatch can safely use them.
         self._starting_workers: dict[int, Worker] = {}
@@ -200,16 +222,40 @@ class InferencePool:
         if self._settings.parallel_inference_transport == "zmq":
             from .zmq import create_endpoint
 
-            # Only endpoint strings cross spawn. The parent owns the private
-            # directory until workers and the response transport have stopped.
-            self._transport_directory = TemporaryDirectory(prefix="mlserver-ipc-")
-            reply = create_endpoint(Path(self._transport_directory.name), "r")
-            setattr(self._responses, "_zmq_reply_endpoint", reply)
+            if self._reply_endpoints is not None:
+                # Shared-pool topology: the supervisor pre-created one reply
+                # endpoint per frontend. Workers connect to all of them and
+                # route each reply by the request's frontend_id. The pool's
+                # own dispatcher stays transport-free (frontend-owned
+                # endpoints must not be bound twice): advertising the
+                # singular attribute at ANY frontend count makes the pool's
+                # dispatcher bind a frontend's reply path, and the worker's
+                # reply connection then lands on whichever socket owned the
+                # path at connect time — the frontend's inference responses
+                # can be swallowed by the pool's socket. Update responses
+                # already travel the multiprocessing response queue, so the
+                # pool needs no zmq transport here.
+                endpoints = list(self._reply_endpoints)
+                setattr(self._responses, "_zmq_reply_endpoints", endpoints)
+                setattr(self._responses, "_zmq_reply_endpoint", None)
+            else:
+                # Only endpoint strings cross spawn. The parent owns the
+                # private directory until workers and the response transport
+                # have stopped.
+                self._transport_directory = TemporaryDirectory(prefix="mlserver-ipc-")
+                reply = create_endpoint(Path(self._transport_directory.name), "r")
+                # The list form supports one endpoint per frontend process;
+                # the single-endpoint attribute stays for backward
+                # compatibility.
+                setattr(self._responses, "_zmq_reply_endpoints", [reply])
+                setattr(self._responses, "_zmq_reply_endpoint", reply)
         self._owned_dispatcher = Dispatcher(
             self._workers,
             self._responses,
             model_operation_timeout=self._settings.model_operation_timeout,
             worker_start_timeout=self._settings.worker_start_timeout,
+            routing_rotation=self._settings.parallel_routing_rotation,
+            inference_timeout=self._settings.inference_timeout,
         )
         self._dispatcher.start()
         for _ in range(self._settings.parallel_workers):
@@ -220,6 +266,7 @@ class InferencePool:
             self._workers[worker.pid] = worker
             self._starting_workers.pop(worker.pid, None)
             self._dispatcher.on_worker_ready(worker)
+            await self._notify_worker_ready(worker)
 
     @property
     def env_hash(self) -> str | None:
@@ -227,6 +274,69 @@ class InferencePool:
             return None
 
         return self._env.env_hash
+
+    @property
+    def routing_id(self) -> str | None:
+        """Identity used to partition frontend routing by pool.
+
+        Every pool must have a distinct routing id: environment pools
+        use their env hash, GID-only pools use their GID — otherwise a
+        GID-only pool's workers and models would all be tagged None and
+        collapse into the default pool's routing partition. The value
+        is also the registry's ``_pools`` key for the pool.
+        """
+        return self.env_hash if self._env else self._pool_gid
+
+    async def _notify_worker_ready(self, worker: Worker) -> None:
+        """Notify observer hooks (e.g. the supervisor broadcasting to
+        frontends) that a worker incarnation became routable."""
+        for hook in self._on_worker_ready:
+            try:
+                await hook(worker)
+            except Exception:
+                logger.exception("Worker-ready hook failed; continuing")
+
+    def _track_batched(
+        self,
+        model_settings: ModelSettings,
+        loaded: bool,
+        version: str | None = None,
+    ) -> None:
+        """Keep the dispatcher's batched-model set in sync with loads.
+
+        Routing is per (name, version) — the same key the dispatcher's
+        sticky routing uses. A refcount keeps mixed-version loads (one
+        batched, one not) correct within each version key.
+
+        At frontend_workers == 1 the batcher runs in the main process
+        (the previous behaviour): requests are already merged before
+        dispatch, and sticky routing would send every batch to one
+        worker — round-robin is correct there. Only the multi-frontend
+        topology (batcher in the worker) needs the affinity mark.
+        """
+        batched = (
+            model_settings.max_batch_size > 1 and model_settings.max_batch_time > 0
+        )
+        if not batched:
+            return
+        if self._settings.frontend_workers == 1:
+            # Single-frontend: the main-process batcher merges before
+            # dispatch; the dispatcher should round-robin the merged
+            # batches across all workers.
+            return
+        resolved_version = version or model_settings.version or ""
+        key = (model_settings.name, resolved_version)
+        count = self._batched_names.get(key, 0) + (1 if loaded else -1)
+        if count > 0:
+            self._batched_names[key] = count
+            self._dispatcher.set_model_batched(
+                model_settings.name, True, resolved_version
+            )
+        else:
+            self._batched_names.pop(key, None)
+            self._dispatcher.set_model_batched(
+                model_settings.name, False, resolved_version
+            )
 
     @property
     def pool_gid(self) -> str | None:
@@ -241,6 +351,21 @@ class InferencePool:
             return f"inference pool with GID '{self._pool_gid}'"
 
         return "default inference pool"
+
+    def tracks_pid(self, pid: int) -> bool:
+        """Whether pid is a worker of this pool in any lifecycle state.
+
+        Covers started, starting, unstarted and closing workers — the
+        full set whose exits ``on_worker_stop`` processes. The SIGCHLD
+        reaper uses this to tell pool workers from other children of
+        the server process (e.g. frontends in the multi-frontend
+        topology).
+        """
+        if pid in self._workers or pid in self._starting_workers:
+            return True
+        if any(worker.pid == pid for worker in self._unstarted_workers):
+            return True
+        return any(worker.pid == pid for worker in self._closing_workers.values())
 
     async def on_worker_stop(self, pid: int, exit_code: int):
         # If the inference pool is closing, or the current worker
@@ -400,7 +525,7 @@ class InferencePool:
         # Phase 1/2 replay runs inside the dispatcher lock via on_worker_start
         # to ensure no concurrent dispatch_update can reach the replacement
         # worker in an inconsistent state during initialization
-        replay = self._replay_worker(worker)
+        replay = self._register_and_replay(worker)
         try:
             await self._dispatcher.on_worker_start(worker, replay)
             if not self._closing:
@@ -432,6 +557,7 @@ class InferencePool:
 
         if not self._closing:
             self._dispatcher.on_worker_ready(worker)
+            await self._notify_worker_ready(worker)
             logger.info(
                 f"New worker with PID {worker.pid} on {self.name} is now ready."
             )
@@ -440,6 +566,12 @@ class InferencePool:
             if not worker.queues_retired:
                 self._closing_workers[id(worker)] = worker
             self._dispatcher.on_worker_stop(worker, -1)
+            # Revoke the pool-side registration made by
+            # _register_and_replay (no-op if registration never ran):
+            # the dispatcher no longer deletes from the pool's table,
+            # and a closed-out replacement must not linger in _workers.
+            if self._workers.get(worker.pid) is worker:
+                del self._workers[worker.pid]
             return None
         return worker
 
@@ -448,6 +580,15 @@ class InferencePool:
         # An unresolved socket remains owned by the transport independently.
         if not worker.queues_retired:
             self._closing_workers[id(worker)] = worker
+        # Revoke the pool-side registration made by _register_and_replay
+        # (under the worker-starting lock): the dispatcher's table is
+        # private now, so without this delete a rolled-back replacement
+        # would be treated as an unexpected death by a later
+        # on_worker_stop (restart chain, queue retirement) for a child
+        # this rollback already retired. No-ops for a worker whose
+        # registration never ran.
+        if worker.pid is not None and self._workers.get(worker.pid) is worker:
+            del self._workers[worker.pid]
         # Acquisition can fail before a PID exists. Drop its earlier slot only
         # after the retirement owner above can manage those partial resources.
         self._unstarted_workers.discard(worker)
@@ -479,6 +620,23 @@ class InferencePool:
             if len(failures) > 1:
                 setattr(failures[0], "cleanup_error", failures[1])
             raise failures[0]
+
+    async def _register_and_replay(self, worker: Worker):
+        """Register the replacement pool-side, then run its replay.
+
+        Runs as on_worker_start's init coroutine — i.e. under the
+        worker-starting lock — so the pool's table gains the child at
+        exactly the point the pre-split shared table did: after the
+        lock is acquired, before any replay work. This keeps the child
+        visible to tracks_pid, close()'s sweep and find_worker from
+        registration until retirement, with no blind window between
+        the finally popping _starting_workers and readiness. A spawn
+        whose registration never runs (lock deadline, cancellation) is
+        rolled back by _rollback_worker's identity-guarded delete.
+        """
+        assert worker.pid is not None
+        self._workers[worker.pid] = worker
+        return await self._replay_worker(worker)
 
     async def _replay_worker(self, worker: Worker):
         """
@@ -543,6 +701,11 @@ class InferencePool:
         # every live worker acknowledges preparation.
         prepared: ModelUpdateMessage | None = None
         parallel_model: ParallelModel | None = None
+        # Whether THIS load acquired the dispatcher's batch affinity:
+        # the failure path must only reverse what it acquired, or a
+        # worker error while preparing a second version would disable
+        # the first version's affinity.
+        affinity_acquired = False
         try:
             load_message = ModelUpdateMessage(
                 update_type=ModelUpdateType.Load,
@@ -550,6 +713,8 @@ class InferencePool:
                 rollback=reload,
             )
             await self._dispatch_owned(load_message)
+            self._track_batched(model.settings, True)
+            affinity_acquired = True
             prepared = load_message
             if self._closing:
                 raise InferencePoolUnavailable(self.name)
@@ -572,6 +737,13 @@ class InferencePool:
             return parallel_model
         except (Exception, asyncio.CancelledError):
             self._retire(model)
+            # The load is abandoned: undo the dispatcher's batch
+            # affinity only if this load acquired it — a failure before
+            # the increment (e.g. a worker error during preparation of
+            # a second version) must not disable a committed version's
+            # affinity.
+            if affinity_acquired:
+                self._track_batched(model.settings, False)
             if prepared is not None and not self._closing:
                 # Worker preparation succeeded, but wrapper construction or
                 # frontend staging did not transfer ownership. Ordinary unload
@@ -592,8 +764,13 @@ class InferencePool:
             raise InferencePoolUnavailable(self.name)
         if reload:
             self._pending_reload[self._model_key(model.settings)] = model
-            if model in self._staged:
-                model.ready = True
+            # The commit is final in both paths: staged under the
+            # registry's load hooks (frontend publication already ran)
+            # or immediate (the supervisor drives the load with no hook
+            # chain). A ready pending is what makes the retiring unload
+            # PUBLISH the replacement instead of rolling it back (see
+            # unload_model's rollback computation).
+            model.ready = True
         else:
             self._worker_registry.add(model.settings)
         self._release_stage(model)
@@ -619,6 +796,29 @@ class InferencePool:
             raise InferencePoolUnavailable(self.name)
         await self._settle_recovery()
         if model in self._retired_models:
+            # A retry can target an instance whose retiring unload
+            # already completed in the background: the earlier unload
+            # outlived the caller's deadline (the shielded dispatch
+            # kept running), so the caller re-drove the reload with a
+            # NEW staged replacement. Publishing that replacement here
+            # keeps the retry honest — without it, the retry would
+            # report success while the PREVIOUS replacement still
+            # serves on the workers.
+            pending = self._pending_reload.get(self._model_key(model.settings))
+            if pending is not None and pending.ready:
+                self._pending_reload.pop(self._model_key(model.settings), None)
+                self._worker_registry.add(pending.settings)
+                # The promotion dispatch mirrors the retiring unload
+                # that already ran: it retires the key's serving
+                # version on the workers and promotes the staged one.
+                # The instance's batch affinity was already released
+                # by the earlier unload — do not decrement it again.
+                unload_message = ModelUpdateMessage(
+                    update_type=ModelUpdateType.Unload,
+                    model_settings=model.settings,  # type: ignore
+                    rollback=False,
+                )
+                await self._dispatch_owned(unload_message)
             return self._wrap(model)
         key = self._model_key(model.settings)
         pending_model = self._pending_reload.pop(key, None)
@@ -630,6 +830,15 @@ class InferencePool:
         elif pending_model is None:
             self._worker_registry.remove(model.settings)
         self._retire(model)
+        # Release batch affinity at the local commit point (with the
+        # retirement above), BEFORE the dispatch: a dispatch deadline
+        # arms recovery and skips any code after it, and a retry
+        # returns early through _retired_models — both would otherwise
+        # leak the affinity entry for every version retired this way.
+        # The decrement runs exactly once here, whether the dispatch
+        # confirms immediately or recovery settles it later, and never
+        # touches a replacement's own affinity (acquired at its load).
+        self._track_batched(model.settings, False)
         unload_message = ModelUpdateMessage(
             update_type=ModelUpdateType.Unload,
             model_settings=model.settings,  # type: ignore
@@ -681,12 +890,27 @@ class InferencePool:
         previous = self._recovery_task
 
         async def recover():
+            # Notify first (and promptly): frontends sharing this pool
+            # must stop routing to its workers for the whole recovery.
+            # Chained quarantines re-fire it; receivers treat the event
+            # as idempotent.
+            await self._notify_pool_quarantined()
             if previous is not None:
                 await previous
             await self._recover_update(dispatch, message)
 
         self._recovery_task = create_task_independent(recover())
         self._recovery_task.add_done_callback(self._recovery_done)
+
+    async def _notify_pool_quarantined(self) -> None:
+        """Fire the quarantine hooks with this pool's routing id."""
+        # Hook failures are logged but never block recovery: a broken
+        # observer must not prevent the pool from restoring itself.
+        for hook in self._on_pool_quarantined:
+            try:
+                await hook(self.routing_id)
+            except Exception:
+                logger.exception("Pool-quarantined hook failed for %s", self.name)
 
     def _recovery_done(self, task: asyncio.Task) -> None:
         if task.cancelled() or task.exception() is not None:
@@ -728,17 +952,43 @@ class InferencePool:
             for pid, worker in self._quarantined_workers.items():
                 if self._workers.get(pid) is worker:
                     self._dispatcher.on_worker_ready(worker)
+                    await self._notify_worker_ready(worker)
             self._quarantined_workers.clear()
 
     def has_model(self, model_settings: ModelSettings) -> bool:
         return self._worker_registry.has_model(model_settings)
+
+    def get_ready_worker_endpoints(self) -> dict[int, "Worker"]:
+        """Public: the currently routable (ready) workers.
+
+        The supervisor's restart replay uses this to re-announce
+        worker incarnations to a replacement frontend. A pool retained
+        by the registry but not yet activated (start() pending) has no
+        dispatcher and no routable workers: an empty set keeps a
+        concurrent frontend restart from aborting its replay on the
+        dispatcher assertion — the workers announce themselves through
+        the ready hook once the pool activates.
+        """
+        if self._owned_dispatcher is None:
+            return {}
+        return dict(self._dispatcher._ready_workers)
 
     def empty(self) -> bool:
         # Replay inventory excludes preparation, but those accepted operations
         # still own the pool. Do not auto-close it between staging and commit.
         # An abandoned update alone can retire through close(), which retains
         # recovery and confirms worker exit. Registry callers check
-        # this under their pool lifecycle lock; these owner transfers do not yield.
+        # this under their pool lifecycle lock; those owner transfers do not yield.
+        # The lock-holders are InferencePoolRegistry.load_model (its failure
+        # path) and unload_model, each under the per-pool operation lock
+        # resolved by _get_pool_lock (keyed by the pool's routing id), so no
+        # concurrent owner transfer can interleave between this check and
+        # _close_pool.
+        # A LIVE recovery task does not block retirement: close() joins it
+        # (bounded by model_operation_timeout) before clearing the worker
+        # registry, and _recover_update re-checks _closing at each step, so
+        # retiring with recovery in flight is a supported flow — the failed
+        # fresh load path depends on it.
         return (
             len(self._worker_registry) == 0
             and not self._staged
@@ -778,6 +1028,13 @@ class InferencePool:
         except asyncio.TimeoutError:
             logger.error(f"Lifecycle lock did not drain while closing {self.name}")
         else:
+            # Release immediately after the drain: _closing is already
+            # set, and every mutating path re-checks it under this lock
+            # before touching pool state — so post-drain lock holders
+            # can only observe _closing and back out. This invariant
+            # (check-_closing-under-lock in every mutator) is what
+            # makes the early release safe; a new mutator that skips
+            # the re-check would race this window.
             self._operation_lock.release()
 
         if self._start_task is not None:
@@ -890,7 +1147,7 @@ class InferencePool:
             # On failed/uncertain close the environment remains owned above.
             self._env.close()
 
-    async def _close_workers(self):
+    async def _close_workers(self) -> None:
         cleanup_errors: list[BaseException] = []
         for worker in list(self._unstarted_workers):
             if worker.pid is not None:
@@ -924,6 +1181,12 @@ class InferencePool:
             try:
                 if self._owned_dispatcher is not None:
                     self._dispatcher.on_worker_stop(worker, -1)
+                # Revoke the pool-side registration alongside the
+                # dispatcher's (its table is private): close() is
+                # terminal, and a stopped worker left in _workers would
+                # misreport tracking and capacity after close.
+                if self._workers.get(pid) is worker:
+                    del self._workers[pid]
             except (Exception, asyncio.CancelledError) as error:
                 # Revocation/socket cleanup failure must not skip confirming
                 # this child's exit or attempting independent worker cleanup.

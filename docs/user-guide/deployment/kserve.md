@@ -14,6 +14,14 @@ install it](https://kserve.github.io/website/docs/getting-started/quickstart-gui
 [KServe documentation](https://kserve.github.io/website/).
 ```
 
+```{note}
+If you enable [multi-frontend serving](../parallel-inference.md) (or
+parallel inference in general), note that the readiness endpoint only
+reports ready once the startup model inventory is committed across
+every frontend — see the readiness-probe guidance in the parallel
+inference guide before tightening Kubernetes probe timeouts.
+```
+
 ## Serving Runtimes
 
 KServe provides built-in [serving

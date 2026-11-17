@@ -48,6 +48,22 @@ class TensorData(RootModel[list[Any] | Any]):
     def __len__(self):
         return len(self.root)
 
+    def __eq__(self, other: object) -> bool:
+        # RootModel values must compare against bare lists and other
+        # RootModel roots the way downstream assertions expect. An
+        # ndarray root on either side compares element-wise: pydantic's
+        # field comparison would raise on the ambiguous array truth
+        # value (list roots keep standard equality).
+        from typing import Any, cast
+
+        from numpy import array_equal, ndarray
+
+        if isinstance(other, RootModel):
+            other = other.root
+        if isinstance(self.root, ndarray) or isinstance(other, ndarray):
+            return bool(array_equal(cast(Any, self.root), cast(Any, other)))
+        return bool(self.root == other)
+
     from pydantic import model_serializer  # type: ignore[misc]
 
     @model_serializer(mode="wrap")
@@ -62,8 +78,24 @@ class TensorData(RootModel[list[Any] | Any]):
             if flat.dtype.kind in "fc" and isnan(flat).any():
                 from math import isnan as _isnan
 
-                as_list = [None if _isnan(v) else v for v in as_list]
-            return as_list
+                # Complex NaN: numpy's isnan is True for complex(nan, 0),
+                # but math.isnan raises TypeError on complex values —
+                # check the real and imaginary parts separately.
+                # Masked entries are already None from tolist(): keep
+                # them instead of feeding None to math.isnan.
+                def _elem_isnan(v):
+                    if v is None:
+                        return False
+                    if isinstance(v, complex):
+                        return _isnan(v.real) or _isnan(v.imag)
+                    return _isnan(v)
+
+                as_list = [None if _elem_isnan(v) else v for v in as_list]
+            # Route the converted list back through the handler so the
+            # caller's include/exclude filters apply: returning the raw
+            # list bypasses them, and the list-rooted instance simply
+            # takes the plain handler path below (no recursion).
+            return handler(type(self)(root=as_list))
 
         return handler(self)
 

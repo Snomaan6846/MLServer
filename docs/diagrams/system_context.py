@@ -54,23 +54,33 @@ with Diagram(
         graph_attr={"bgcolor": "#E8F4FD", "pencolor": "#4A90D9"},
     ):
 
-        with Cluster("Transport Layer"):
+        with Cluster(
+            "Supervisor Process\n(at frontend_workers = 1 this is the main process)",
+            graph_attr={"bgcolor": "#FDF6E3", "pencolor": "#B58900"},
+        ):
+            supervisor = Rack("FrontendSupervisor\nlifecycle coordination")
+            pool = SQL("Shared Inference Pool\none copy of every model")
+
+        with Cluster(
+            "Frontend Processes × N\n(SO_REUSEPORT, same ports)",
+            graph_attr={"bgcolor": "#E8F4FD", "pencolor": "#4A90D9"},
+        ):
             rest = FastAPI("REST API\n:8080 · HTTP/JSON")
             grpc = Server("gRPC API\n:8081 · HTTP/2+Protobuf")
             metrics = FastAPI("Metrics\n:8082 · Prometheus")
-
-        with Cluster("Core Engine"):
             dataplane = Rack("DataPlane\nInference Orchestration")
             middleware = Rack("Middleware\nCloudEvents · Hooks")
+            dispatcher = Rack("Dispatcher\nZeroMQ replies routed\nper frontend")
 
-        with Cluster("Model Management"):
-            registry = SQL("Registry\nMultiModel · Versioned")
-            batcher = Rack("Batcher\nAdaptive Batching")
-            codec = Rack("Codec Pipeline\nEncode · Decode")
-
-        with Cluster("Inference Execution"):
-            workers = Server("Workers\nMultiprocessing")
-            queues = Rack("Queues\nReq/Resp · Dispatch")
+        with Cluster(
+            "Inference Workers (shared)",
+            graph_attr={"bgcolor": "#F0FFF0", "pencolor": "#7ED321"},
+        ):
+            batcher = Rack(
+                "Adaptive Batcher\nlives next to the model\n(model-affine routing)"
+            )
+            codec = Rack("Codec Pipeline\nndarray-native encode · decode")
+            workers = Server("Worker Processes\nmultiprocessing")
 
         with Cluster("Shipped Runtimes (Production)"):
             sklearn = Pod("sklearn\nSKLearnModel")
@@ -78,7 +88,7 @@ with Diagram(
             lightgbm = Pod("lightgbm\nLightGBMModel")
             onnx = Pod("onnx\nOnnxModel")
 
-    # ── Client → Transport ─────────────────────────────────────
+    # ── Client → Frontends (kernel-level connection balancing) ─
     client >> Edge(label="HTTP/JSON", color="#2E6EB5", style="bold") >> rest
     client >> Edge(label="HTTP/2+Protobuf", color="#2E6EB5", style="bold") >> grpc
 
@@ -89,31 +99,40 @@ with Diagram(
         >> metrics
     )
 
-    # ── Security → Middleware ──────────────────────────────────
-    (security >> Edge(label="allowlist", color="#C0392B", style="dashed") >> middleware)
+    # ── Security → Supervisor ─────────────────────────────────
+    (security >> Edge(label="allowlist", color="#C0392B", style="dashed") >> supervisor)
 
-    # ── Transport → Core Engine ────────────────────────────────
+    # ── Frontend request path ─────────────────────────────────
     rest >> Edge(color="#4B9A1E") >> dataplane
     grpc >> Edge(color="#4B9A1E") >> dataplane
-
-    # ── Core Engine internal ───────────────────────────────────
     dataplane >> Edge(color="#4B9A1E") >> middleware
+    middleware >> Edge(label="dispatch", color="#C0392B") >> dispatcher
 
-    # ── Core Engine → Model Management ─────────────────────────
-    dataplane >> Edge(label="resolve model", color="#7D3C98") >> registry
-    registry >> Edge(color="#7D3C98") >> batcher
+    # ── Data plane: dispatcher → shared workers (ZeroMQ) ──────
+    dispatcher >> Edge(label="ZeroMQ data plane", color="#C0392B") >> workers
+
+    # ── In-worker execution ────────────────────────────────────
+    workers >> Edge(color="#7D3C98") >> batcher
     batcher >> Edge(color="#7D3C98") >> codec
 
-    # ── Model Management → Execution ──────────────────────────
-    codec >> Edge(label="dispatch", color="#C0392B") >> workers
-    workers >> Edge(color="#C0392B") >> queues
-
-    # ── KServe → Registry ─────────────────────────────────────
-    (kserve >> Edge(label="manage models", color="#2E6EB5", style="dashed") >> registry)
-
-    # ── Registry → Model Store ─────────────────────────────────
+    # ── Control plane: supervisor ↔ frontends (pipes) ─────────
     (
-        registry
+        supervisor
+        >> Edge(label="model lifecycle\n(apply · ack, pipes)", color="#B58900")
+        >> dataplane
+    )
+    supervisor >> Edge(color="#B58900") >> pool
+
+    # ── KServe → Supervisor ────────────────────────────────────
+    (
+        kserve
+        >> Edge(label="manage models", color="#2E6EB5", style="dashed")
+        >> supervisor
+    )
+
+    # ── Supervisor → Model Store ───────────────────────────────
+    (
+        supervisor
         >> Edge(label="load artifacts", color="#D4880F", style="dashed")
         >> model_store
     )

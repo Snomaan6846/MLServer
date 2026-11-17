@@ -9,6 +9,7 @@ from ..settings import ModelSettings
 from ..utils import to_absolute_path, create_task_independent
 from ..model import MLModel
 from ..utils import defer_cancellation, with_operation_lock
+from .worker import Worker
 from weakref import WeakValueDictionary
 from ..settings import Settings
 from ..env import Environment, compute_hash_of_file, compute_hash_of_string
@@ -16,7 +17,7 @@ from ..registry import model_initialiser
 
 from .errors import EnvironmentNotFound, InferencePoolUnavailable
 from .logging import logger
-from .pool import InferencePool, InferencePoolHook
+from .pool import InferencePool, PoolQuarantineHook, InferencePoolHook
 from .worker import WorkerModelHook
 
 ENV_HASH_ATTR = "__env_hash__"
@@ -28,7 +29,9 @@ def _set_environment_hash(model: MLModel, env_hash: str | None):
 
 
 def _get_environment_hash(model: MLModel) -> str | None:
-    # No default — AttributeError signals that pool identity was not resolved.
+    # No default — AttributeError signals that pool identity was not
+    # resolved. Carries the pool's routing id (env hash, or the GID for
+    # GID-only pools), which is also the registry's _pools key.
     return getattr(model, ENV_HASH_ATTR)
 
 
@@ -62,6 +65,9 @@ class InferencePoolRegistry:
         on_worker_stop: Sequence[InferencePoolHook] = [],
         on_worker_load: Sequence[WorkerModelHook] = [],
         on_worker_unload: Sequence[WorkerModelHook] = [],
+        on_worker_ready: Sequence[InferencePoolHook] = [],
+        on_pool_quarantined: Sequence[PoolQuarantineHook] = [],
+        reply_endpoints: Sequence[str] | None = None,
     ):
         self._settings = settings
         self._operation_locks: WeakValueDictionary[str | None, asyncio.Lock] = (
@@ -78,11 +84,19 @@ class InferencePoolRegistry:
         self._on_worker_stop = on_worker_stop
         self._on_worker_load = on_worker_load
         self._on_worker_unload = on_worker_unload
+        self._on_worker_ready = on_worker_ready
+        self._on_pool_quarantined = on_pool_quarantined
+        self._reply_endpoints = (
+            list(reply_endpoints) if reply_endpoints is not None else None
+        )
         self._default_pool: InferencePool | None = InferencePool(
             self._settings,
             on_worker_stop=on_worker_stop,
             on_worker_load=on_worker_load,
             on_worker_unload=on_worker_unload,
+            on_worker_ready=on_worker_ready,
+            on_pool_quarantined=on_pool_quarantined,
+            reply_endpoints=reply_endpoints,
         )
         self._pools: dict[str, InferencePool] = {}
 
@@ -102,6 +116,9 @@ class InferencePoolRegistry:
                 on_worker_stop=self._on_worker_stop,
                 on_worker_load=self._on_worker_load,
                 on_worker_unload=self._on_worker_unload,
+                on_worker_ready=self._on_worker_ready,
+                on_pool_quarantined=self._on_pool_quarantined,
+                reply_endpoints=self._reply_endpoints,
             )
         try:
             os.makedirs(self._settings.environments_dir, exist_ok=True)
@@ -128,11 +145,30 @@ class InferencePoolRegistry:
             # A raw Python signal handler can run during selector polling.
             # Wake the loop explicitly; scheduling a task alone can leave exit
             # handling dormant until the next unrelated timer or IO event.
-            lambda signum, frame: loop.call_soon_threadsafe(
-                self._schedule_worker_stop, signum, frame
-            ),
+            lambda signum, frame: self._wake_loop(loop, signum, frame),
         )
         self._signal_installed = True
+
+    def _wake_loop(
+        self, loop: asyncio.AbstractEventLoop, signum: int, frame: object
+    ) -> None:
+        """Wake the installing loop from the SIGCHLD signal handler.
+
+        The handler is process-global and can outlive the loop that
+        installed it (e.g. a registry whose event loop closed before its
+        own restore ran, or interpreter shutdown). Waking a closed loop
+        would raise inside the signal handler — corrupting whatever
+        arbitrary code the signal interrupted — so a dead loop drops the
+        wake: the exit is observed by the next owner's reaper instead.
+        """
+        if loop.is_closed():
+            return
+        try:
+            loop.call_soon_threadsafe(self._schedule_worker_stop, signum, frame)
+        except RuntimeError:
+            # The loop closed between the check and the call; the exit
+            # is observed by the next owner's reaper instead.
+            pass
 
     def _restore_signal_handler(self) -> None:
         if self._signal_installed:
@@ -153,12 +189,46 @@ class InferencePoolRegistry:
         try:
             # Loop to reap all stopped children — SIGCHLD signals can coalesce,
             # so a single signal may represent multiple stopped workers.
+            # NOTE: waitpid(-1) reaps ANY child. In the multi-frontend
+            # topology, frontend processes are also children of the
+            # supervisor. We filter by checking whether the reaped PID
+            # belongs to a known pool worker before processing it; unknown
+            # PIDs (frontends) are logged and skipped so the supervisor's
+            # monitor can handle them.
             while True:
                 pid, wait_status = os.waitpid(-1, os.WNOHANG)
                 if pid == 0:
                     # No more stopped children
                     break
+                # Check if this PID is a pool worker (not a frontend).
+                # A worker counts in ANY lifecycle state (starting,
+                # unstarted, closing) and in failed pools as well: a
+                # retained worker of a failed pool must still be reaped
+                # and its owner notified — the pool keeps ownership of
+                # its children until close.
+                is_worker = False
+                for pool in (
+                    list(self._pools.values())
+                    + list(self._failed_pools.values())
+                    + ([self._default_pool] if self._default_pool else [])
+                ):
+                    if pool is not None and pool.tracks_pid(pid):
+                        is_worker = True
+                        break
+                if not is_worker:
+                    # Not a pool worker (e.g. a frontend child in the
+                    # multi-frontend topology); skip so the supervisor
+                    # can detect it via its own monitor.
+                    logger.debug("SIGCHLD: PID %d is not a pool worker; skipping", pid)
+                    continue
                 exit_code = os.waitstatus_to_exitcode(wait_status)
+                # NOTE: workers exiting cleanly (exit_code 0) during a
+                # controlled shutdown are now processed here (they were
+                # previously skipped). The pool's _closing_workers path
+                # handles this correctly — a clean exit during pool
+                # close is indistinguishable from an unexpected one at
+                # this level, and the pool's own state determines the
+                # outcome.
                 try:
                     # Notify all pools since we don't know which pool owns
                     # this PID — each pool checks internally
@@ -234,6 +304,9 @@ class InferencePoolRegistry:
             on_worker_stop=self._on_worker_stop,
             on_worker_load=self._on_worker_load,
             on_worker_unload=self._on_worker_unload,
+            on_worker_ready=self._on_worker_ready,
+            on_pool_quarantined=self._on_pool_quarantined,
+            reply_endpoints=self._reply_endpoints,
         )
         self._pools[env_hash] = pool
         return pool
@@ -266,6 +339,9 @@ class InferencePoolRegistry:
                     on_worker_stop=self._on_worker_stop,
                     on_worker_load=self._on_worker_load,
                     on_worker_unload=self._on_worker_unload,
+                    on_worker_ready=self._on_worker_ready,
+                    on_pool_quarantined=self._on_pool_quarantined,
+                    reply_endpoints=self._reply_endpoints,
                 )
             return self._pools[inference_pool_gid]
 
@@ -289,6 +365,9 @@ class InferencePoolRegistry:
             on_worker_stop=self._on_worker_stop,
             on_worker_load=self._on_worker_load,
             on_worker_unload=self._on_worker_unload,
+            on_worker_ready=self._on_worker_ready,
+            on_pool_quarantined=self._on_pool_quarantined,
+            reply_endpoints=self._reply_endpoints,
         )
         # Transfer extraction ownership only once the pool is retained. Close
         # may have begun while extraction was awaited, before a pool existed.
@@ -339,6 +418,18 @@ class InferencePoolRegistry:
     def _get_env_path(self, env_hash: str) -> str:
         return os.path.join(self._settings.environments_dir, env_hash)
 
+    def find_worker(self, pid: int) -> "Worker | None":
+        """Locate a live worker incarnation across all pools by PID."""
+        pools: list[InferencePool] = []
+        if self._default_pool is not None:
+            pools.append(self._default_pool)
+        pools.extend(self._pools.values())
+        for pool in pools:
+            worker = pool._workers.get(pid)
+            if worker is not None:
+                return worker
+        return None
+
     async def _find(self, model: MLModel) -> InferencePool:
         env_hash = _get_environment_hash(model)
         inference_pool_gid = (
@@ -360,14 +451,22 @@ class InferencePoolRegistry:
 
         return self._pools[env_hash]
 
-    def _should_load_model(self, model_settings: ModelSettings):
+    def should_load_model(self, model_settings: ModelSettings) -> bool:
+        """Public: whether this model should be dispatched to workers.
+
+        The supervisor uses this to reject model-level parallel_workers=0
+        at frontend_workers>1 (in-process execution would need N copies).
+        """
+        return self._should_load_model(model_settings)
+
+    def _should_load_model(self, model_settings: ModelSettings) -> bool:
         if model_settings.parallel_workers is not None:
             logger.warning(
                 "DEPRECATED!! The `parallel_workers` setting at the model-level "
                 "has now been deprecated and moved "
                 "to the top-level server "
                 "settings. "
-                "This field will be removed in MLServer 1.2.0. "
+                "This field will be removed in a future release. "
                 "To access the new field, you can either update the "
                 "`settings.json` file, or update the `MLSERVER_PARALLEL_WORKERS` "
                 "environment variable. "
@@ -457,7 +556,7 @@ class InferencePoolRegistry:
             await self.start()
             pool = await self._get_or_create(model)
             # The pool is retained under its key before any native activation.
-            _set_environment_hash(model, pool.env_hash)
+            _set_environment_hash(model, pool.routing_id)
             await pool.start()
             loaded = await pool.load_model(model)
         except (Exception, asyncio.CancelledError) as primary:
@@ -469,7 +568,7 @@ class InferencePoolRegistry:
                 logger.error("Failed to close pool after load failure", exc_info=True)
             raise
 
-        _set_environment_hash(loaded, pool.env_hash)
+        _set_environment_hash(loaded, pool.routing_id)
         return loaded
 
     @with_operation_lock(lambda self, model: self._get_pool_lock(model))

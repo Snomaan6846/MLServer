@@ -365,3 +365,63 @@ async def test_predict(
         # Wire-level comparison: the split output's ndarray root must
         # serialise to exactly the direct prediction's JSON.
         assert res.model_dump_json() == expected.model_dump_json()
+
+
+async def test_queue_request_cleans_up_when_monitor_raises(
+    adaptive_batcher: AdaptiveBatcher, inference_request: InferenceRequest, mocker
+):
+    """A metrics failure during admission must not leak the response
+    future or the external-id mapping (the monitor runs inside the
+    admission try)."""
+    from mlserver.batching.adaptive import _CurrentDispatchId
+
+    mocker.patch.object(
+        adaptive_batcher,
+        "_batch_queue_monitor",
+        side_effect=RuntimeError("no model context"),
+    )
+    token = _CurrentDispatchId.set("ext-monitor-1")
+    try:
+        with pytest.raises(RuntimeError):
+            await adaptive_batcher._queue_request(inference_request)
+        assert adaptive_batcher._async_responses == {}
+        assert adaptive_batcher._external_ids == {}
+    finally:
+        _CurrentDispatchId.reset(token)
+
+
+async def test_queue_request_monitor_failure_without_external_id(
+    adaptive_batcher: AdaptiveBatcher, inference_request: InferenceRequest, mocker
+):
+    """The same failure with no external dispatch id cleans up without
+    touching the (empty) external-id map."""
+    mocker.patch.object(
+        adaptive_batcher,
+        "_batch_queue_monitor",
+        side_effect=RuntimeError("no model context"),
+    )
+    with pytest.raises(RuntimeError):
+        await adaptive_batcher._queue_request(inference_request)
+    assert adaptive_batcher._async_responses == {}
+    assert adaptive_batcher._external_ids == {}
+
+
+async def test_queue_request_success_registers_future(
+    adaptive_batcher: AdaptiveBatcher, inference_request: InferenceRequest, mocker
+):
+    """The happy path is unchanged: the returned future is the one
+    registered for the internal id, the monitor ran once, and the
+    request was actually admitted to the queue (a missing enqueue must
+    fail here, not hang a cleanup read)."""
+    monitor = mocker.patch.object(adaptive_batcher, "_batch_queue_monitor")
+    internal_id, future = await adaptive_batcher._queue_request(inference_request)
+    try:
+        assert adaptive_batcher._async_responses[internal_id] is future
+        monitor.assert_called_once()
+        # Admission is asserted, not assumed: get_nowait() raises
+        # QueueEmpty if the request never reached the queue.
+        admitted_id, admitted_req = adaptive_batcher._requests.get_nowait()
+        assert admitted_id == internal_id
+        assert admitted_req is inference_request
+    finally:
+        adaptive_batcher._async_responses.pop(internal_id, None)

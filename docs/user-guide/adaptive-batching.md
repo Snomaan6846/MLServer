@@ -46,6 +46,23 @@ through two main parameters:
 - **Maximum batch time**, that is how much time we should wait for new
   requests until we reach our maximum batch size.
 
+### Where batching happens
+
+The batcher always runs next to the model it wraps:
+
+- With [parallel inference](./parallel-inference.md) enabled (the
+  default), the batcher lives in the **inference workers**. Batch
+  formation sees the full traffic rate for a model regardless of how
+  many frontend processes receive requests, and the merged prediction
+  runs on the worker's own process.
+- Without parallel inference (`parallel_workers = 0`), the batcher runs
+  in the main MLServer process alongside the model.
+
+If a client disconnects while its request is still queued for a batch,
+the request is evicted and never executed. The eviction is best-effort:
+a request that has already been merged into a running batch completes
+anyway and its (now-unobserved) reply is discarded.
+
 ### `max_batch_size`
 
 The `max_batch_size` field of the `model-settings.json` file (or

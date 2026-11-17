@@ -1,0 +1,62 @@
+from unittest.mock import AsyncMock, Mock
+
+import grpc
+
+from mlserver.grpc.utils import handle_mlserver_error, handle_mlserver_stream_error
+
+
+def _raising_handler(exc: BaseException):
+    async def handler(self, request, context):
+        raise exc
+
+    return handler
+
+
+async def test_timeout_error_maps_to_deadline_exceeded():
+    """An expired inference deadline (or any await timeout) aborts with
+    DEADLINE_EXCEEDED, not INTERNAL — gRPC clients must be able to tell
+    a timing failure from a server fault apart."""
+    context = Mock()
+    context.abort = AsyncMock()
+
+    decorated = handle_mlserver_error(_raising_handler(TimeoutError()))
+    await decorated(Mock(), object(), context)
+
+    context.abort.assert_awaited_once()
+    assert context.abort.await_args.kwargs["code"] == grpc.StatusCode.DEADLINE_EXCEEDED
+
+
+async def test_stream_timeout_error_maps_to_deadline_exceeded():
+    """The streaming variant maps timeouts identically."""
+
+    @handle_mlserver_stream_error
+    async def stream_handler(self, request_stream, context):
+        raise TimeoutError()
+        yield  # pragma: no cover - makes this an async generator
+
+    context = Mock()
+    context.abort = AsyncMock()
+
+    async for _ in stream_handler(Mock(), Mock(), context):
+        pass
+
+    context.abort.assert_awaited_once()
+    assert context.abort.await_args.kwargs["code"] == grpc.StatusCode.DEADLINE_EXCEEDED
+
+
+async def test_mlserver_error_still_maps_by_status():
+    """The pre-existing MLServerError mapping is unchanged by the
+    timeout branch."""
+    from fastapi import status
+
+    from mlserver.errors import MLServerError
+
+    context = Mock()
+    context.abort = AsyncMock()
+
+    decorated = handle_mlserver_error(
+        _raising_handler(MLServerError("boom", status_code=status.HTTP_404_NOT_FOUND))
+    )
+    await decorated(Mock(), object(), context)
+
+    assert context.abort.await_args.kwargs["code"] == grpc.StatusCode.NOT_FOUND

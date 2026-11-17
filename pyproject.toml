@@ -74,7 +74,7 @@ uvloop = {version = "*", markers = "sys_platform != 'win32' and (sys_platform !=
 pydantic = "^2.7.1"
 pydantic-settings = "^2.3.0"
 python-multipart = ">=0.0.31,<0.0.33"
-pyzmq = {version = "27.2.0", optional = true}
+pyzmq = "27.3.0"
 
 opentelemetry-sdk = "^1.22.0"
 opentelemetry-instrumentation-fastapi = ">=0.43b0"
@@ -117,6 +117,16 @@ httpx-sse = ">=0.3.1,<0.5.0"
 
 [tool.poetry.group.docker.dependencies]
 tensorflow = "^2.16"
+
+[tool.poetry.group.diagrams]
+optional = true
+
+[tool.poetry.group.diagrams.dependencies]
+# Tooling for the architecture diagrams in docs/diagrams/ (make diagrams).
+# System prerequisites outside pip: graphviz (`dot`) and gifsicle.
+diagrams = "0.25.1"
+Pillow = "13.0.0"
+playwright = "1.65.2"
 
 [tool.poetry.group.odh-runtimes]
 optional = true
@@ -175,9 +185,6 @@ sphinx-click = "6.0.0"
 sphinx_design = "0.4.1"
 sphinx-autobuild = "2024.4.16"
 sphinx-copybutton = "^0.5.2"
-
-[tool.poetry.extras]
-zmq = ["pyzmq"]
 
 [build-system]
 requires = ["poetry-core"]

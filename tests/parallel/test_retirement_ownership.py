@@ -36,7 +36,6 @@ async def test_sigchld_revocation_error_preserves_native_and_response_owners(
     # Method: Establish real ZeroMQ traffic, schedule a controlled response waiter, kill
     # a child and observe the installed reaper before checking serving and native
     # retirement.
-    pytest.importorskip("zmq")
     settings.parallel_inference_transport = "zmq"
     settings.parallel_workers = 2
     monkeypatch.setattr("mlserver.parallel.pool.random.uniform", lambda *_: 0)
@@ -160,7 +159,6 @@ async def test_revocation_failure_settles_actual_dispatched_request(
     # needed to make it finish.
     # Method: Warm its ZeroMQ socket, SIGSTOP the peer, observe response-wait entry
     # after send, kill it and inspect completion after the installed SIGCHLD handler.
-    pytest.importorskip("zmq")
     settings.parallel_inference_transport = "zmq"
     registry = InferencePoolRegistry(settings)
     request = None
@@ -237,7 +235,6 @@ async def test_replay_failure_plus_revocation_error_keeps_child_owned(
     # cannot lose its retirement owner or affect existing serving capacity.
     # Method: Spawn a candidate, inject replay and forget_worker errors, then inspect
     # confirmed exit, native queues, ownership and the surviving model's metadata.
-    pytest.importorskip("zmq")
     settings.parallel_inference_transport = "zmq"
     pool = InferencePool(settings)
     await pool.start()

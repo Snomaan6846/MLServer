@@ -83,6 +83,7 @@ def test_encode_response_output(
     else:
         # Wire-level comparison: NumpyCodec outputs keep their ndarray
         # root, which serialises to the same JSON as the expected list.
+        assert response_output is not None
         assert response_output.model_dump_json() == expected.model_dump_json()
 
 
@@ -156,6 +157,7 @@ def test_encode_inference_response(
     inference_response = encode_inference_response(payload, sum_model_settings)
     # Wire-level comparison: NumpyCodec outputs keep their ndarray root,
     # which serialises to the same JSON as the expected list.
+    assert inference_response is not None
     assert inference_response.model_dump_json() == expected.model_dump_json()
 
 

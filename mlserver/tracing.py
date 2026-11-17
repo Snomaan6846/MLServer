@@ -5,7 +5,6 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 
 from mlserver.settings import Settings
 
-
 _TRACER_PROVIDER: TracerProvider | None = None
 
 

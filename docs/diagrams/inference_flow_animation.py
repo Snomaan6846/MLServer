@@ -4,6 +4,14 @@ MLServer Inference Request Flow — Animated Architecture Diagram.
 Animates the step-by-step path of an inference request through MLServer:
 Client → REST/gRPC → DataPlane → Registry → Model → Response
 
+This shows the simplified single-process view (the default
+`frontend_workers = 1`, `parallel_workers = 1` configuration): the
+DataPlane hands the request straight to the in-process model. With
+parallel inference enabled the request additionally crosses the
+Dispatcher and a worker process, and at `frontend_workers > 1` REST/gRPC
+parsing happens in one of N frontend processes — see worker_pool.png and
+architecture_animated.gif for those topologies.
+
 Generated with Manim Community Edition (MIT license).
 Run: manim -qh --format=gif inference_flow_animation.py InferenceRequestFlow
 """

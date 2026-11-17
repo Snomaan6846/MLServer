@@ -1,8 +1,11 @@
 import asyncio
 
+import time
+import zlib
+
 from typing import cast, TYPE_CHECKING
 from weakref import WeakKeyDictionary
-from collections.abc import Awaitable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from itertools import cycle
 from multiprocessing import Queue
 from concurrent.futures import ThreadPoolExecutor
@@ -62,14 +65,19 @@ class AsyncResponses:
         )
 
     async def schedule_and_wait(
-        self, message: Message, worker: Worker
+        self, message: Message, worker: Worker, timeout: float | None = None
     ) -> ModelResponseMessage:
         """
         Schedule a response and wait until it gets resolved.
         """
         message_id = message.id
         self._schedule(message, worker)
-        return await self._wait(message_id)
+        if timeout is None:
+            return await self._wait(message_id)
+        # A reply dropped in flight would otherwise leave this waiter
+        # pending forever; the deadline raises TimeoutError and clears
+        # the pending entry (a late reply resolves to no waiter).
+        return await asyncio.wait_for(self._wait(message_id), timeout)
 
     def _schedule(self, message: Message, worker: Worker) -> Future:
         """
@@ -180,12 +188,41 @@ class Dispatcher:
         responses: Queue,
         model_operation_timeout: float = DEFAULT_MODEL_OPERATION_TIMEOUT,
         worker_start_timeout: float = DEFAULT_WORKER_START_TIMEOUT,
+        frontend_id: int = 0,
+        routing_rotation: float = 0.0,
+        inference_timeout: float | None = None,
     ):
         self._responses = responses
-        self._workers = workers
+        self._inference_timeout = inference_timeout
+        # Private worker table: never alias the caller's dict. The pool
+        # shares its tracking registry at construction, but a routing
+        # revocation here (on_worker_stop) must not delete from the
+        # pool's table: the pool — the child's owner — learns of the
+        # death separately and is responsible for stopping, reaping and
+        # retiring the worker. Deleting a live child from the pool's
+        # tracking would make pool.close() skip it and leak the process
+        # (which then blocks multiprocessing's atexit join forever).
+        self._workers = dict(workers)
         self._model_operation_timeout = model_operation_timeout
         self._worker_start_timeout = worker_start_timeout
+        self._frontend_id = frontend_id
+        self._routing_rotation = routing_rotation
+        # Model names whose adaptive batcher lives in the inference
+        # workers. They route model-affinely so one batcher sees the full
+        # traffic rate; everything else keeps round-robin execution spread.
+        self._batched_models: set[tuple[str, str]] = set()
+        # Pool partitioning: every worker is tagged with the env hash of
+        # the pool that owns it, and every model with the pool that
+        # loaded it. Requests only route within the model's pool, so a
+        # worker never serves a model it did not load. None is the
+        # default pool; single-pool dispatchers leave everything untagged
+        # (which partitions identically).
+        self._worker_pools: dict[int, str | None] = {}
+        self._model_pools: dict[tuple[str, str], str | None] = {}
+        self._pool_pids: dict[str | None, list[int]] = {}
+        self._pool_round_robins: dict[str | None, Iterator[int]] = {}
         self._ready_workers = dict(workers)
+        self._sorted_ready_pids: list[int] = sorted(self._ready_workers)
         self._workers_round_robin = self._reset_round_robin()
         self._worker_starting_lock = asyncio.Lock()
         self._active = False
@@ -193,10 +230,123 @@ class Dispatcher:
         self._executor = ThreadPoolExecutor()
         self._async_responses = AsyncResponses()
         self._transport: ParentTransport | None = None
+        # Optional cancellation hook (model_name, request_id, worker_pid),
+        # set by topologies that can evict queued requests remotely.
+        self._cancel_handler: Callable[[str, str, int, "str | None"], None] | None = (
+            None
+        )
+
+    def set_cancel_handler(
+        self, handler: Callable[[str, str, int, "str | None"], None]
+    ) -> None:
+        self._cancel_handler = handler
+
+    def set_model_batched(
+        self, model_name: str, batched: bool, model_version: str | None = None
+    ) -> None:
+        """Track whether a model version's batcher runs in the workers."""
+        key = (model_name, model_version or "")
+        if batched:
+            self._batched_models.add(key)
+        else:
+            self._batched_models.discard(key)
+
+    def set_model_pool(
+        self,
+        model_name: str,
+        env_hash: str | None,
+        model_version: str | None = None,
+    ) -> None:
+        """Tag a model version with the pool whose workers must serve it.
+
+        Routing is per (model name, version): different versions of the
+        same name may live in different pools (e.g. a versioned reload
+        into another environment), so the name alone cannot select the
+        pool. An unload resets the version's tag to the default pool.
+        """
+        if env_hash is None:
+            # An unload removes the tag entirely: a long-running
+            # frontend with model churn must not retain every name and
+            # version from its history. Both selectors already resolve
+            # an absent tag to the default pool.
+            self._model_pools.pop((model_name, model_version or ""), None)
+        else:
+            self._model_pools[(model_name, model_version or "")] = env_hash
+
+    def quarantine_pool(self, env_hash: str | None) -> None:
+        """Pause routing to a pool's workers while it recovers."""
+        # Only the ready (routable) set is touched: workers stay
+        # registered (alive, may resolve in-flight responses; a later
+        # on_worker_stop must still cancel their pending requests).
+        # Worker-ready events re-enable the pool after recovery; the
+        # pause is idempotent.
+        # Candidates derive from the ready set with .get(pid), the same
+        # derivation the routing rebuild uses — so anything routable in
+        # this pool is paused, including a worker whose tag is absent
+        # rather than explicitly None.
+        quarantined = [
+            pid
+            for pid in self._ready_workers
+            if self._worker_pools.get(pid) == env_hash
+        ]
+        for pid in quarantined:
+            self._ready_workers.pop(pid, None)
+        if quarantined:
+            self._reset_round_robin()
+
+    def _sticky_worker(
+        self, model_name: str, model_version: str | None = None
+    ) -> tuple[Worker, int] | None:
+        """Model-affine worker selection for batched models, or None.
+
+        The assignment is derived from a stable hash of the model name and
+        the wall clock, so every frontend (and the single-process server)
+        computes the same worker without coordination. The per-model
+        rotation period jitter prevents permanently colliding models at
+        small worker counts. Only workers of the model's own pool are
+        candidates: a batcher must not be split across pools.
+        """
+        pool = self._model_pools.get((model_name, model_version or ""))
+        pids = self._pool_pids.get(pool, [])
+        # A single worker is trivially sticky: parallel_routing_rotation
+        # has no effect until a second worker exists.
+        if len(pids) < 2 or (model_name, model_version or "") not in (
+            self._batched_models
+        ):
+            return None
+        rotation = self._routing_rotation
+        digest = zlib.crc32(model_name.encode())
+        if rotation > 0:
+            period = rotation * (1 + (digest >> 8) % 4)
+            quotient = time.time() / period
+            # A period so small that the quotient overflows the float
+            # range (e.g. rotation=1e-310) or exceeds 2**53 loses all
+            # integer precision: the assignment could not advance
+            # anyway, so degrade to static routing instead of raising
+            # OverflowError on every request.
+            generation = int(quotient) if quotient <= 2**53 else 0
+        else:
+            generation = 0
+        pid = pids[(digest + generation) % len(pids)]
+        worker = self._ready_workers.get(pid)
+        if worker is None:
+            # The snapshot went stale between rotation windows; fall
+            # through to round-robin rather than raising.
+            return None
+        return worker, pid
 
     def _reset_round_robin(self) -> Iterator[int]:
         worker_pids = list(self._ready_workers.keys())
+        self._sorted_ready_pids = sorted(self._ready_workers)
         self._workers_round_robin = cycle(worker_pids)
+        # Partitions are derived from the ready set, so tags of workers
+        # removed outside on_worker_stop (e.g. a pool quarantine clearing
+        # the ready table directly) cannot leak into routing.
+        by_pool: dict[str | None, list[int]] = {}
+        for pid in self._sorted_ready_pids:
+            by_pool.setdefault(self._worker_pools.get(pid), []).append(pid)
+        self._pool_pids = by_pool
+        self._pool_round_robins = {pool: cycle(pids) for pool, pids in by_pool.items()}
         return self._workers_round_robin
 
     @with_operation_lock(lambda self, *args, **kwargs: self._worker_starting_lock)
@@ -216,25 +366,45 @@ class Dispatcher:
         if init_coro is not None:
             await init_coro
 
-    def on_worker_ready(self, worker: Worker):
+    def on_worker_ready(self, worker: Worker, env_hash: str | None = None):
         """
-        Handler for workers who are now ready to receive traffic.
+        Handler for workers who are now ready to receive traffic. The
+        optional env hash tags the worker with the pool that owns it; it
+        partitions routing so a worker only serves its own pool's models
+        (None, the default, is the default pool).
         """
+        # A ready worker is by definition started: register it in the
+        # private table too. The pool seeds its initial workers without
+        # a separate on_worker_start, so this is where the dispatcher's
+        # table first learns about them (dispatch_update broadcasts over
+        # this table).
+        self._workers[worker.pid] = worker  # type: ignore
         self._ready_workers[worker.pid] = worker  # type: ignore
+        self._worker_pools[worker.pid] = env_hash  # type: ignore
         self._reset_round_robin()
 
     def on_worker_stop(self, worker: Worker, exit_code: int):
         """
-        Handler for workers that stopped unexpectedly. Removes the worker from
-        the active pool, resets the round-robin iterator, and cancels all
+        Handler for workers that stopped unexpectedly. Removes the worker from the
+        active pool, resets the round-robin iterator, and cancels all
         in-flight requests assigned to that worker.
         """
         pid = worker.pid
+        removed = False
         if pid is not None and self._workers.get(pid) is worker:
             del self._workers[pid]
+            removed = True
 
         if pid is not None and self._ready_workers.get(pid) is worker:
             del self._ready_workers[pid]
+            removed = True
+
+        if removed and pid is not None:
+            # Drop this incarnation's pool tag. A quarantined worker is
+            # only in _workers (its ready entry was paused), so the tag
+            # must not depend on the ready-branch above. A replacement
+            # worker sharing the pid re-tags on its own worker-ready.
+            self._worker_pools.pop(pid, None)
 
         self._reset_round_robin()
         try:
@@ -276,6 +446,22 @@ class Dispatcher:
             # If process loop crashed, restart it
             self.start()
 
+    async def _wait_request(self, message_id: str) -> ModelResponseMessage:
+        """Wait for an inference reply, bounded by the configured deadline.
+
+        A reply dropped in flight (e.g. a frontend that stopped
+        receiving) would otherwise leave the waiter pending forever
+        with no server-side signal. ``None`` preserves the historical
+        unbounded wait; a configured deadline raises TimeoutError to
+        the caller and clears the pending entry (a late reply resolves
+        to no waiter).
+        """
+        if self._inference_timeout is None:
+            return await self._async_responses._wait(message_id)
+        return await asyncio.wait_for(
+            self._async_responses._wait(message_id), self._inference_timeout
+        )
+
     async def _process_responses(self):
         logger.debug("Starting response processing loop...")
         loop = asyncio.get_running_loop()
@@ -292,34 +478,110 @@ class Dispatcher:
     async def dispatch_request(
         self, request_message: ModelRequestMessage
     ) -> ModelResponseMessage:
-        worker, wpid = self._get_worker()
+        # Workers route each reply to the frontend that dispatched it.
+        request_message.frontend_id = self._frontend_id
+        worker, wpid = self._get_worker(
+            request_message.model_name, request_message.model_version
+        )
         if self._transport is not None:
             # Register before send: ZeroMQ can suspend and a response may
             # arrive before send returns, unlike the old Queue.put boundary.
             future = self._async_responses._schedule(request_message, worker)
             try:
                 await self._transport.send(worker, request_message)
+            except asyncio.CancelledError:
+                # Caller cancellation racing send completion: the request
+                # may already be in the worker's batcher. Notify so the
+                # batcher evicts it instead of computing a discarded
+                # response. Clean up the waiter before re-raising.
+                self._notify_cancelled(request_message, wpid)
+                if not future.cancel():
+                    if not future.cancelled():
+                        future.exception()
+                self._async_responses._clear_message(request_message.id)
+                raise
             except BaseException:
                 if not future.cancel():
                     if not future.cancelled():
                         future.exception()
                 self._async_responses._clear_message(request_message.id)
                 raise
-            return await self._async_responses._wait(request_message.id)
+            try:
+                return await self._wait_request(request_message.id)
+            except asyncio.CancelledError:
+                self._notify_cancelled(request_message, wpid)
+                raise
+            except TimeoutError:
+                # Inference deadline expiry: evict the request from the
+                # worker-side batcher instead of computing a response
+                # nobody waits for.
+                self._notify_cancelled(request_message, wpid)
+                raise
         worker.send_request(request_message)
 
-        return await self._async_responses.schedule_and_wait(request_message, worker)
+        try:
+            return await self._async_responses.schedule_and_wait(
+                request_message, worker, timeout=self._inference_timeout
+            )
+        except asyncio.CancelledError:
+            self._notify_cancelled(request_message, wpid)
+            raise
+        except TimeoutError:
+            # Inference deadline expiry: evict the request from the
+            # worker-side batcher instead of computing a response
+            # nobody waits for.
+            self._notify_cancelled(request_message, wpid)
+            raise
 
-    def _get_worker(self) -> tuple[Worker, int]:
+    def _notify_cancelled(
+        self, request_message: ModelRequestMessage, worker_pid: int
+    ) -> None:
+        # Fire-and-forget on caller cancellation (e.g. an HTTP client
+        # disconnect): lets the owning topology evict the queued request
+        # from its worker-side batcher instead of computing it anyway.
+        if self._cancel_handler is not None:
+            try:
+                self._cancel_handler(
+                    request_message.model_name,
+                    request_message.id,
+                    worker_pid,
+                    request_message.model_version,
+                )
+            except Exception:
+                logger.debug("Cancel notification failed", exc_info=True)
+
+    def _get_worker(
+        self, model_name: str | None = None, model_version: str | None = None
+    ) -> tuple[Worker, int]:
         """
         Get next available worker.
-        By default, this is just a round-robin through all the workers.
+        Batched models use model-affine routing so their worker-side
+        batcher sees the full traffic rate; everything else round-robins.
+        Selection is confined to the model version's pool partition, so
+        requests never cross into a pool that did not load the model.
         """
+        if model_name is not None:
+            sticky = self._sticky_worker(model_name, model_version)
+            if sticky is not None:
+                return sticky
+        # An untagged model routes to the default pool (None), matching
+        # workers registered without a pool tag.
+        pool = (
+            self._model_pools.get((model_name, model_version or ""))
+            if model_name
+            else None
+        )
         try:
-            worker_pid = next(self._workers_round_robin)
-        except StopIteration:
+            worker_pid = next(self._pool_round_robins[pool])
+        except (KeyError, StopIteration):
             raise NoWorkersAvailable() from None
-        return self._ready_workers[worker_pid], worker_pid
+        # A foreign loop (worker replacement on another event loop) can
+        # retire the worker between the cycle's snapshot and this
+        # lookup: report no workers rather than surfacing a KeyError.
+        worker = self._ready_workers.get(worker_pid)
+        if worker is None:
+            raise NoWorkersAvailable() from None
+        return worker, worker_pid
 
     @with_operation_lock(lambda self, *args, **kwargs: self._worker_starting_lock)
     @defer_cancellation(lambda self, *args, **kwargs: self._model_operation_timeout)
@@ -389,14 +651,26 @@ class Dispatcher:
                 await cancel_task(self._process_responses_task)
             except (Exception, asyncio.CancelledError) as error:
                 failures.append(error)
-        for thread in self._executor._threads:
-            await asyncio.to_thread(thread.join, timeout)
-            if thread.is_alive():
-                failures.append(
-                    RuntimeError(
-                        "Response reader did not exit; "
-                        "dispatcher resources remain owned"
-                    )
+        # Join the executor's threads through its public shutdown API —
+        # the earlier shutdown(wait=False) left them running, and the
+        # _threads list is a CPython implementation detail we must not
+        # read. wait_for bounds the wait: a reader thread stuck on a
+        # broken queue must not hang stop(), and the loop stays free
+        # because the join itself runs in a thread.
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    self._executor.shutdown, wait=True, cancel_futures=True
+                ),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            failures.append(
+                RuntimeError(
+                    "Response reader did not exit; " "dispatcher resources remain owned"
                 )
+            )
+        except Exception as error:
+            failures.append(error)
         if failures:
             raise failures[0]

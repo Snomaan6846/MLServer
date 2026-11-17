@@ -308,12 +308,16 @@ To load a custom environment, [parallel inference](./parallel-inference)
 ```
 
 ```{warning}
-The main MLServer process communicates with workers in custom environments via
-[`multiprocessing.Queue`](https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Queue)
-using pickled objects. Custom environments therefore **must** use the same
+Model settings (and inference requests) are serialized (pickled) over the
+configured [inference transport](./parallel-inference) — `multiprocessing.Queue`
+by default, or ZeroMQ when `parallel_inference_transport = "zmq"` (mandatory
+for `frontend_workers > 1`). Custom environments therefore **must** use the same
 version of MLServer and a compatible version of Python with the same [default
 pickle protocol](https://docs.python.org/3/library/pickle.html#pickle.DEFAULT_PROTOCOL)
-as the main process. Consult the tables below for environment compatibility.
+as the main process, on either transport. Consult the tables below for
+environment compatibility. Custom-environment models also work under
+[multi-frontend serving](./parallel-inference): the environment's workers are
+shared by every frontend.
 ```
 
 | Status | Description  |

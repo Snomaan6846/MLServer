@@ -55,6 +55,11 @@ The system boundary of MLServer and its external interactions.
 
 ![Software Architecture](../diagrams/architecture_animated.gif)
 
+This is the logical container view. At `frontend_workers > 1` the
+MLServer boundary is spread over a supervisor process and N frontend
+processes sharing one inference pool — the animated diagram above and
+[Parallel Inference](#parallel-inference) show that process topology.
+
 ```mermaid
 graph TB
     subgraph "External Actors"
@@ -298,6 +303,11 @@ sequenceDiagram
     end
 ```
 
+This is the logical in-process view. When parallel inference is enabled,
+`predict` crosses the Dispatcher into a worker process (see
+[Parallel Inference](#parallel-inference)); at `frontend_workers > 1` the
+REST/gRPC parsing steps run in one of N frontend processes.
+
 ---
 
 ## Model Lifecycle
@@ -376,36 +386,36 @@ dispatchers, and message queues.
 
 ```mermaid
 flowchart TB
-    subgraph "Main Process"
+    subgraph "Main Process (frontend_workers = 1) or Frontend Process"
         direction TB
         DP["DataPlane.infer()"]
         PM["ParallelModel"]
         DISP["Dispatcher"]
-        REQ_Q["Request Queues<br/>(per worker)"]
-        RESP_Q["Response Queue<br/>(shared)"]
+        REQ_Q["Per-worker request channel<br/>(queue or ZeroMQ PUSH)"]
+        RESP_Q["Response channel<br/>(shared queue, or ZeroMQ PULL<br/>when zmq transport)"]
     end
 
     subgraph "Worker Process 1"
         direction TB
         W1["Worker (Process)"]
-        W1_REG["MultiModelRegistry"]
+        W1_REG["MultiModelRegistry<br/>(batching hooks installed here)"]
         W1_MODEL["MLModel instance"]
-        W1_SEL["select() loop"]
+        W1_SEL["select() / ZeroMQ loops"]
     end
 
     subgraph "Worker Process N"
         direction TB
         WN["Worker (Process)"]
-        WN_REG["MultiModelRegistry"]
+        WN_REG["MultiModelRegistry<br/>(batching hooks installed here)"]
         WN_MODEL["MLModel instance"]
-        WN_SEL["select() loop"]
+        WN_SEL["select() / ZeroMQ loops"]
     end
 
     DP -->|"predict(payload)"| PM
     PM -->|"ModelRequestMessage"| DISP
-    DISP -->|"Round-robin"| REQ_Q
-    REQ_Q -->|"Queue.put()"| W1_SEL
-    REQ_Q -->|"Queue.put()"| WN_SEL
+    DISP -->|"Round-robin, or model-affine<br/>for batched models"| REQ_Q
+    REQ_Q --> W1_SEL
+    REQ_Q --> WN_SEL
 
     W1_SEL -->|"get request"| W1_REG
     W1_REG --> W1_MODEL
@@ -426,6 +436,16 @@ flowchart TB
     class W1,W1_REG,W1_MODEL,W1_SEL,WN,WN_REG,WN_MODEL,WN_SEL workerProc
 ```
 
+At `frontend_workers = N > 1` a supervisor process owns the shared
+inference pool and spawns `N` frontend processes, each running the
+dispatch half of the diagram above on the shared ports
+(`SO_REUSEPORT`); the workers reply to the dispatching frontend over
+per-frontend ZeroMQ endpoints.
+Model lifecycle operations are forwarded to the supervisor, which
+applies them on the pool and broadcasts the result so every frontend
+serves the model.
+See [Multi-Frontend Serving](../user-guide/parallel-inference.md#multi-frontend-serving).
+
 ### Worker Lifecycle
 
 Each `Worker` is a `multiprocessing.Process` that:
@@ -441,13 +461,23 @@ Each `Worker` is a `multiprocessing.Process` that:
 
 ### Dispatcher
 
-The `Dispatcher` runs in the main process and:
+The `Dispatcher` runs in the main process (or in each frontend process at
+`frontend_workers > 1`) and:
 
-- Routes `ModelRequestMessage` to workers via round-robin.
-- Listens on the shared `_responses` queue for `ModelResponseMessage`.
+- Routes `ModelRequestMessage` to workers via round-robin; models with
+  adaptive batching enabled use model-affine routing instead (all
+  requests for a batched model go to one worker per rotation window, so
+  the worker-side batcher sees the full traffic rate; controlled by the
+  `parallel_routing_rotation` setting).
+- Listens on the shared `_responses` queue for `ModelResponseMessage`,
+  or on the frontend's ZeroMQ reply endpoint when the zmq transport is
+  active.
 - Resolves the corresponding `asyncio.Future` to return the result to the
   caller.
 - Handles `ModelUpdateMessage` (load/unload) by broadcasting to all workers.
+- Notifies the owning topology when the caller cancels a pending
+  dispatch, so the queued request can be evicted from its worker-side
+  batcher.
 
 ### Environment Isolation
 
@@ -530,7 +560,11 @@ flowchart TB
 
 Batching is enabled per-model via `ModelSettings.max_batch_size` (> 0) and
 `ModelSettings.max_batch_time` (> 0.0). The `load_batching` hook decorates
-the model at load time.
+the model at load time: in the **inference workers** when parallel
+inference is enabled (the batcher runs next to the model it wraps, so
+batch formation sees the model's full traffic rate regardless of the
+frontend count), or in the main process when `parallel_workers = 0`.
+Requests cancelled while still queued are evicted and never execute.
 
 ---
 
@@ -710,16 +744,29 @@ How the four server components are initialised and coordinated by `MLServer`.
 
 ```mermaid
 flowchart LR
+    subgraph "mlserver start (CLI)"
+        direction TB
+        CLI["mlserver start"]
+        FW_CHECK{"frontend_workers<br/>> 1?"}
+        CLI --> FW_CHECK
+        FW_CHECK -->|"Yes"| SUP["FrontendSupervisor<br/>(owns the shared inference pool)"]
+        FW_CHECK -->|"No (default)"| SINGLE["Single-process MLServer"]
+        SUP -->|"spawn N processes<br/>(SO_REUSEPORT)"| FES["Frontend Processes × N<br/>(each builds the components below,<br/>starting with an empty registry)"]
+        SUP -->|"load models into pool,<br/>broadcast apply (pipes)"| FES
+        SINGLE --> INIT
+        FES --> INIT
+    end
+
     subgraph "MLServer.__init__()"
         direction TB
-        S["Settings"]
+        INIT["Settings"]
         SIG["Signal Handlers<br/>(SIGINT, SIGTERM, SIGQUIT)"]
 
-        S --> MS_CHECK{"metrics_endpoint<br/>set?"}
+        INIT --> MS_CHECK{"metrics_endpoint<br/>set?"}
         MS_CHECK -->|"Yes"| METRICS["MetricsServer"]
         MS_CHECK -->|"No"| SKIP_M["Skip metrics"]
 
-        S --> PW_CHECK{"parallel_workers<br/>> 0?"}
+        INIT --> PW_CHECK{"parallel_workers<br/>> 0?"}
         PW_CHECK -->|"Yes"| IPR["InferencePoolRegistry"]
         PW_CHECK -->|"No"| SKIP_P["Skip parallel"]
 
@@ -743,6 +790,14 @@ flowchart LR
     end
 ```
 
+At `frontend_workers > 1` the `MLServer.__init__()` and `MLServer.start()`
+flows run inside every frontend process; the `InferencePoolRegistry` in a
+frontend attaches to the supervisor's shared pool instead of spawning its
+own workers, and initial models are loaded by the supervisor into the pool
+(the frontends start empty and receive broadcast applies). At
+`frontend_workers = 1` the CLI skips the supervisor entirely and runs the
+single-process path unchanged.
+
 ### Startup Sequence
 
 1. Validate runtime security configuration (`log_runtime_security_mode()`).
@@ -760,6 +815,12 @@ flowchart LR
 2. Stop `GRPCServer`.
 3. Stop `RESTServer`.
 4. Stop `MetricsServer`.
+
+At `frontend_workers > 1` the supervisor drives shutdown in the opposite
+order: the frontend processes are terminated first (converting SIGTERM into
+graceful stops that drain in-flight requests), and only once every frontend
+has exited does the supervisor drain the shared pool and stop the worker
+processes.
 
 ---
 
@@ -782,6 +843,7 @@ variables, `.env` files, and JSON configuration files.
 | Setting | Default | Effect |
 |---------|---------|--------|
 | `parallel_workers` | 1 | Number of multiprocessing workers (1 = disabled) |
+| `frontend_workers` | 1 | Number of frontend processes serving REST and gRPC (1 = single process; requires the zmq transport above 1) |
 | `max_batch_size` | 0 | Adaptive batching batch size (0 = disabled) |
 | `max_batch_time` | 0.0 | Adaptive batching time window in seconds |
 | `strict_readiness` | true | If true, all models in the registry must be ready. If false, model readiness is ignored after startup; an empty registry follows `empty_registry_readiness` |

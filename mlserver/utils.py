@@ -1,5 +1,7 @@
 import os
 import uuid
+import signal
+import socket
 import asyncio
 import inspect
 import urllib.parse
@@ -7,6 +9,7 @@ from contextvars import ContextVar, copy_context
 
 from asyncio import Task
 from collections.abc import Awaitable, Callable, Coroutine
+from concurrent.futures import Future
 from typing import Any, ParamSpec, TypeVar
 from functools import wraps
 
@@ -15,7 +18,6 @@ from .types import InferenceRequest, InferenceResponse, Parameters
 from .settings import ModelSettings, DEFAULT_MODEL_OPERATION_TIMEOUT
 from .errors import InvalidModelURI
 from .version import __version__
-
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -79,6 +81,17 @@ def get_wrapped_method(f: Callable) -> Callable:
 
 def generate_uuid() -> str:
     return str(uuid.uuid4())
+
+
+def consume_send_failure(future: Future[Any] | asyncio.Future[Any]) -> None:
+    """Retrieve (and drop) a late fire-and-forget send failure."""
+    # A delivery deadline (or process exit) abandons the send's future;
+    # without retrieving the eventual exception the executor logs
+    # 'exception was never retrieved' when a dead peer's pipe breaks.
+    # Accepts both future flavours: executor submissions return
+    # concurrent.futures.Future, run_in_executor wraps asyncio.Future.
+    if not future.cancelled():
+        future.exception()
 
 
 def insert_headers(
@@ -254,7 +267,7 @@ def with_operation_lock(
     """
 
     def decorate(
-        method: Callable[P, Awaitable[T]]
+        method: Callable[P, Awaitable[T]],
     ) -> Callable[P, Coroutine[Any, Any, T]]:
         @wraps(method)
         async def wrapped(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -267,3 +280,96 @@ def with_operation_lock(
         return wrapped
 
     return decorate
+
+
+def set_parent_death_signal(sig: int = signal.SIGTERM) -> None:
+    """Ask the kernel to signal this process if its parent dies.
+
+    Used by supervisor-spawned frontends and inference workers so that a
+    crashed supervisor does not leave orphaned processes holding ports,
+    sockets or GPU memory. On kernels without PR_SET_PDEATHSIG (or
+    non-Linux platforms) this is a no-op. Best effort: if the parent
+    already died before the call, the process exits immediately.
+
+    Workers pass SIGKILL: they install no-op handlers for the
+    termination signals (so the parent controls graceful shutdown), which
+    would silently swallow a SIGTERM delivered by PR_SET_PDEATHSIG.
+    SIGKILL cannot be caught or ignored, so parent death is always
+    fatal for a worker.
+    """
+    import sys
+    import ctypes
+
+    if sys.platform != "linux":
+        return
+    try:
+        libc = ctypes.CDLL("libc.so.6", use_errno=True)
+        PR_SET_PDEATHSIG = 1
+        if libc.prctl(PR_SET_PDEATHSIG, sig, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
+        # No getppid()-based parent-death check here: in containers the
+        # main MLServer process IS PID 1, so a parent PID of 1 is the
+        # normal case there, not a sign the parent died. PR_SET_PDEATHSIG
+        # is the parent-death mechanism: the kernel delivers SIGTERM to
+        # this process the moment its actual parent exits.
+    except Exception:
+        logger.debug("PR_SET_PDEATHSIG unavailable", exc_info=True)
+
+
+def _reuse_port_sockets(host: str, port: int) -> "list[socket.socket]":
+    """Bind TCP sockets with SO_REUSEPORT for uvicorn.
+
+    uvicorn.Config has no ``reuse_port`` option; passing pre-bound
+    sockets lets several frontend processes share the ports with
+    kernel-level connection balancing. Every resolved address that can
+    be bound gets its own listener — matching the single-frontend path
+    (asyncio's create_server), which serves all of a hostname's
+    addresses, not just the first.
+    """
+    import socket as socket_module
+
+    # proto=IPPROTO_TCP is required: asyncio's _set_nodelay only fires for
+    # TCP-proto sockets, and accepted sockets inherit the listener's
+    # proto. With the default proto=0, accepted connections keep Nagle
+    # enabled and small keep-alive writes stall ~40ms on the peer's
+    # delayed ACK.
+    # Resolve the family from the hostname (not a colon check): a
+    # hostname with only an AAAA record must get an IPv6 socket, or
+    # bind() fails during resolution where the single-frontend listener
+    # (uvicorn resolves all families) would have started fine.
+    addrinfo = socket_module.getaddrinfo(host, port, type=socket_module.SOCK_STREAM)
+    # Mirror asyncio's create_server: try every resolved address in
+    # turn, so a hostname whose first address cannot bind (but whose
+    # second can) starts with frontend_workers=1 AND >1. The whole
+    # per-address setup — socket creation (e.g. EAFNOSUPPORT for an
+    # IPv6 address on a host without IPv6), options, bind and listen —
+    # sits inside the failure boundary; a failed candidate is closed
+    # before the next is tried.
+    bound: list[socket.socket] = []
+    last_error: OSError | None = None
+    for family, _type, _proto, _canon, sockaddr in addrinfo:
+        sock = None
+        try:
+            sock = socket_module.socket(
+                family,
+                socket_module.SOCK_STREAM,
+                proto=socket_module.IPPROTO_TCP,
+            )
+            sock.setsockopt(socket_module.SOL_SOCKET, socket_module.SO_REUSEPORT, 1)
+            sock.setsockopt(socket_module.SOL_SOCKET, socket_module.SO_REUSEADDR, 1)
+            sock.bind(sockaddr)
+            # Match uvicorn's default accept backlog (2048): a smaller
+            # queue would undercut the server's own listener settings
+            # under connection storms.
+            sock.listen(2048)
+            bound.append(sock)
+        except OSError as exc:
+            last_error = exc
+            if sock is not None:
+                sock.close()
+            continue
+    if bound:
+        return bound
+    if last_error is not None:
+        raise last_error
+    raise OSError(f"no addresses resolved for {host}:{port}")

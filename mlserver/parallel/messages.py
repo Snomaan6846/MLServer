@@ -12,6 +12,7 @@ from ..settings import ModelSettings
 class ModelUpdateType(IntEnum):
     Load = 1
     Unload = 2
+    Cancel = 3
 
 
 class Message(BaseModel):
@@ -28,6 +29,10 @@ class ModelRequestMessage(Message):
     method_name: str
     method_args: list[Any] = []
     method_kwargs: dict[str, Any] = {}
+    # Index of the frontend process that dispatched this request. Workers
+    # use it to route the reply to the owning frontend's zmq endpoint.
+    # Defaults to 0 (the only frontend when frontend_workers=1).
+    frontend_id: int = 0
 
 
 class ModelResponseMessage(Message):
@@ -43,6 +48,9 @@ class ModelUpdateMessage(Message):
     update_type: ModelUpdateType
     serialised_model_settings: str
     rollback: bool = False
+    # For Cancel updates: the dispatched request id to evict from the
+    # worker-side batcher queue.
+    request_id: str | None = None
 
     def __init__(self, *args, **kwargs):
         model_settings = kwargs.pop("model_settings", None)
@@ -58,4 +66,7 @@ class ModelUpdateMessage(Message):
 
     @property
     def model_settings(self) -> ModelSettings:
-        return ModelSettings.parse_raw(self.serialised_model_settings)
+        # Same dict-path deserialisation as deserialise_model_settings:
+        # it restores the private `_source` attribute that pydantic's
+        # JSON path (and the deprecated parse_raw) drops.
+        return ModelSettings.model_validate(json.loads(self.serialised_model_settings))

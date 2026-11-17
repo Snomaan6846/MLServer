@@ -21,6 +21,7 @@ from ..metrics import configure_metrics
 from ..context import model_context
 from ..env import Environment
 from ..errors import ModelNotFound
+from ..batching.adaptive import _CurrentDispatchId
 
 from .messages import (
     ModelRequestMessage,
@@ -70,17 +71,33 @@ class Worker(Process):
         self._settings = settings
         self._responses = responses
         self._zmq_request_endpoint: str | None = None
-        self._zmq_reply_endpoint: str | None = None
+        self._zmq_reply_endpoints: list[str] = []
+        # Env hash of the pool that spawned this worker (set by the pool
+        # at spawn time). It travels with worker-ready broadcasts so
+        # frontends can partition routing by pool.
+        self.env_hash: str | None = None
         # Populated only inside the child; parent-side spawn owns no sockets.
         self._zmq_resources: tuple[Any, set[Any], set[Task]] | None = None
         if settings.parallel_inference_transport == "zmq":
             from .zmq import create_endpoint
 
-            reply = getattr(responses, "_zmq_reply_endpoint", None)
-            if not isinstance(reply, str) or not reply.startswith("ipc://"):
-                raise ValueError("ZeroMQ worker requires its pool's reply endpoint")
-            self._zmq_reply_endpoint = reply
-            self._zmq_request_endpoint = create_endpoint(Path(reply[6:]).parent, "q")
+            reply_endpoints = getattr(responses, "_zmq_reply_endpoints", None)
+            if reply_endpoints is None:
+                # Backward compat: single-endpoint attribute
+                single = getattr(responses, "_zmq_reply_endpoint", None)
+                if isinstance(single, str) and single.startswith("ipc://"):
+                    reply_endpoints = [single]
+            if not reply_endpoints or not all(
+                isinstance(ep, str) and ep.startswith("ipc://")
+                for ep in reply_endpoints
+            ):
+                raise ValueError("ZeroMQ worker requires its pool's reply endpoints")
+            self._zmq_reply_endpoints = reply_endpoints
+            # Request sockets live alongside the reply endpoints (the
+            # pool's or supervisor's private IPC directory).
+            self._zmq_request_endpoint = create_endpoint(
+                Path(reply_endpoints[0][6:]).parent, "q"
+            )
         self._requests: Queue[ModelRequestMessage]
         self._model_updates: Queue[ModelUpdateMessage]
         self._queues: list[Queue] = []
@@ -120,6 +137,21 @@ class Worker(Process):
         return self.__executor
 
     def run(self):
+        from ..utils import set_parent_death_signal
+
+        # Die with the supervisor/pool parent even if it is SIGKILLed.
+        # SIGKILL, not SIGTERM: the worker installs no-op handlers for
+        # the termination signals below, which would swallow a SIGTERM
+        # delivered by PR_SET_PDEATHSIG and leave the worker orphaned.
+        set_parent_death_signal(signal.SIGKILL)
+
+        # Response payload topology: only the multi-frontend opt-in
+        # keeps NumPy payloads from the codec; single-frontend
+        # deployments materialise lists here (master's data flow).
+        from ..codecs.numpy import set_ndarray_response_pipeline
+
+        set_ndarray_response_pipeline(self._settings.frontend_workers > 1)
+
         ctx = nullcontext()
         if self._env:
             ctx = self._env
@@ -155,9 +187,29 @@ class Worker(Process):
         """
         Internal __init__ method that needs to run within the worker process.
         """
+        # The adaptive batcher lives with the model at its point of
+        # execution. In the multi-frontend topology (frontend_workers >
+        # 1) the worker's registry installs the batching hooks so ONE
+        # batcher sees the model's full traffic rate regardless of the
+        # frontend count. At frontend_workers == 1 the batcher stays in
+        # the main process (the previous behaviour), so the worker must
+        # NOT install it — exactly one placement, selected by the
+        # frontend count.
+        from ..batching import load_batching, unload_batching
+
+        if self._settings.frontend_workers > 1:
+            on_model_load = [*self._on_worker_load, load_batching]
+            on_model_unload = [unload_batching, *self._on_worker_unload]
+        else:
+            on_model_load = list(self._on_worker_load)
+            on_model_unload = list(self._on_worker_unload)
         self._model_registry = MultiModelRegistry(
-            on_model_load=self._on_worker_load,
-            on_model_unload=self._on_worker_unload,
+            # The load hooks may return a different model instance (e.g. a
+            # wrapper); batching must be installed on the model they return,
+            # so it runs last. Symmetrically, batching is torn down first,
+            # while the registered (batched) instance is still in hand.
+            on_model_load=on_model_load,
+            on_model_unload=on_model_unload,
             model_operation_timeout=self._settings.model_operation_timeout,
         )
         self._active = True
@@ -243,7 +295,15 @@ class Worker(Process):
             from ..rest.worker import RAW_INFER_METHOD, process_raw_request
 
             if request.method_name == RAW_INFER_METHOD:
-                return await process_raw_request(self, request)
+                # Expose the dispatch id to worker-side batchers so a
+                # remote cancellation can evict this request while
+                # queued — the raw REST path goes through the DataPlane
+                # and its batcher, which needs the same context.
+                _CurrentDispatchId.set(request.id)
+                try:
+                    return await process_raw_request(self, request)
+                finally:
+                    _CurrentDispatchId.set(None)
         try:
             model = await self._model_registry.get_model(
                 request.model_name, request.model_version
@@ -251,6 +311,9 @@ class Worker(Process):
 
             method = getattr(model, request.method_name)
             with model_context(model.settings):
+                # Expose the dispatch id to worker-side batchers so a
+                # remote cancellation can evict this request while queued.
+                _CurrentDispatchId.set(request.id)
                 return_value = await method(
                     *request.method_args, **request.method_kwargs
                 )
@@ -267,6 +330,24 @@ class Worker(Process):
         response_message = process_task.result()
         self._responses.put(response_message)
 
+    async def _cancel_queued_request(
+        self, model_name: str, model_version: str | None, request_id: str
+    ) -> None:
+        """Evict a still-queued request from the model version's batcher."""
+        from ..batching.adaptive import AdaptiveBatcher
+        from ..errors import ModelNotFound
+
+        try:
+            # The exact version's batcher: a versionless lookup would
+            # evict against the default version and leave the queued
+            # request computing anyway.
+            model = await self._model_registry.get_model(model_name, model_version)
+        except ModelNotFound:
+            return
+        batcher = AdaptiveBatcher.get_batcher(model)
+        if batcher is not None:
+            batcher.evict(request_id)
+
     async def _process_model_update(
         self, update: ModelUpdateMessage
     ) -> ModelResponseMessage:
@@ -282,6 +363,13 @@ class Worker(Process):
                 except ModelNotFound:
                     # Model not present on worker - idempotent operation
                     pass
+            elif update.update_type == ModelUpdateType.Cancel:
+                if update.request_id:
+                    await self._cancel_queued_request(
+                        model_settings.name,
+                        model_settings.version,
+                        update.request_id,
+                    )
             else:
                 logger.warning(
                     "Unknown model update message with type %s", update.update_type

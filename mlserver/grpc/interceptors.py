@@ -14,7 +14,6 @@ from py_grpc_prometheus.prometheus_server_interceptor import (
 
 from .logging import logger
 
-
 _GRPC_HEALTH_METHODS = frozenset(
     {
         "/inference.GRPCInferenceService/ServerLive",

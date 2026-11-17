@@ -244,9 +244,25 @@ class SingleModelRegistry:
         results = await asyncio.gather(
             *(asyncio.shield(task) for task in cleanup), return_exceptions=True
         )
-        for result in results:
+        for old, result in zip(retired, results):
             if isinstance(result, BaseException):
-                raise result
+                # The replacement is already registered and serving: a
+                # retired instance's cleanup failure must not fail the
+                # load that succeeded — the caller would retry or roll
+                # back a model that is live. The cleanup task stays
+                # tracked in _cleanup_tasks, and the next operation's
+                # drain retries it.
+                logger.error(
+                    "Cleanup of the retired %s failed after publishing "
+                    "its replacement: %s",
+                    (
+                        f"version {old.version} of model '{old.name}'"
+                        if old.version
+                        else f"model '{old.name}'"
+                    ),
+                    type(result).__name__,
+                )
+                logger.debug("Retired model cleanup failure detail", exc_info=result)
 
     async def _load_model(self, model: MLModel, reload: bool = False):
         model_msg = f"model '{model.name}'"
@@ -399,8 +415,11 @@ class SingleModelRegistry:
         self, version: str | None, rollback: bool = False
     ) -> None:
         # Worker updates already identify the frontend's selected version.
-        # An absent unversioned attempt must not select a versioned default.
-        await self._unload_version(version, rollback, exact=True)
+        # An absent unversioned attempt must not select a versioned
+        # default. Normalize "" (the supervisor's unversioned key) to
+        # None so retained-cleanup comparison matches the instance's
+        # None version in both representations.
+        await self._unload_version(version or None, rollback, exact=True)
 
     async def _unload_version(
         self, version: str | None, rollback: bool, exact: bool
@@ -408,6 +427,18 @@ class SingleModelRegistry:
         current = (
             self._find_exact_version(version) if exact else self._find_model(version)
         )
+        if exact and not rollback and current is None:
+            # An exact unload whose instance is already absent is the
+            # documented no-op — but only when nothing of THIS version
+            # remains to release: a retained cleanup for the same
+            # version (or a rollback target) still needs the drain, so
+            # a retry can settle its resources. Draining first would
+            # let an UNRELATED sibling's cancelled cleanup fail this
+            # no-op with ModelUnloadError.
+            has_cleanup = any(model.version == version for model in self._cleanup_tasks)
+            has_rollback = self._pending_reload.get(version or "") is not None
+            if not has_cleanup and not has_rollback:
+                return
         cleanup_version = current.version if current else version
         cleanup_models = None
         if exact or current is not None or version is not None:
@@ -522,13 +553,41 @@ class SingleModelRegistry:
                     )
                 try:
                     await asyncio.shield(task)
+                except asyncio.CancelledError:
+                    if not task.cancelled():
+                        # The WAITER was cancelled (unload deadline or
+                        # caller), not the cleanup: re-raise so the
+                        # timeout wrapper reports TimeoutError, its
+                        # documented contract.
+                        raise
+                    # The cleanup task itself was cancelled: it still
+                    # owns its resources, so surface a meaningful
+                    # error instead of an opaque cancellation.
+                    raise ModelUnloadError(
+                        "A prior cleanup was cancelled; retry the unload"
+                    )
                 except Exception:
                     pass
                 continue
             if retry and task.done() and (task.cancelled() or task.exception()):
                 self._cleanup_tasks.pop(model)
                 task = self._start_cleanup(model)
-            await asyncio.shield(task)
+            if task.cancelled() and not retry:
+                # Same guard for the target-model path: shield on a
+                # cancelled task raises CancelledError, not Exception.
+                raise ModelUnloadError(
+                    "A prior cleanup was cancelled; retry the unload"
+                )
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if not task.cancelled():
+                    # Waiter cancellation: let the timeout wrapper's
+                    # contract hold (TimeoutError, not ModelUnloadError).
+                    raise
+                raise ModelUnloadError(
+                    "A prior cleanup was cancelled; retry the unload"
+                )
 
     async def _retry_cleanup(self) -> list[BaseException]:
         # Join unfinished mutations before starting any independent cleanup.
@@ -657,6 +716,11 @@ class SingleModelRegistry:
             return False
         if self._versions:
             return False
+        # A staged reload owns the slot even after its previous version
+        # was unloaded: deleting the sub-registry would orphan the
+        # staged model with no rollback path.
+        if self._pending_reload:
+            return False
 
         return self.default is None
 
@@ -766,6 +830,33 @@ class MultiModelRegistry:
         finally:
             # If single model registry is empty after unload version failure
             # remove it from the multi model registry
+            if model_registry.empty():
+                del self._models[name]
+
+    @with_operation_lock(
+        lambda self, name, *args, **kwargs: self._get_operation_lock(name)
+    )
+    @defer_cancellation(lambda self, *args, **kwargs: self._model_operation_timeout)
+    async def unload_exact_version(
+        self, name: str, version: str | None, rollback: bool = False
+    ) -> None:
+        """Unload an exact version of a model.
+
+        Unlike :meth:`unload_version`, an unversioned (``None``)
+        attempt targets the unversioned instance only and is a no-op
+        when it is absent — it never falls through to the versioned
+        default. Broadcast applies use this: they name the exact
+        instance the supervisor targeted.
+        """
+        if name not in self._models:
+            # A broadcast for a model this frontend never registered:
+            # the documented no-op, not an exception (direct callers
+            # must see a normal return).
+            return
+        model_registry = self._get_model_registry(name, version)
+        try:
+            await model_registry._unload_exact_version(version or None, rollback)
+        finally:
             if model_registry.empty():
                 del self._models[name]
 

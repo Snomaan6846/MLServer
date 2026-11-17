@@ -46,6 +46,12 @@ async def _remove_if_exists(path: str):
 async def stop_metrics(settings: Settings, pid: int):
     if not settings.parallel_workers:
         return
+    if not os.environ.get(PROMETHEUS_MULTIPROC_DIR):
+        # Multiprocess metrics were never configured in this process
+        # (or were already torn down): there is no directory to mark
+        # the dead process in. Tolerated so a late worker-stop hook
+        # cannot crash the shutting-down process.
+        return
 
     mark_process_dead(pid)
     pattern = os.path.join(settings.metrics_dir, f"*_{pid}.db")

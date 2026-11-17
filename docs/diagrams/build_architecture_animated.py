@@ -1,9 +1,15 @@
 """
 Build the animated MLServer Software Architecture diagram as a self-contained HTML file.
 
-Shows the internal component perspective: DataPlane, Middleware,
-Model Registry, Workers, Queues, and runtime plugins. Complements the deployment
-topology diagram which shows the K8s infrastructure perspective.
+Shows the internal component perspective at frontend_workers > 1: N frontend
+processes (REST, gRPC, metrics, DataPlane, middleware, dispatcher) on
+SO_REUSEPORT, the supervisor process owning the shared inference pool and
+coordinating model lifecycle over control pipes, and the shared worker
+processes (with the adaptive batcher and codec pipeline living next to the
+models) reached over the ZeroMQ data plane. At frontend_workers = 1 the
+supervisor and the single frontend collapse into one main process.
+Complements the deployment topology diagram which shows the K8s
+infrastructure perspective.
 
 Uses Kubernetes-style icons from the diagrams library (Apache-2.0 licensed).
 All icons are embedded as base64 data URIs so the HTML is fully self-contained.
@@ -119,6 +125,7 @@ html = f"""<!DOCTYPE html>
   .arrow-purple {{ stroke: #7D3C98; }}
   .arrow-teal   {{ stroke: #117A65; }}
   .arrow-cyan   {{ stroke: #0097A7; }}
+  .arrow-gold   {{ stroke: #B58900; }}
 
   .cluster {{
     fill: none; stroke-width: 1.5; stroke-dasharray: 6 4;
@@ -131,6 +138,9 @@ html = f"""<!DOCTYPE html>
   .cluster-title {{
     font-size: 13px; font-weight: 700;
     text-anchor: middle; opacity: 1;
+  }}
+  .cluster-note {{
+    fill: #777; font-size: 9.5px; text-anchor: middle;
   }}
   .node-label {{
     font-size: 11px; font-weight: 600; text-anchor: middle;
@@ -145,7 +155,7 @@ html = f"""<!DOCTYPE html>
 </style>
 </head>
 <body>
-<svg viewBox="0 0 1150 780" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1150 800" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ah-blue" viewBox="0 0 10 10" refX="9" refY="5"
       markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -168,148 +178,151 @@ html = f"""<!DOCTYPE html>
     <marker id="ah-cyan" viewBox="0 0 10 10" refX="9" refY="5"
       markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#0097A7"/></marker>
+    <marker id="ah-gold" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#B58900"/></marker>
   </defs>
 
   <!-- ═══ TITLE ═══ -->
-  <text x="575" y="32" fill="#222" font-size="20" font-weight="700"
+  <text x="575" y="30" fill="#222" font-size="20" font-weight="700"
     text-anchor="middle">MLServer — Software Architecture</text>
-  <text x="575" y="50" fill="#666" font-size="11"
-    text-anchor="middle">V2 Inference Protocol  ·  REST + gRPC</text>
+  <text x="575" y="48" fill="#666" font-size="11"
+    text-anchor="middle">V2 Inference Protocol  ·  REST + gRPC  ·  multi-frontend shared inference pool</text>
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  EXTERNAL CLIENTS (left column)                        -->
+  <!--  EXTERNAL ACTORS (left column)                        -->
   <!-- ═══════════════════════════════════════════════════════ -->
 
-{node("users", "Client", 80, 200, sublabel="Applications")}
-{node("prometheus", "Prometheus", 80, 325, sublabel="Scrape /metrics")}
-{node("cm", "Security", 505, 370, sublabel="Trusted Runtimes")}
+  {node("users", "Client", 75, 175, sublabel="Applications")}
+  {node("prometheus", "Prometheus", 75, 295, sublabel="Scrape /metrics")}
+  {node("storage", "Model Store", 75, 520, sublabel="PVC · S3 · Filesystem")}
+  {node("cm", "Security", 75, 600, sublabel="Trusted Runtimes")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  TRANSPORT LAYER                                       -->
+  <!--  FRONTEND PROCESSES (SO_REUSEPORT)                     -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="175" y="120" width="200" height="300" class="cluster-solid"
+  <rect x="175" y="115" width="330" height="315" class="cluster-solid"
     fill="#2E6EB5" stroke="#2E6EB5"/>
-  <text x="275" y="140" class="cluster-title" fill="#2E6EB5">Transport Layer</text>
+  <text x="340" y="137" class="cluster-title" fill="#2E6EB5">Frontend Processes × N</text>
+  <text x="340" y="152" class="cluster-note">SO_REUSEPORT · same ports · frontend_workers = N</text>
 
-{box("REST API", 195, 160, 160, 50, "#2E6EB5", ":8080 · HTTP/JSON")}
-{box("gRPC API", 195, 230, 160, 50, "#2E6EB5", ":8081 · HTTP/2+Protobuf")}
-{box("Metrics", 195, 300, 160, 50, "#D4880F", ":8082 · Prometheus")}
-
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  CORE ENGINE                                           -->
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="405" y="120" width="200" height="180" class="cluster-solid"
-    fill="#4B9A1E" stroke="#4B9A1E"/>
-  <text x="505" y="140" class="cluster-title" fill="#4B9A1E">Core Engine</text>
-
-{box("DataPlane", 425, 160, 160, 50, "#4B9A1E", "Inference Orchestration")}
-{box("Middleware", 425, 230, 160, 50, "#4B9A1E", "CloudEvents · Hooks")}
+  {box("REST API", 195, 165, 130, 50, "#2E6EB5", ":8080 · HTTP/JSON")}
+  {box("gRPC API", 355, 165, 135, 50, "#2E6EB5", ":8081 · HTTP/2+Protobuf")}
+  {box("DataPlane", 355, 230, 135, 50, "#4B9A1E", "Inference Orchestration")}
+  {box("Metrics", 195, 295, 130, 50, "#D4880F", ":8082 · Prometheus")}
+  {box("Middleware", 355, 295, 135, 50, "#4B9A1E", "CloudEvents · Hooks")}
+  {box("Dispatcher", 355, 360, 135, 50, "#4B9A1E", "round-robin · model-affine")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  MODEL MANAGEMENT                                      -->
+  <!--  SUPERVISOR PROCESS                                    -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="635" y="120" width="200" height="230" class="cluster-solid"
-    fill="#7D3C98" stroke="#7D3C98"/>
-  <text x="735" y="140" class="cluster-title" fill="#7D3C98">Model Management</text>
+  <rect x="175" y="465" width="330" height="140" class="cluster-solid"
+    fill="#B58900" stroke="#B58900"/>
+  <text x="340" y="487" class="cluster-title" fill="#B58900">Supervisor Process</text>
+  <text x="340" y="502" class="cluster-note">the main process at frontend_workers = 1</text>
 
-{box("Registry", 655, 160, 160, 50, "#7D3C98", "MultiModel · Versioned")}
-{box("Batcher", 655, 230, 160, 50, "#7D3C98", "Adaptive Batching")}
-{box("Codec Pipeline", 655, 300, 160, 50, "#117A65", "Encode · Decode")}
+  {box("FrontendSupervisor", 195, 512, 140, 55, "#B58900", "lifecycle · restarts")}
+  {box("Shared Pool", 355, 512, 140, 55, "#7D3C98", "one copy of every model")}
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  INFERENCE WORKERS (shared)                            -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <rect x="560" y="115" width="260" height="315" class="cluster-solid"
+    fill="#C0392B" stroke="#C0392B"/>
+  <text x="690" y="137" class="cluster-title" fill="#C0392B">Inference Workers (shared)</text>
+  <text x="690" y="152" class="cluster-note">owned by the supervisor's pool</text>
+
+  {box("Worker Processes", 580, 165, 220, 50, "#C0392B", "multiprocessing")}
+  {box("Worker Registry", 580, 230, 220, 50, "#7D3C98", "batching hooks installed")}
+  {box("Adaptive Batcher", 580, 295, 220, 50, "#7D3C98", "lives next to the model")}
+  {box("Codec Pipeline", 580, 360, 220, 50, "#117A65", "ndarray-native")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  EXTERNAL SYSTEMS (right column)                       -->
   <!-- ═══════════════════════════════════════════════════════ -->
 
-{node("storage", "Model Store", 960, 200, sublabel="PVC · S3 · Filesystem")}
-{node("deploy", "KServe", 960, 350, sublabel="Controller · CRD")}
-
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  INFERENCE EXECUTION                                   -->
-  <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="635" y="375" width="280" height="85" class="cluster-solid"
-    fill="#C0392B" stroke="#C0392B"/>
-  <text x="775" y="392" class="cluster-title" fill="#C0392B">Inference Execution</text>
-
-{box("Workers", 655, 405, 115, 45, "#C0392B", "Multiprocessing")}
-{box("Queues", 785, 405, 115, 45, "#C0392B", "Req/Resp Dispatch")}
+  {node("deploy", "KServe", 975, 640, sublabel="Controller · CRD")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  SHIPPED RUNTIMES                                      -->
   <!-- ═══════════════════════════════════════════════════════ -->
-  <rect x="200" y="500" width="640" height="105" class="cluster-solid"
+  <rect x="175" y="650" width="645" height="95" class="cluster-solid"
     fill="#0097A7" stroke="#0097A7"/>
-  <text x="520" y="518" class="cluster-title" fill="#0097A7">Shipped Runtimes (Production)</text>
+  <text x="497" y="670" class="cluster-title" fill="#0097A7">Shipped Runtimes (Production)</text>
 
-{node("pod", "sklearn", 280, 565, size=44, sublabel="SKLearnModel")}
-{node("pod", "xgboost", 415, 565, size=44, sublabel="XGBoostModel")}
-{node("pod", "lightgbm", 550, 565, size=44, sublabel="LightGBMModel")}
-{node("pod", "onnx", 685, 565, size=44, sublabel="OnnxModel")}
+  {node("pod", "sklearn", 280, 710, size=44, sublabel="SKLearnModel")}
+  {node("pod", "xgboost", 420, 710, size=44, sublabel="XGBoostModel")}
+  {node("pod", "lightgbm", 560, 710, size=44, sublabel="LightGBMModel")}
+  {node("pod", "onnx", 700, 710, size=44, sublabel="OnnxModel")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
   <!--  ANIMATED FLOW ARROWS                                  -->
   <!-- ═══════════════════════════════════════════════════════ -->
 
-  <!-- Client → REST (right then up) -->
-{arrow("M 112,195 L 155,195 L 155,180 L 193,180", "arrow-blue", "flow-right", "ah-blue")}
-  <!-- Client → gRPC (right then down) -->
-{arrow("M 112,210 L 155,210 L 155,250 L 193,250", "arrow-blue", "flow-right", "ah-blue")}
-
-  <!-- REST → DataPlane (horizontal) -->
-{arrow("M 357,185 L 423,185", "arrow-green", "flow-right", "ah-green")}
-  <!-- gRPC → DataPlane (right then up) -->
-{arrow("M 357,255 L 390,255 L 390,190 L 423,190", "arrow-green", "flow-right", "ah-green")}
+  <!-- Client → REST -->
+  {arrow("M 101,180 L 191,180", "arrow-blue", "flow-right", "ah-blue")}
+  <!-- Client → gRPC (over the top, into the cluster) -->
+  {arrow("M 90,148 L 90,102 L 422,102 L 422,161", "arrow-blue", "flow-right", "ah-blue")}
+  <!-- Response: REST → Client -->
+  {arrow("M 193,212 L 101,212", "arrow-green", "flow-left", "ah-green")}
 
   <!-- Prometheus → Metrics -->
-{arrow("M 112,325 L 193,325", "arrow-red", "flow-left", "ah-red",
-       "scrape", 152, 315)}
+  {arrow("M 101,310 L 191,310", "arrow-red", "flow-left", "ah-red",
+         "scrape", 146, 300)}
 
-  <!-- Security → Middleware -->
-{arrow("M 505,346 L 505,282", "arrow-red", "flow-up", "ah-red",
-       "allowlist", 555, 320)}
+  <!-- REST → DataPlane -->
+  {arrow("M 327,190 L 351,190", "arrow-green", "flow-right", "ah-green")}
+  <!-- gRPC → DataPlane -->
+  {arrow("M 422,217 L 422,226", "arrow-green", "flow-down", "ah-green")}
+  <!-- DataPlane → Middleware -->
+  {arrow("M 422,282 L 422,291", "arrow-green", "flow-down", "ah-green")}
+  <!-- Middleware → Dispatcher -->
+  {arrow("M 422,347 L 422,356", "arrow-green", "flow-down", "ah-green")}
 
-  <!-- DataPlane → Registry (horizontal) -->
-{arrow("M 587,185 L 653,185", "arrow-purple", "flow-right", "ah-purple",
-       "resolve model", 620, 175)}
+  <!-- Dispatcher → Workers (ZeroMQ data plane) -->
+  {arrow("M 492,385 L 530,385 L 530,190 L 576,190", "arrow-red", "flow-right", "ah-red",
+         "ZeroMQ", 530, 170)}
+  <!-- Workers → Dispatcher (replies routed per frontend) -->
+  {arrow("M 576,215 L 545,215 L 545,400 L 492,400", "arrow-red", "flow-slow", "ah-red",
+         "replies", 548, 300)}
 
-  <!-- DataPlane → Middleware (vertical) -->
-{arrow("M 505,212 L 505,228", "arrow-green", "flow-down", "ah-green")}
+  <!-- Workers → Registry → Batcher → Codec -->
+  {arrow("M 690,217 L 690,226", "arrow-purple", "flow-down", "ah-purple")}
+  {arrow("M 690,282 L 690,291", "arrow-purple", "flow-down", "ah-purple")}
+  {arrow("M 690,347 L 690,356", "arrow-purple", "flow-down", "ah-purple")}
 
-  <!-- Registry → Model Store (horizontal) -->
-{arrow("M 817,185 L 928,185", "arrow-orange", "flow-right", "ah-orange",
-       "load artifacts", 875, 175)}
+  <!-- Supervisor → Frontends (control pipes) -->
+  {arrow("M 270,510 L 270,434", "arrow-gold", "flow-up", "ah-gold",
+         "model lifecycle (pipes)", 390, 450)}
+  <!-- FrontendSupervisor → Shared Pool -->
+  {arrow("M 337,539 L 351,539", "arrow-gold", "flow-right", "ah-gold")}
+  <!-- Shared Pool → Workers (owns) -->
+  {arrow("M 497,539 L 660,539 L 660,434", "arrow-purple", "flow-up", "ah-purple",
+         "owns", 660, 505)}
 
-  <!-- Registry → Batcher (vertical) -->
-{arrow("M 735,212 L 735,228", "arrow-purple", "flow-down", "ah-purple")}
+  <!-- Supervisor → Model Store -->
+  {arrow("M 193,527 L 101,527", "arrow-orange", "flow-left", "ah-orange",
+         "load artifacts", 147, 517)}
 
-  <!-- Batcher → Codec Pipeline (vertical) -->
-{arrow("M 735,282 L 735,298", "arrow-purple", "flow-down", "ah-purple")}
+  <!-- KServe → Supervisor -->
+  {arrow("M 949,640 L 340,640 L 340,609", "arrow-blue", "flow-left", "ah-blue",
+         "manage models", 640, 630)}
 
-  <!-- Codec Pipeline → Workers (down then left) -->
-{arrow("M 735,352 L 735,405 L 772,405", "arrow-red", "flow-down", "ah-red",
-       "dispatch", 750, 380)}
+  <!-- Security → Supervisor (runtime allowlist) -->
+  {arrow("M 99,590 L 171,590", "arrow-red", "flow-right", "ah-red",
+         "allowlist", 135, 606)}
 
-  <!-- Workers → Queues (horizontal) -->
-{arrow("M 772,427 L 783,427", "arrow-red", "flow-right", "ah-red")}
-
-  <!-- KServe → Registry (left then up) -->
-{arrow("M 928,345 L 860,345 L 860,200 L 817,200", "arrow-blue", "flow-left", "ah-blue",
-       "manage models", 860, 270)}
-
-  <!-- Workers → Runtimes (down then left/right) -->
-{arrow("M 680,452 L 680,490 L 280,490 L 280,538", "arrow-cyan", "flow-down", "ah-cyan")}
-{arrow("M 695,452 L 695,490 L 415,490 L 415,538", "arrow-cyan", "flow-down", "ah-cyan")}
-{arrow("M 720,452 L 720,490 L 550,490 L 550,538", "arrow-cyan", "flow-down", "ah-cyan")}
-{arrow("M 740,452 L 740,490 L 685,490 L 685,538", "arrow-cyan", "flow-down", "ah-cyan")}
-
-  <!-- Response path: DataPlane → REST → Client -->
-{arrow("M 423,195 L 357,195", "arrow-green", "flow-left", "ah-green")}
-{arrow("M 193,195 L 112,195", "arrow-green", "flow-left", "ah-green")}
+  <!-- Workers → Runtimes (fan-out) -->
+  {arrow("M 600,432 L 600,622 L 280,622 L 280,684", "arrow-cyan", "flow-down", "ah-cyan")}
+  {arrow("M 625,432 L 625,622 L 420,622 L 420,684", "arrow-cyan", "flow-down", "ah-cyan")}
+  {arrow("M 650,432 L 650,622 L 560,622 L 560,684", "arrow-cyan", "flow-down", "ah-cyan")}
+  {arrow("M 675,432 L 675,622 L 700,622 L 700,684", "arrow-cyan", "flow-down", "ah-cyan")}
 
   <!-- ═══ FOOTER ═══ -->
-  <text x="575" y="750" fill="#888" font-size="10" text-anchor="middle">
+  <text x="575" y="775" fill="#888" font-size="10" text-anchor="middle">
     opendatahub-io/MLServer  ·  V2 Inference Protocol  ·  Apache-2.0
   </text>
-  <text x="575" y="765" fill="#999" font-size="9" text-anchor="middle">
+  <text x="575" y="788" fill="#999" font-size="9" text-anchor="middle">
     Shipped runtimes: sklearn · xgboost · lightgbm · onnx
   </text>
 

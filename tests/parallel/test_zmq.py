@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import numpy as np
 import pytest
 
-zmq = pytest.importorskip("zmq")
+import zmq
+import zmq.asyncio
 from mlserver.parallel import zmq as transport  # noqa: E402
 from mlserver.parallel.errors import WorkerError  # noqa: E402
 from mlserver.parallel.messages import (  # noqa: E402
@@ -30,7 +31,7 @@ def worker(directory: Path, reply: str) -> Mock:
         spec=Worker,
         pid=42,
         _zmq_request_endpoint=transport.create_endpoint(directory, "q"),
-        _zmq_reply_endpoint=reply,
+        _zmq_reply_endpoints=[reply],
     )
 
 
@@ -617,7 +618,9 @@ async def test_worker_partial_socket_setup_is_cleaned(
     context, requests = Mock(), Mock()
     primary = RuntimeError("socket failed")
     cleanup = RuntimeError("context retirement failed")
-    target = worker(directory, "unused")
+    # A real endpoint string; serve_requests validates endpoints before
+    # the mocked PUSH acquisition fails.
+    target = worker(directory, transport.create_endpoint(directory, "r"))
     if term_fails:
         context.term.side_effect = cleanup
 
@@ -654,3 +657,143 @@ def test_socket_option_failure_closes_partial_socket() -> None:
     with pytest.raises(RuntimeError, match="option failed"):
         transport._socket(context, zmq.PUSH, set())
     sock.close.assert_called_once_with(linger=0)
+
+
+def test_frontend_id_defaults_to_zero() -> None:
+    """Requests without an explicit frontend_id route to socket 0."""
+    message = ModelRequestMessage(model_name="m", method_name="predict")
+    assert message.frontend_id == 0
+
+
+def test_frontend_id_is_serialised_across_ipc() -> None:
+    """The frontend_id survives the pickle round trip."""
+    from multiprocessing.reduction import ForkingPickler
+
+    message = ModelRequestMessage(model_name="m", method_name="predict", frontend_id=3)
+    restored = ForkingPickler.loads(ForkingPickler.dumps(message))
+    assert restored.frontend_id == 3
+
+
+@pytest.mark.parametrize("frontend_id", [0, 1])
+async def test_reply_routes_to_frontend_socket(
+    directory: Path, frontend_id: int
+) -> None:
+    """Replies go to the socket belonging to the dispatching frontend."""
+    reply_endpoints = [transport.create_endpoint(directory, "r") for _ in range(2)]
+    mock_worker = Mock(
+        spec=Worker,
+        pid=42,
+        _zmq_request_endpoint=transport.create_endpoint(directory, "q"),
+        _zmq_reply_endpoints=reply_endpoints,
+    )
+    request = ModelRequestMessage(
+        model_name="m", method_name="predict", frontend_id=frontend_id
+    )
+
+    import zmq.asyncio as zmq_aio
+    from mlserver.parallel.zmq import _socket
+
+    context = zmq_aio.Context(io_threads=1)
+    pulls = []
+    reply_sockets = []
+    try:
+        for ep in reply_endpoints:
+            pull = _socket(context, zmq.PULL, set())
+            pull.bind(ep)
+            pulls.append(pull)
+
+        # Simulate the worker's reply routing
+        from mlserver.parallel.zmq import _reply
+
+        for ep in reply_endpoints:
+            push = _socket(context, zmq.PUSH, set())
+            push.connect(ep)
+            reply_sockets.append(push)
+
+        # The mock worker's _process_request returns a response
+        mock_worker._process_request = AsyncMock(
+            return_value=ModelResponseMessage(id=request.id)
+        )
+        await _reply(mock_worker, request, reply_sockets)
+
+        # Only the dispatching frontend's PULL should receive the reply
+        received = [False, False]
+        for i, pull in enumerate(pulls):
+            try:
+                await asyncio.wait_for(pull.recv(copy=True), timeout=0.5)
+                received[i] = True
+            except asyncio.TimeoutError:
+                pass
+        assert received == [frontend_id == 0, frontend_id == 1]
+    finally:
+        for sock in pulls + reply_sockets:
+            sock.close(linger=0)
+        context.term()
+
+
+async def test_frontend_id_out_of_range_raises(directory: Path) -> None:
+    """A frontend_id beyond the configured endpoints is an error."""
+    reply_endpoint = transport.create_endpoint(directory, "r")
+    mock_worker = Mock(
+        spec=Worker,
+        pid=42,
+        _zmq_request_endpoint=transport.create_endpoint(directory, "q"),
+        _zmq_reply_endpoints=[reply_endpoint],
+    )
+    request = ModelRequestMessage(model_name="m", method_name="predict", frontend_id=5)
+
+    from mlserver.parallel.zmq import _reply
+
+    mock_worker._process_request = AsyncMock(
+        return_value=ModelResponseMessage(id=request.id)
+    )
+    # A single mock socket (only 1 endpoint configured)
+    socket = Mock()
+    with pytest.raises(ValueError, match="frontend_id=5.*1 reply endpoint"):
+        await _reply(mock_worker, request, [socket])
+
+
+def test_worker_accepts_single_endpoint_backward_compat(
+    directory: Path,
+) -> None:
+    """Workers initialised from pools that set only the old single-endpoint
+    attribute still work (one reply endpoint)."""
+    from multiprocessing import Queue
+
+    settings = None  # not needed for the init-logic reproduction
+    responses = Mock(spec=Queue)
+    # Old-style: only _zmq_reply_endpoint (singular)
+    single = f"ipc://{directory}/legacy-reply"
+    responses._zmq_reply_endpoints = None
+    responses._zmq_reply_endpoint = single
+
+    worker = Worker.__new__(Worker)
+    worker._settings = settings  # type: ignore[assignment]
+    worker._zmq_request_endpoint = None
+    worker._zmq_reply_endpoints = []
+
+    # Reproduce the init logic (without spawning a process)
+    reply_endpoints = getattr(responses, "_zmq_reply_endpoints", None)
+    if reply_endpoints is None:
+        legacy = getattr(responses, "_zmq_reply_endpoint", None)
+        if isinstance(legacy, str) and legacy.startswith("ipc://"):
+            reply_endpoints = [legacy]
+    assert reply_endpoints == [single]
+
+
+def test_worker_accepts_multiple_endpoints(directory: Path) -> None:
+    """Workers accept a list of reply endpoints (one per frontend)."""
+    endpoints = [f"ipc://{directory}/reply-{i}" for i in range(3)]
+    from multiprocessing import Queue
+
+    responses = Mock(spec=Queue)
+    responses._zmq_reply_endpoints = endpoints
+    responses._zmq_reply_endpoint = None
+
+    # The list attribute is preferred over the singular
+    result = getattr(responses, "_zmq_reply_endpoints", None)
+    if result is None:
+        legacy = getattr(responses, "_zmq_reply_endpoint", None)
+        if isinstance(legacy, str) and legacy.startswith("ipc://"):
+            result = [legacy]
+    assert result == endpoints

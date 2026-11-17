@@ -2,8 +2,16 @@
 
 In MLServer, each loaded model can be configured separately.
 This configuration will include model information (e.g. metadata about the
-accepted inputs), but also model-specific settings (e.g. number of [parallel
-workers](../user-guide/parallel-inference) to run inference).
+accepted inputs), but also model-specific settings (e.g. the model's
+[content type](../user-guide/content-type) or its [adaptive
+batching](../user-guide/adaptive-batching) window).
+
+Note that the number of parallel inference workers is a **server-level**
+setting (`parallel_workers` in `settings.json`): the model-level
+`parallel_workers` field is deprecated, and its in-process opt-out
+(`parallel_workers: 0`) is rejected when
+[`frontend_workers` is greater than one](../user-guide/parallel-inference).
+To migrate, set the worker count in the server settings instead.
 
 This configuration will usually be provided through a `model-settings.json`
 file which **sits next to the model artifacts**.

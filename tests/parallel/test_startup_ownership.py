@@ -13,8 +13,6 @@ from .test_lifecycle_recovery import assert_worker_models, wait_until
 
 @pytest.fixture(params=["queue", "zmq"])
 def settings(settings, request):
-    if request.param == "zmq":
-        pytest.importorskip("zmq")
     settings.parallel_inference_transport = request.param
     settings.parallel_workers = 1
     settings.model_operation_timeout = 10

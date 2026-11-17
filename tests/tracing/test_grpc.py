@@ -5,7 +5,6 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from mlserver.grpc import dataplane_pb2 as pb
 from mlserver.grpc.dataplane_pb2_grpc import GRPCInferenceServiceStub
 
-
 # Import fixture from `grpc` module
 from ..grpc.conftest import model_infer_request  # noqa: F401
 

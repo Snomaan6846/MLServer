@@ -17,6 +17,10 @@ root of the model repository. They can also be set with environment variables.
 | `rest_binary_tensor` | `false` | `MLSERVER_REST_BINARY_TENSOR` |
 | `rest_worker_binary` | `false` | `MLSERVER_REST_WORKER_BINARY` |
 | `parallel_inference_transport` | `"queue"` | `MLSERVER_PARALLEL_INFERENCE_TRANSPORT` |
+| `frontend_workers` | `1` | `MLSERVER_FRONTEND_WORKERS` |
+| `frontend_max_restarts` | `5` | `MLSERVER_FRONTEND_MAX_RESTARTS` |
+| `parallel_routing_rotation` | `1.0` | `MLSERVER_PARALLEL_ROUTING_ROTATION` |
+| `inference_timeout` | `null` (unbounded) | `MLSERVER_INFERENCE_TIMEOUT` |
 
 For example, the following enables all four options with two worker processes:
 
@@ -30,15 +34,8 @@ For example, the following enables all four options with two worker processes:
 }
 ```
 
-Install the optional `zmq` extra before selecting that transport. In a
-Poetry-managed application, use:
-
-```bash
-poetry add "mlserver[zmq]"
-```
-
-From an MLServer source checkout, use `poetry install -E zmq` instead. Then start
-the repository normally:
+The ZeroMQ transport ships with MLServer (`pyzmq` is a direct dependency), so
+no extra install step is needed. Start the server normally:
 
 ```bash
 poetry run mlserver start .
@@ -61,7 +58,8 @@ is server-wide, check compatibility across all models served by the instance.
 
 All inputs must have complete, correctly sized raw FP32 contents to use this
 path. Other representations and streaming use standard conversion. Models
-with batching settings recover list-based inputs before frontend batching.
+with batching settings recover list-based inputs before the batcher
+merges them (in the workers when parallel inference is enabled).
 
 ### REST JSON in Workers
 
@@ -144,11 +142,28 @@ setting. Inference accounting stays owned by the frontend, including the
 worker's conversion durations, and a malformed frame returns `400` even
 when model lookup fails — matching the JSON path's error priority.
 
+### Ndarray-Native Response Serialisation
+
+Models whose outputs are NumPy arrays (such as the ONNX runtime's default
+codec) get ndarray-native JSON serialisation on the response path: tensor
+data held as an ndarray serialises directly to the flat JSON list of the
+V2 wire format (matching the output's `shape` field) without building
+intermediate Python float lists in the frontend. `NaN` entries serialise
+as `null`, since JSON has no NaN representation. This needs no setting;
+it is automatic whenever the response tensors are array-backed. The gRPC
+converter has an equivalent ndarray-native path, where `NaN` serialises
+natively in protobuf.
+
+REST error responses, including `422` body-validation errors, are rendered
+with the same `orjson`-based encoder as successful responses, so error
+paths avoid the slower default JSON encoding while keeping the same
+bodies and status codes.
+
 ### ZeroMQ Inference Transport
 
 `parallel_inference_transport="zmq"` uses local ZeroMQ IPC sockets for inference
-requests and replies when parallel inference is enabled. It requires the optional
-PyZMQ dependency provided by the `zmq` extra. Model load/unload messages continue
+requests and replies when parallel inference is enabled. PyZMQ ships as a direct
+dependency. Model load/unload messages continue
 to use multiprocessing queues. Pickle serialization and round-robin worker
 selection remain in use; this transport does not provide shared-memory or
 zero-copy dispatch.
@@ -156,7 +171,9 @@ zero-copy dispatch.
 The JSON and gRPC conversion options work with either transport. Compare
 `"queue"` and `"zmq"` at representative loads, including low concurrency. To
 return to the default transport, set `parallel_inference_transport` to
-`"queue"` and restart.
+`"queue"` **and reset `frontend_workers` to `1`** (multi-frontend serving
+requires the ZeroMQ transport; the queue transport is parent-child and
+cannot be shared), then restart.
 
 ## ONNX CUDA Settings
 

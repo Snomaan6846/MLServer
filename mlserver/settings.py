@@ -182,17 +182,37 @@ def _extra_sys_path(extra_path: str):
             pass
 
 
-def _reload_module(import_path: str):
+def _reload_module(import_path: str, model_folder: str | None = None):
     """Reload a module to ensure fresh import in dynamic loading scenarios.
 
-    This is used in development mode when loading runtimes from model folders
-    to ensure we get the latest version of the module.
+    This is used in development mode when loading runtimes from model
+    folders to ensure we get the latest version of the module.
+
+    Only modules that live inside the model's folder are reloaded: those
+    hold the user's model code, which may have been edited since the last
+    load. Shared or installed modules (a runtime package, a test fixtures
+    module) must keep a stable identity — ``importlib.reload`` re-executes
+    a module in place, rebinding every class it defines to a fresh object,
+    which breaks ``isinstance`` checks and live instances holding the old
+    classes across the model lifecycle.
     """
     if not import_path:
         return
 
     module_path, _, _ = import_path.rpartition(".")
     module = importlib.import_module(module_path)
+    if model_folder:
+        source = getattr(module, "__file__", None)
+        if source is None:
+            # No filesystem location (namespace or builtin module):
+            # keep the stable identity.
+            return
+        folder = os.path.realpath(model_folder)
+        if not os.path.realpath(source).startswith(folder + os.sep):
+            # The implementation resolves outside the model's folder —
+            # a shared module, not the folder-local code the dynamic
+            # reload exists to refresh.
+            return
     importlib.reload(module)
 
 
@@ -352,14 +372,44 @@ class Settings(BaseSettings):
     """When parallel inference is enabled, number of workers to run inference
     across."""
 
+    frontend_workers: int = Field(default=1, ge=1, le=64)
+    """Number of frontend processes serving REST and gRPC traffic.
+
+    Each frontend runs the full server stack (REST + gRPC) on the same
+    ports (SO_REUSEPORT). When greater than 1, the inference pool
+    workers are shared across all frontends via the ZeroMQ transport.
+    Requires ``parallel_inference_transport="zmq"``. Default 1 keeps
+    the single-process behaviour exactly as before.
+    """
+
     parallel_inference_transport: Literal["queue", "zmq"] = "queue"
-    """Inference IPC transport; ZeroMQ requires the optional ``zmq`` extra.
+    """Inference IPC transport; ZeroMQ ships as a direct dependency.
 
     Model-control messages retain multiprocessing queues in either mode.
     """
 
     parallel_workers_timeout: int = 5
     """Grace timeout to wait until the workers shut down when stopping MLServer."""
+
+    frontend_max_restarts: int = Field(default=5, ge=0)
+    """Maximum restarts per frontend process before giving up.
+
+    A frontend that dies more times than this is left down; the
+    remaining frontends keep serving. Restart attempts use exponential
+    backoff (1s doubling to 16s).
+    """
+
+    parallel_routing_rotation: float = Field(default=1.0, ge=0)
+    """Seconds between rotations of model-affine worker routing.
+
+    Batched models (``max_batch_size > 1`` and ``max_batch_time > 0``)
+    route all requests for a model to a single worker so its batcher
+    sees the full traffic rate; the assignment rotates across workers
+    over time to preserve execution spread. Models without batching
+    keep round-robin routing. Set to 0 to pin assignments statically.
+    Keep this at least a few times larger than ``max_batch_time`` so
+    batch windows are not fragmented across rotation boundaries.
+    """
 
     model_operation_timeout: float = Field(
         default=DEFAULT_MODEL_OPERATION_TIMEOUT, gt=0
@@ -371,6 +421,16 @@ class Settings(BaseSettings):
 
     worker_start_timeout: float = Field(default=DEFAULT_WORKER_START_TIMEOUT, gt=0)
     """Maximum time in seconds to initialize a worker and replay model state."""
+
+    inference_timeout: float | None = Field(default=None, gt=0)
+    """Maximum time in seconds to wait for a single inference response.
+
+    A worker reply dropped in flight (e.g. a send to a frontend that
+    stopped receiving, dropped after its send deadline) would otherwise
+    leave the request pending forever with no server-side signal.
+    ``None`` (the default) preserves the historical unbounded wait,
+    matching unbounded model execution times.
+    """
 
     environments_dir: str = DEFAULT_ENVIRONMENTS_DIR
     """
@@ -488,6 +548,28 @@ class Settings(BaseSettings):
     Nonparallel models and adaptive batching retain local frontend
     parsing. Standard JSON requests follow ``rest_worker_json``.
     """
+
+    @model_validator(mode="after")
+    def validate_frontend_workers_needs_zmq(self) -> Self:
+        # queue transport uses inherited pipe FDs; not shareable across processes
+        if self.frontend_workers > 1 and self.parallel_inference_transport != "zmq":
+            raise ValueError(
+                f"frontend_workers={self.frontend_workers} requires "
+                f'parallel_inference_transport="zmq" (the queue transport '
+                "is parent-child and cannot be shared across frontend "
+                "processes)"
+            )
+        # multi-frontend scales the frontend of a shared pool; without a
+        # pool each frontend would run its own in-process model copy and
+        # fragment adaptive batching N ways
+        if self.frontend_workers > 1 and self.parallel_workers < 1:
+            raise ValueError(
+                f"frontend_workers={self.frontend_workers} requires "
+                "parallel_workers >= 1 (without a shared inference pool, "
+                "each frontend process would load its own copy of every "
+                "model)"
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_worker_binary_needs_binary_tensor(self) -> Self:
@@ -662,10 +744,17 @@ class ModelParameters(BaseSettings):
     model."""
 
     inference_pool_gid: str | None = None
-    """Inference pool group id to be used to serve this model."""
+    """Inference pool group id for this model.
+
+    Models that share a group id (and environment) are served by the
+    same isolated pool of inference workers; ``None`` uses the default
+    shared pool. See the parallel inference guide for pool routing and
+    isolation semantics.
+    """
 
     autogenerate_inference_pool_gid: bool = False
-    """Flag to autogenerate the inference pool group id for this model."""
+    """Give this model a freshly generated group id, so it gets its own
+    isolated inference worker pool instead of sharing one."""
 
     format: str | None = None
     """Format of the model (only available on certain runtimes)."""
@@ -817,7 +906,7 @@ class ModelSettings(BaseSettings):
                 model_folder,
             )
             with _extra_sys_path(model_folder):
-                _reload_module(implementation)
+                _reload_module(implementation, model_folder)
                 return import_string(implementation)  # type: ignore
 
         # Production mode or no source file: use standard import path only
@@ -873,7 +962,8 @@ class ModelSettings(BaseSettings):
         None,
         deprecated=True,
         description=(
-            "Use the `parallel_workers` field the server wide settings instead."
+            "DEPRECATED: use the server-level `parallel_workers` setting "
+            "instead (or the `MLSERVER_PARALLEL_WORKERS` environment variable)."
         ),
     )
 

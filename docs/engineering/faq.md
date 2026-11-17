@@ -87,7 +87,10 @@ Reloading an already-loaded model performs a rolling deployment: the new version
 
 When `parallel_workers > 1`, MLServer spawns separate Python processes for inference.
 Each worker loads its own copy of the model, bypassing the GIL for CPU-bound workloads.
-The main process dispatches requests to workers via multiprocessing queues.
+The server process dispatches requests to workers over multiprocessing queues or
+ZeroMQ sockets (`parallel_inference_transport`). The frontend layer can also be
+scaled across processes with `frontend_workers` while keeping a single shared
+pool of workers — see [Multi-Frontend Serving](../user-guide/parallel-inference.md#multi-frontend-serving).
 
 ### What is adaptive batching?
 

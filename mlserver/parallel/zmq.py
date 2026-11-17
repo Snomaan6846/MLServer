@@ -66,6 +66,11 @@ def _socket(context: zmq.asyncio.Context, kind: int, owned: set[Any]) -> Any:
         sock.setsockopt(zmq.LINGER, 0)
         if kind == zmq.PUSH:
             sock.setsockopt(zmq.IMMEDIATE, 1)
+            # Bound sends to a frontend that is gone for good (its
+            # restart budget exhausted, no listener will ever return):
+            # an unbounded send would pin the reply task and the
+            # socket forever.
+            sock.setsockopt(zmq.SNDTIMEO, 60_000)
     except BaseException as primary:
         try:
             _close_socket(sock, owned)
@@ -316,18 +321,54 @@ class ParentTransport:
             self._context.term()
 
 
-async def _reply(worker: Worker, request: ModelRequestMessage, replies: Any) -> None:
+async def _reply(
+    worker: Worker, request: ModelRequestMessage, reply_sockets: list[Any]
+) -> None:
     response = await worker._process_request(request)
     if not isinstance(response, ModelResponseMessage):
         raise TypeError("Unexpected worker inference response")
-    await replies.send(ForkingPickler.dumps(response), copy=True)
+    # Route the reply to the frontend that dispatched the request.
+    # frontend_id defaults to 0 (the only frontend at frontend_workers=1).
+    frontend_id = request.frontend_id
+    if frontend_id < 0 or frontend_id >= len(reply_sockets):
+        raise ValueError(
+            f"Request carries frontend_id={frontend_id} but only "
+            f"{len(reply_sockets)} reply endpoints are configured"
+        )
+    try:
+        await reply_sockets[frontend_id].send(ForkingPickler.dumps(response), copy=True)
+    except zmq.Again:
+        # The dispatching frontend is gone for good (restart budget
+        # exhausted): its client connection died with it, so the reply
+        # has no recipient. Drop it instead of failing the whole
+        # worker — only recv and protocol errors are fatal.
+        logger.debug(
+            "Dropped inference reply: the dispatching frontend is no "
+            "longer receiving"
+        )
+
+
+def _worker_reply_endpoints(worker: Worker) -> list[str]:
+    """Resolve the worker's reply endpoints, accepting the legacy singular form."""
+    endpoints = getattr(worker, "_zmq_reply_endpoints", None)
+    if endpoints is None:
+        # Backward compat: workers (and test doubles) carrying the
+        # single-endpoint attribute only.
+        single = getattr(worker, "_zmq_reply_endpoint", None)
+        if isinstance(single, str) and single.startswith("ipc://"):
+            endpoints = [single]
+    if not endpoints or not all(
+        isinstance(ep, str) and ep.startswith("ipc://") for ep in endpoints
+    ):
+        raise ValueError("ZeroMQ worker requires its pool's reply endpoints")
+    return endpoints
 
 
 async def serve_requests(worker: Worker) -> None:
     """Serve data-plane requests alongside the worker's control-plane loop."""
     context = zmq.asyncio.Context(io_threads=1)
     requests: Any = None
-    replies: Any = None
+    reply_sockets: list[Any] = []
     pending: set[asyncio.Task] = set()
     owned: set[Any] = set()
     # Child-only native resources never cross spawn. A failed cleanup remains
@@ -346,9 +387,13 @@ async def serve_requests(worker: Worker) -> None:
 
     try:
         requests = _socket(context, zmq.PULL, owned)
-        replies = _socket(context, zmq.PUSH, owned)
         requests.bind(getattr(worker, "_zmq_request_endpoint"))
-        replies.connect(getattr(worker, "_zmq_reply_endpoint"))
+        # One reply socket per frontend endpoint — the worker sends each
+        # response on the socket belonging to the dispatching frontend.
+        for endpoint in _worker_reply_endpoints(worker):
+            reply = _socket(context, zmq.PUSH, owned)
+            reply.connect(endpoint)
+            reply_sockets.append(reply)
         while True:
             incoming = requests.recv(copy=True)
             done, _ = await asyncio.wait(
@@ -361,7 +406,7 @@ async def serve_requests(worker: Worker) -> None:
                 raise TypeError("Unexpected ZeroMQ inference request")
             # Queue workers also schedule async methods independently. Keep
             # that concurrency instead of serializing models that await I/O.
-            task = asyncio.create_task(_reply(worker, request, replies))
+            task = asyncio.create_task(_reply(worker, request, reply_sockets))
             pending.add(task)
             task.add_done_callback(completed)
             await asyncio.sleep(0)

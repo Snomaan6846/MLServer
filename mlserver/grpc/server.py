@@ -96,6 +96,10 @@ class GRPCServer:
     def _get_options(self) -> list[tuple[str, Any]]:
         options_dict = {}
 
+        if self._settings.frontend_workers > 1:
+            # Kernel-level connection balancing across frontend processes
+            options_dict["grpc.so_reuseport"] = 1
+
         if self._settings._custom_grpc_server_settings:
             logger.warning(
                 "gRPC custom configuration is out of support. Use as your own risk"
@@ -126,6 +130,10 @@ class GRPCServer:
         await self._server.wait_for_termination()
 
     async def stop(self, sig: int | None = None):
+        # stop() before start() (e.g. a failed startup unwinding) has
+        # no server to shut down; nothing to do.
+        if getattr(self, "_server", None) is None:
+            return
         logger.info("Waiting for gRPC server shutdown")
         # TODO: Read from config
         await self._server.stop(grace=5)

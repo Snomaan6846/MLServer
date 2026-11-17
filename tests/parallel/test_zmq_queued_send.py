@@ -52,7 +52,6 @@ async def test_stop_before_forwarded_send_starts(
     with tempfile.TemporaryDirectory(prefix="mls-forward-") as directory:
         values = dict(spec=Worker, pid=42)
         if transport == "zmq":
-            pytest.importorskip("zmq")
             from mlserver.parallel.zmq import create_endpoint
 
             endpoint = create_endpoint(Path(directory), "r")
@@ -247,7 +246,6 @@ async def test_old_identity_cannot_send_or_close_replacement_with_same_pid():
     # Method: Run the production child socket coroutine on a Worker double, stop a
     # blocked old send and exchange actual replies with the replacement before and after
     # stale cleanup.
-    pytest.importorskip("zmq")
     from mlserver.parallel.zmq import ParentTransport, create_endpoint, serve_requests
     from mlserver.parallel.messages import ModelResponseMessage
     from unittest.mock import AsyncMock
@@ -353,7 +351,6 @@ async def test_stopped_identity_bookkeeping_expires_after_owned_work_settles():
     # reference are released.
     # Method: Cycle 100 Worker doubles through response completion and stop, collect
     # them and inspect weak references plus response/socket maps.
-    pytest.importorskip("zmq")
     from mlserver.parallel.dispatcher import AsyncResponses
     from mlserver.parallel.messages import ModelResponseMessage
     from mlserver.parallel.zmq import ParentTransport, create_endpoint
@@ -392,7 +389,7 @@ async def test_queued_cross_loop_send_observes_transport_failure(monkeypatch, fa
     # sends, response waiters and caller threads settle.
     # Method: Intercept forwarding to finish real close or inject a malformed native
     # reply before send begins; inspect completion and captured loop errors.
-    zmq = pytest.importorskip("zmq")
+    import zmq
     from mlserver.parallel.zmq import create_endpoint
 
     owner = asyncio.get_running_loop()
@@ -500,7 +497,6 @@ async def test_real_sigchld_invalidates_the_selected_worker_instance(
     # invalidation, and replacement serving succeeds.
     # Method: Observe forget_worker on a real one-worker ZeroMQ registry, kill the
     # selected child and await replacement routing before querying worker metadata.
-    pytest.importorskip("zmq")
     from mlserver.parallel.registry import InferencePoolRegistry
 
     settings.parallel_inference_transport = "zmq"
@@ -583,7 +579,6 @@ async def test_revocation_cleanup_failure_still_confirms_all_native_exits(
     # and repeated close preserves the initiating error.
     # Method: Wrap real forget_worker to raise once after revocation, close the pool and
     # inspect actual exit codes, queue endpoints/feeders and the repeated result.
-    pytest.importorskip("zmq")
     from mlserver.parallel.pool import InferencePool
     from .test_startup_ownership import assert_retired
 

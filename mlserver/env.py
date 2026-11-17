@@ -156,8 +156,19 @@ class Environment:
         # Workers receive a copy during spawn; deletion belongs to the parent.
         if not self._delete_env or self._owner_pid != os.getpid():
             return
+        if sys.is_finalizing():
+            # Reached via __del__ during interpreter shutdown: modules
+            # are being torn down, so logging or rmtree here is noise
+            # (and may fail half-way). Leave the directory behind for
+            # the operator instead.
+            return
         logger.info("Cleaning up environment")
         try:
+            # NOTE: a directory configured both as an environment_path
+            # pool (delete_env=False) and via a tarball (delete_env=True)
+            # aliases two owners — releasing the tarball side removes it
+            # out from under the path pool. The two mechanisms must not
+            # point at the same directory.
             shutil.rmtree(self._env_path)
         except FileNotFoundError:
             if os.path.lexists(self._env_path):

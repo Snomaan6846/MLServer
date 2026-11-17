@@ -3,6 +3,7 @@ from fastapi.responses import Response, HTMLResponse, StreamingResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 
 from collections.abc import AsyncIterator
+import asyncio
 
 from ..types import (
     MetadataModelResponse,
@@ -132,9 +133,79 @@ class Endpoints:
         infer_stream = self._data_plane.infer_stream(
             payloads, model_name, model_version
         )
-
         sse_stream = _as_sse(infer_stream)
-        return StreamingResponse(content=sse_stream, media_type="text/event-stream")
+
+        # Surface stream errors BEFORE the response starts: once the SSE
+        # headers are sent, a failing generator can only truncate the
+        # stream — an empty 200 the client cannot distinguish from a
+        # legitimate one. The stream runs in a producer task so its
+        # context managers (ContextVar set/reset in the data plane)
+        # enter AND exit within one asyncio context; the endpoint and
+        # starlette read from the queue without touching them.
+        # maxsize=1 restores the natural backpressure of direct
+        # iteration: a fast model with a slow client buffers at most
+        # one encoded event, not the entire stream.
+        queue: asyncio.Queue[bytes | Exception | None] = asyncio.Queue(maxsize=1)
+
+        async def producer():
+            try:
+                async for event in sse_stream:
+                    await queue.put(event)
+                await queue.put(None)  # end-of-stream sentinel
+            except Exception as exc:  # noqa: BLE001 - forwarded to the reader
+                await queue.put(exc)
+
+        task = asyncio.create_task(producer())
+
+        # Await the first event (or the error) before returning: a
+        # rejection surfaces as a clean HTTP error here. A client
+        # disconnect during the prefetch cancels the endpoint task at
+        # this await — the producer must be cancelled and settled
+        # too, or it runs the entire model stream into a queue nobody
+        # reads.
+        try:
+            first = await queue.get()
+        except BaseException:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            raise
+        if isinstance(first, Exception):
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            raise first
+        if first is None:
+            # Empty stream: return an empty SSE response.
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+            async def _empty_sse() -> AsyncIterator[bytes]:
+                return
+                yield  # pragma: no cover - makes this an async generator
+
+            return StreamingResponse(
+                content=_empty_sse(), media_type="text/event-stream"
+            )
+
+        async def sse_from_queue() -> AsyncIterator[bytes]:
+            try:
+                yield first
+                while True:
+                    item = await queue.get()
+                    if item is None or isinstance(item, Exception):
+                        break
+                    yield item
+            finally:
+                # Cancel-and-settle (the codebase discipline): on the
+                # normal end path the producer is already done and the
+                # gather returns instantly; on client disconnect it
+                # unwinds the data plane's context managers now, not
+                # at some later loop iteration.
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+        return StreamingResponse(
+            content=sse_from_queue(), media_type="text/event-stream"
+        )
 
 
 async def _as_sse(

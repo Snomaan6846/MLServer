@@ -1,6 +1,9 @@
 import asyncio
+import json
+import os
 from collections.abc import AsyncIterator
 from copy import deepcopy
+from pathlib import Path
 from types import MethodType
 from unittest.mock import MagicMock
 
@@ -11,6 +14,38 @@ from mlserver.parallel.model import ParallelModel
 from mlserver.types import InferenceRequest, InferenceResponse
 from mlserver.batching.hooks import load_batching, unload_batching
 from mlserver.batching.adaptive import AdaptiveBatcher
+
+from tests.fixtures import SumModel
+
+
+@pytest.fixture(autouse=True)
+def _batch_record_env(tmp_path, monkeypatch):
+    """Expose a batch-record file to worker-side models.
+
+    Runs before the ``mlserver`` fixture so worker processes (forked or
+    spawned during its setup) inherit the path.
+    """
+    monkeypatch.setenv("BATCH_RECORD_PATH", str(tmp_path / "batch-records.jsonl"))
+
+
+class RecordingBatchModel(SumModel):
+    """Worker-side model recording the row count of every merged batch.
+
+    Batch formation is observed where the model executes: the merged
+    request arrives either from the worker-side batcher
+    (frontend_workers > 1) or from the main-process batcher
+    (frontend_workers == 1) — one record per execution either way.
+    """
+
+    async def predict(self, payload: InferenceRequest) -> InferenceResponse:
+        record_path = os.environ.get("BATCH_RECORD_PATH")
+        if record_path:
+            with open(record_path, "a") as records:
+                records.write(
+                    json.dumps({"model": self.name, "rows": payload.inputs[0].shape[0]})
+                    + "\n"
+                )
+        return await super().predict(payload)
 
 
 async def test_batching_predict(
@@ -199,7 +234,7 @@ async def test_unload_batching_restores_predict_and_predict_stream_methods(
 
 
 async def test_load_batching_for_parallel_model(sum_model: MLModel):
-    """load_batching is installed on the main-process ParallelModel."""
+    """The load_batching hook wraps any model it is given (hook unit test)."""
     sum_model.settings.max_batch_size = 10
     sum_model.settings.max_batch_time = 0.4
 
@@ -210,16 +245,20 @@ async def test_load_batching_for_parallel_model(sum_model: MLModel):
 
 
 async def test_parallel_registry_batches_per_model_and_maps_responses(
-    mlserver, sum_model_settings, inference_request: InferenceRequest, mocker
+    mlserver, sum_model_settings, inference_request: InferenceRequest
 ):
-    """The server registry batches requests before dispatching them to workers."""
+    """Worker-side batchers merge requests per model and map responses."""
     settings_by_model = []
     for name in ("batched-model-a", "batched-model-b"):
         settings = deepcopy(sum_model_settings)
         settings.name = name
         settings.max_batch_size = 2
         settings.max_batch_time = 0.2
+        settings.implementation = RecordingBatchModel
         settings_by_model.append(settings)
+
+    record_path = Path(os.environ["BATCH_RECORD_PATH"])
+    record_path.unlink(missing_ok=True)
 
     models = []
 
@@ -227,13 +266,11 @@ async def test_parallel_registry_batches_per_model_and_maps_responses(
         for settings in settings_by_model:
             models.append(await mlserver._model_registry.load(settings))
 
-        batchers = [AdaptiveBatcher.get_batcher(model) for model in models]
-        assert all(batchers)
-        dispatch_spies = [
-            mocker.patch.object(batcher, "_predict_fn", wraps=batcher._predict_fn)
-            for batcher in batchers
-            if batcher is not None
-        ]
+        # At frontend_workers=1 (this fixture's default) the batcher
+        # stays in the MAIN process, wrapping the ParallelModel — the
+        # previous behaviour, restored. The workers do not install
+        # their own batcher in this topology.
+        assert all(AdaptiveBatcher.get_batcher(model) is not None for model in models)
 
         # Use different values and minibatch sizes so that incorrect merging,
         # response slicing, or request-to-response association is observable.
@@ -292,10 +329,239 @@ async def test_parallel_registry_batches_per_model_and_maps_responses(
         assert [list(response.outputs[0].data) for response in responses] == [
             expected for expected in expected_outputs
         ]
-        for dispatch_spy in dispatch_spies:
-            dispatch_spy.assert_awaited_once()
-            merged_request = dispatch_spy.await_args.args[0]
-            assert merged_request.inputs[0].shape == [3, 3]
+        # Exactly one merged execution per model, each observing all
+        # three rows: at frontend_workers=1 the MAIN-process batcher
+        # merges, and the worker's model sees the merged request.
+        records = [json.loads(line) for line in record_path.read_text().splitlines()]
+        assert sorted((r["model"], r["rows"]) for r in records) == [
+            ("batched-model-a", 3),
+            ("batched-model-b", 3),
+        ]
     finally:
         for model in models:
             await mlserver._model_registry.unload(model.name)
+
+
+async def test_evict_cancels_queued_request(
+    sum_model: MLModel, inference_request: InferenceRequest, mocker
+):
+    """A remote cancellation evicts a queued request before it merges."""
+    from mlserver.batching.adaptive import _CurrentDispatchId
+
+    sum_model.settings.max_batch_size = 5
+    sum_model.settings.max_batch_time = 0.3
+    await load_batching(sum_model)
+    try:
+        batcher = AdaptiveBatcher.get_batcher(sum_model)
+        assert batcher is not None
+
+        # Signal when the request is admitted to the batch queue — a
+        # fixed sleep cannot prove the collector queued it.
+        admitted = asyncio.Event()
+        original_queue = batcher._queue_request
+
+        async def signalling_queue(req):
+            result = await original_queue(req)
+            admitted.set()
+            return result
+
+        mocker.patch.object(batcher, "_queue_request", signalling_queue)
+
+        token = _CurrentDispatchId.set("dispatch-evict")
+        try:
+            task = asyncio.create_task(sum_model.predict(inference_request))
+            await asyncio.wait_for(admitted.wait(), timeout=5)
+            assert batcher.evict("dispatch-evict") is True
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, timeout=2)
+        finally:
+            _CurrentDispatchId.reset(token)
+    finally:
+        await unload_batching(sum_model)
+
+
+async def test_evicted_request_never_executes(
+    sum_model: MLModel, inference_request: InferenceRequest, mocker
+):
+    """The evicted request does not reach the merged execution."""
+    from mlserver.batching.adaptive import _CurrentDispatchId
+
+    sum_model.settings.max_batch_size = 5
+    sum_model.settings.max_batch_time = 0.25
+    await load_batching(sum_model)
+    try:
+        batcher = AdaptiveBatcher.get_batcher(sum_model)
+        assert batcher is not None
+        spy = mocker.patch.object(batcher, "_predict_fn", wraps=batcher._predict_fn)
+
+        admitted = asyncio.Event()
+        original_queue = batcher._queue_request
+
+        async def signalling_queue(req):
+            result = await original_queue(req)
+            admitted.set()
+            return result
+
+        mocker.patch.object(batcher, "_queue_request", signalling_queue)
+
+        token = _CurrentDispatchId.set("dispatch-ghost")
+        try:
+            task = asyncio.create_task(sum_model.predict(inference_request))
+            await asyncio.wait_for(admitted.wait(), timeout=5)
+            assert batcher.evict("dispatch-ghost") is True
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, timeout=2)
+        finally:
+            _CurrentDispatchId.reset(token)
+
+        # Wait for the batch window to close (the collector task
+        # drains the empty batch) before checking the spy.
+        await asyncio.sleep(sum_model.settings.max_batch_time + 0.1)
+        spy.assert_not_awaited()
+    finally:
+        await unload_batching(sum_model)
+
+
+async def test_evict_unknown_id_is_false(sum_model: MLModel):
+    sum_model.settings.max_batch_size = 5
+    sum_model.settings.max_batch_time = 0.1
+    await load_batching(sum_model)
+    batcher = AdaptiveBatcher.get_batcher(sum_model)
+    assert batcher is not None
+    assert batcher.evict("never-queued") is False
+
+
+async def test_single_frontend_zmq_keeps_batcher_in_main_process(
+    prometheus_registry,
+    sum_model_settings,
+    inference_request: InferenceRequest,
+):
+    """End-to-end at frontend_workers=1 with the zmq transport: the
+    batcher stays in the MAIN process (the previous behaviour) and
+    still merges concurrent requests into one execution per model."""
+    from mlserver import MLServer
+    from mlserver.settings import Settings
+    from mlserver.utils import generate_uuid
+    from tests.utils import get_available_ports
+
+    http_port, grpc_port, metrics_port = get_available_ports(3)
+    settings = Settings(
+        http_port=http_port,
+        grpc_port=grpc_port,
+        metrics_port=metrics_port,
+        metrics_endpoint="",
+        parallel_workers=1,
+        parallel_inference_transport="zmq",
+        model_operation_timeout=30,
+    )
+    batched = deepcopy(sum_model_settings)
+    batched.name = "zmq-batched"
+    batched.max_batch_size = 2
+    batched.max_batch_time = 0.2
+    batched.implementation = RecordingBatchModel
+
+    record_path = Path(os.environ["BATCH_RECORD_PATH"])
+    record_path.unlink(missing_ok=True)
+
+    server = MLServer(settings)
+    task = asyncio.create_task(server.start())
+    try:
+        model = await server._model_registry.load(batched)
+        # The batcher wraps the parallel wrapper in the MAIN process.
+        assert AdaptiveBatcher.get_batcher(model) is not None
+
+        requests = [
+            inference_request.copy(
+                deep=True,
+                update={
+                    "id": generate_uuid(),
+                    "inputs": [
+                        inference_request.inputs[0].copy(
+                            update={"shape": [1, 3], "data": values}
+                        )
+                    ],
+                },
+            )
+            for values in ([[1, 2, 3]], [[10, 20, 30]])
+        ]
+        responses = await asyncio.gather(
+            *[model.predict(request) for request in requests]
+        )
+        assert [list(response.outputs[0].data) for response in responses] == [
+            [6],
+            [60],
+        ]
+        # One merged execution observed at the model: the main-process
+        # batcher coalesced both requests before dispatch.
+        records = [json.loads(line) for line in record_path.read_text().splitlines()]
+        assert [(r["model"], r["rows"]) for r in records] == [("zmq-batched", 2)]
+    finally:
+        await server.stop()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_no_pool_batches_in_process_unchanged(
+    prometheus_registry,
+    sum_model_settings,
+    inference_request: InferenceRequest,
+):
+    """At parallel_workers=0 (no inference pool) the batcher wraps the
+    in-process model in the main registry — the branch untouched by
+    the frontend work, locked here as the no-change contract."""
+    from mlserver import MLServer
+    from mlserver.settings import Settings
+    from mlserver.utils import generate_uuid
+    from tests.utils import get_available_ports
+
+    http_port, grpc_port, metrics_port = get_available_ports(3)
+    settings = Settings(
+        http_port=http_port,
+        grpc_port=grpc_port,
+        metrics_port=metrics_port,
+        metrics_endpoint="",
+        parallel_workers=0,
+    )
+    batched = deepcopy(sum_model_settings)
+    batched.name = "inproc-batched"
+    batched.max_batch_size = 2
+    batched.max_batch_time = 0.2
+    batched.implementation = RecordingBatchModel
+
+    record_path = Path(os.environ["BATCH_RECORD_PATH"])
+    record_path.unlink(missing_ok=True)
+
+    server = MLServer(settings)
+    task = asyncio.create_task(server.start())
+    try:
+        model = await server._model_registry.load(batched)
+        # In-process batcher attached by the main registry.
+        assert AdaptiveBatcher.get_batcher(model) is not None
+
+        requests = [
+            inference_request.copy(
+                deep=True,
+                update={
+                    "id": generate_uuid(),
+                    "inputs": [
+                        inference_request.inputs[0].copy(
+                            update={"shape": [1, 3], "data": values}
+                        )
+                    ],
+                },
+            )
+            for values in ([[1, 2, 3]], [[10, 20, 30]])
+        ]
+        responses = await asyncio.gather(
+            *[model.predict(request) for request in requests]
+        )
+        assert [list(response.outputs[0].data) for response in responses] == [
+            [6],
+            [60],
+        ]
+        records = [json.loads(line) for line in record_path.read_text().splitlines()]
+        assert [(r["model"], r["rows"]) for r in records] == [("inproc-batched", 2)]
+    finally:
+        await server.stop()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)

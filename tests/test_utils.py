@@ -553,3 +553,25 @@ async def test_owned_background_operation_has_independent_deadline():
     finally:
         release.set()
         await asyncio.gather(task, return_exceptions=True)
+
+
+def test_consume_send_failure_retrieves_late_exception():
+    """The helper marks a failed future's exception as retrieved, so
+    fire-and-forget sends do not log 'exception was never retrieved'
+    when a dead peer's pipe breaks."""
+    from concurrent.futures import Future
+
+    from mlserver.utils import consume_send_failure
+
+    failed = Future()
+    failed.set_exception(RuntimeError("broken pipe"))
+    consume_send_failure(failed)
+    # The exception is now retrieved; a second access returns it
+    # without the unretrieved-warning side effect.
+    assert isinstance(failed.exception(), RuntimeError)
+
+    cancelled = Future()
+    cancelled.cancel()
+    # A cancelled future is skipped, not queried.
+    consume_send_failure(cancelled)
+    assert cancelled.cancelled()

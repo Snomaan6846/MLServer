@@ -2,9 +2,10 @@ SHELL := /bin/bash
 VERSION := $(shell sed 's/^__version__ = "\(.*\)"/\1/' ./mlserver/version.py)
 IMAGE_NAME := seldonio/mlserver
 
-.PHONY: install-dev install-dev-odh install-dev-odh-cuda \
+.PHONY: install-dev install-dev-odh install-dev-odh-cuda install-diagrams \
 	_generate generate run build \
-	push-test push test test-cuda lint fmt version clean licenses
+	push-test push test test-cuda lint fmt version clean licenses \
+	diagrams
 
 .PHONY: bootstrap-test
 bootstrap-test:
@@ -24,6 +25,12 @@ install-dev-odh:
 install-dev-odh-cuda:
 	poetry sync --with odh-runtimes-cuda --with odh-runtimes-cuda-dev --with dev
 
+install-diagrams:
+	# Additive (poetry install, not sync) so packages from other
+	# dependency groups already present in the venv are kept.
+	poetry install --with diagrams
+	poetry run playwright install chromium
+
 lock:
 	echo "Locking mlserver deps..."
 	poetry lock
@@ -42,6 +49,22 @@ _generate_dataplane: # "private" target to call `fmt` after `generate`
 generate-model-repository: | _generate_model_repository fmt
 
 generate-dataplane: | _generate_dataplane fmt
+
+.PHONY: diagrams
+diagrams: # Regenerate the architecture diagrams in docs/diagrams/
+	# Prerequisites: `make install-diagrams` (installs the optional
+	# `diagrams` dependency group and the playwright chromium browser)
+	# plus graphviz (`dot`) and gifsicle on PATH for rendering and GIF
+	# optimisation. The Manim-based inference-flow script
+	# (inference_flow_animation.py) is not rendered here: Manim is a
+	# heavy optional dependency and that animation is not referenced
+	# from the docs.
+	python3 docs/diagrams/system_context.py
+	python3 docs/diagrams/worker_pool.py
+	python3 docs/diagrams/deployment_topology.py
+	python3 docs/diagrams/build_architecture_animated.py
+	python3 docs/diagrams/build_animated_diagram.py
+	python3 docs/diagrams/capture_gif.py
 
 generate: | _generate_model_repository _generate_dataplane fmt
 

@@ -27,7 +27,6 @@ from mlserver.logging import get_logger
 from mlserver.utils import generate_uuid
 from mlserver.batching.requests import _merge_parameters
 
-
 CHOICES_TRANSPORT = ["rest", "grpc"]
 FINALIZER_REPORT_FREQUENCY = 100
 RETRY_SLEEP_TIME = 1
