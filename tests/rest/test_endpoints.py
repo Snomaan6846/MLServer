@@ -500,3 +500,19 @@ async def test_metadata_without_binary_tensor_omits_extension(
 
     metadata = MetadataServerResponse.model_validate(response.json())
     assert "binary_tensor_data" not in metadata.extensions
+
+
+async def test_infer_validation_error_renders_orjson(rest_client: AsyncClient):
+    # The RequestValidationError handler renders through the engine's orjson
+    # Response: the echoed input's scientific-notation floats use orjson's
+    # single-digit exponent (1e-7), not stdlib json's (1e-07).
+    endpoint = "/v2/models/sum-model/infer"
+    response = await rest_client.post(endpoint, json={"inputs": {"bad": 1e-7}})
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/json")
+    detail = response.json()["detail"]
+    assert detail[0]["type"] == "list_type"
+    assert detail[0]["loc"] == ["body", "inputs"]
+    assert b"1e-7" in response.content
+    assert b"1e-07" not in response.content
