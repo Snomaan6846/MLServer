@@ -10,6 +10,7 @@ from mlserver.codecs import RequestCodec, NumpyCodec, StringCodec
 from mlserver.codecs.numpy import NumpyRequestCodec
 from mlserver.codecs.pandas import PandasCodec
 from mlserver.model import MLModel
+from mlserver.settings import ModelSettings
 
 from .fixtures import TextModel, TextStreamModel
 
@@ -257,3 +258,27 @@ def test_decode_request(
         np.testing.assert_array_equal(decoded_request, expected)  # type: ignore
     else:
         assert decoded_request == expected
+
+
+class _StreamingModel(MLModel):
+    """Overrides predict_stream: multi-shot."""
+
+    async def predict_stream(self, payloads):
+        async for payload in payloads:
+            yield await self.predict(payload)
+            yield await self.predict(payload)
+
+
+async def test_stream_is_single_shot_default(
+    sum_model: MLModel,
+):
+    """A model without a predict_stream override is single-shot."""
+    assert sum_model.stream_is_single_shot() is True
+
+
+async def test_stream_is_single_shot_overridden(
+    sum_model_settings: ModelSettings,
+):
+    """A model that overrides predict_stream is multi-shot."""
+    model = _StreamingModel(sum_model_settings)
+    assert model.stream_is_single_shot() is False

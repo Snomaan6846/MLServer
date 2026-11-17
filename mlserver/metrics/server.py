@@ -1,3 +1,4 @@
+import socket
 import uvicorn
 import os
 import signal
@@ -7,6 +8,7 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI
 
 from ..settings import Settings
+from ..utils import _reuse_port_sockets
 from .logging import logger
 from .prometheus import PrometheusEndpoint, stop_metrics
 
@@ -23,6 +25,9 @@ class MetricsServer:
     def __init__(self, settings: Settings):
         self._settings = settings
         self._endpoint = PrometheusEndpoint(settings)
+        # Pre-bound SO_REUSEPORT socket in the supervised topology
+        # (frontend_workers >= 1).
+        self._shared_port_sockets: "list[socket.socket] | None" = None
         self._app = self._get_app()
 
     def _get_app(self):
@@ -46,7 +51,10 @@ class MetricsServer:
             "Prometheus scraping endpoint can be accessed on "
             f"{metrics_server}{self._settings.metrics_endpoint}"
         )
-        await self._server.serve()
+        if self._shared_port_sockets is not None:
+            await self._server.serve(sockets=self._shared_port_sockets)
+        else:
+            await self._server.serve()
 
     def _get_config(self):
         kwargs = {}
@@ -65,6 +73,15 @@ class MetricsServer:
             }
         )
 
+        if self._settings.frontend_workers >= 1:
+            # Pre-bound SO_REUSEPORT sockets, handed to Server.serve()
+            # below (uvicorn's supported pattern for shared ports).
+            # Every resolved address gets a listener, matching the
+            # direct-server path.
+            self._shared_port_sockets = _reuse_port_sockets(
+                self._settings.host, self._settings.metrics_port
+            )
+
         if self._settings.logging_settings:
             # If not None, use ours. Otherwise, let Uvicorn fall back on its
             # own config.
@@ -80,3 +97,9 @@ class MetricsServer:
 
         await stop_metrics(self._settings, os.getpid())
         self._server.handle_exit(sig=sig, frame=None)
+        # Do NOT close the shared socket here: Uvicorn's graceful
+        # shutdown closes the asyncio servers it built from the passed
+        # sockets (the fd is closed exactly once when serve() returns).
+        # Closing it in this handler would close it a second time — and
+        # the fd number can be reused in between, so that second close
+        # could hit an unrelated resource.

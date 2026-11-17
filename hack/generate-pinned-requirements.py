@@ -50,7 +50,6 @@ import time
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
-
 PLATFORM_TAGS: dict[str, list[str]] = {
     "x86_64": ["manylinux2014_x86_64", "manylinux_2_34_x86_64", "linux_x86_64"],
     "aarch64": ["manylinux2014_aarch64", "manylinux_2_34_aarch64", "linux_aarch64"],

@@ -3,7 +3,13 @@ import numpy as np
 
 from typing import Any
 
-from mlserver.codecs.numpy import NumpyCodec, convert_nan, to_datatype, to_dtype
+from mlserver.codecs.numpy import (
+    NumpyCodec,
+    convert_nan,
+    set_ndarray_response_pipeline,
+    to_datatype,
+    to_dtype,
+)
 from mlserver.types import RequestInput, ResponseOutput, Parameters, Datatype
 
 
@@ -119,6 +125,7 @@ def test_convert_nan_preserves_non_scalar_values():
     ],
 )
 def test_encode_output(payload: np.ndarray, expected: ResponseOutput):
+    set_ndarray_response_pipeline(True)
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
 
     assert response_output.name == expected.name
@@ -153,6 +160,8 @@ def test_encode_output(payload: np.ndarray, expected: ResponseOutput):
 )
 def test_encode_output_keeps_flat_ndarray(dtype):
     """Non-BYTES payloads stay ndarrays: flat views, no element churn."""
+    set_ndarray_response_pipeline(True)
+
     payload = np.zeros((2, 3), dtype=dtype)
 
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
@@ -162,8 +171,39 @@ def test_encode_output_keeps_flat_ndarray(dtype):
     assert root.ndim == 1
     assert len(root) == payload.size
     assert root.dtype == payload.dtype
-    # A contiguous payload ravels to a view (no data copy)
-    assert root.base is not None
+    # The encoded root is a detached snapshot of the payload: it owns
+    # its buffer and does not alias the model's output.
+    assert root.base is None
+    assert not np.shares_memory(root, payload)
+
+
+def test_encode_output_masked_array_keeps_legacy_list_representation():
+    """Masked entries must serialise as None (the legacy wire format).
+
+    An ndarray root would carry the MaskedArray subclass through to
+    the wire encoders, whose tobytes() substitutes the array's
+    fill_value (7.0 here) instead of a missing-value marker.
+    """
+    payload = np.ma.array(
+        [42.0, 2.0], dtype="float32", mask=[True, False], fill_value=7.0
+    )
+
+    response_output = NumpyCodec.encode_output(name="foo", payload=payload)
+
+    assert response_output.data.root == [None, 2.0]
+    assert not isinstance(response_output.data.root, np.ndarray)
+
+
+def test_encode_output_masked_array_without_masked_entries():
+    """A MaskedArray with no masked entries still routes through the
+    list path (type-based): its values pass through unchanged."""
+    payload = np.ma.array(
+        [1.0, 2.0], dtype="float32", mask=[False, False], fill_value=7.0
+    )
+
+    response_output = NumpyCodec.encode_output(name="foo", payload=payload)
+
+    assert response_output.data.root == [1.0, 2.0]
 
 
 @pytest.mark.parametrize(
@@ -178,6 +218,8 @@ def test_encode_output_canonicalises_nan_payloads(dtype, canonical_nan_bits):
     """NaN payloads canonicalise to the standard quiet NaN (like the
     historic list pipeline's tolist -> None -> float("nan") round-trip),
     and the payload's own buffer is never mutated."""
+    set_ndarray_response_pipeline(True)
+
     payload = np.array([1.5, 2.5], dtype=dtype)
     uint_dtype = np.dtype(f"u{payload.itemsize}")
     raw = payload.view(uint_dtype)
@@ -194,14 +236,20 @@ def test_encode_output_canonicalises_nan_payloads(dtype, canonical_nan_bits):
     assert payload.tobytes() == original_bytes
 
 
-def test_encode_output_no_copy_without_nan():
-    """NaN-free payloads ravel to a view — the copy only happens when a
-    NaN needs canonicalising."""
+def test_encode_output_nan_free_root_is_snapshot():
+    """NaN-free payloads still get a detached root: encoding always
+    returns a stable snapshot, whether or not normalisation is needed."""
+    set_ndarray_response_pipeline(True)
+
     payload = np.array([[1.5, 2.5], [3.5, 4.5]], dtype=np.float32)
 
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
 
-    assert response_output.data.root.base is payload
+    root = response_output.data.root
+    assert root.base is None
+    # Mutating the payload after encoding must not change the response
+    payload[0, 0] = 99.0
+    assert root[0] == 1.5
 
 
 @pytest.mark.parametrize(
@@ -325,6 +373,20 @@ def test_to_datatype(dtype, datatype):
         # Nested list whose outer length matches the declared count: fromiter
         # cannot consume it and must fall back
         ([[1.0, 2.0], [3.0, 4.0]], "FP32", [2]),
+        # Nested BOOL whose outer length matches the declared count:
+        # fromiter would silently convert the inner list to True
+        # (bool([False]) is True) — must fall back to preserve [[False]]
+        ([[False]], "BOOL", [1]),
+        # Mixed nested BOOL — the nested item hides behind a leading
+        # scalar: only a full scan catches it (fromiter would convert
+        # [2] to True, silently changing the wire values).
+        ([1, [2]], "BOOL", [2]),
+        # Flat numeric lists whose length matches the declared shape:
+        # these ENTER the fromiter fast path (the cases above all fall
+        # through to the generic path).
+        ([1.0, 2.0, 3.0, 4.0], "FP32", [4]),
+        ([1, 2, 3], "INT32", [3]),
+        ([True, False], "BOOL", [2]),
         # Declared shape does not match the flat length: skipped, generic path
         ([1.0, 2.0, 3.0], "FP32", [4]),
         # Variable-size dtype (BYTES string fallthrough): fromiter raises,
@@ -344,69 +406,85 @@ def test_decode_input_flat_list_fast_path_fallbacks(
 
     try:
         decoded = NumpyCodec.decode_input(request_input)
-        result = ("ok", decoded.tobytes(), str(decoded.dtype))
+        result: tuple[str, Any, str] = ("ok", decoded.tobytes(), str(decoded.dtype))
     except Exception as error:
-        result = ("raise", type(error).__name__)
+        result = ("raise", type(error).__name__, "")
 
     dtype = to_dtype(request_input)
     try:
         reference = np.array(data, dtype=dtype).reshape(shape)
-        expected = ("ok", reference.tobytes(), str(reference.dtype))
+        expected: tuple[str, Any, str] = (
+            "ok",
+            reference.tobytes(),
+            str(reference.dtype),
+        )
     except Exception as error:
-        expected = ("raise", type(error).__name__)
+        expected = ("raise", type(error).__name__, "")
 
     assert result == expected
 
 
 def test_encode_output_does_not_mutate_source_buffer():
-    """The model's own buffer is never modified by encoding — the ravel
-    view may alias it, so any normalisation must happen on a copy."""
+    """The model's own buffer is never modified by encoding — the
+    encoded root is a detached copy, so normalisation cannot write
+    through to the model's output."""
+    set_ndarray_response_pipeline(True)
+    # Use a non-canonical NaN (payload bit set) so the test verifies
+    # normalisation actually happens — a canonical NaN in the source
+    # would pass even if normalisation were removed or wrote the same
+    # bits through the source buffer.
     payload = np.array([1.5, np.nan, 3.0], dtype=np.float32)
+    # Set a payload bit on the NaN to make it non-canonical
+    payload.view(np.uint32)[1] = 0x7FC00001
     original_bits = payload.tobytes()
 
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
 
-    # Source bits unchanged
+    # Source bits unchanged (the non-canonical NaN is preserved)
     assert payload.tobytes() == original_bits
-    # Encoded root has the canonical NaN
+    assert payload.view(np.uint32)[1] == 0x7FC00001
+    # Encoded root has the canonical quiet NaN (payload bit cleared)
     assert response_output.data.root.view(np.uint32)[1] == 0x7FC00000
 
 
-def test_encode_output_ravel_view_aliases_source():
-    """For NaN-free payloads, the encoded root is a view of the model's
-    output (no copy) — the documented aliasing contract."""
+def test_encode_output_root_detached_from_source():
+    """The encoded root never shares memory with the model's output —
+    the response is an immutable snapshot taken at encode time."""
+    set_ndarray_response_pipeline(True)
     payload = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
 
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
 
-    # The root shares memory with the source (documented aliasing)
+    # The root does not share memory with the source (detached snapshot)
     root = response_output.data.root
-    assert np.shares_memory(root, payload)
+    assert not np.shares_memory(root, payload)
+    assert root.base is None
 
 
-def test_encode_output_reused_buffer_stale_data():
-    """Documents the aliasing caveat: a model that returns a mutated
-    reused buffer across predict() calls would see stale data in the
-    response. This is the known limitation, tested here to pin the
-    behaviour (not to endorse the pattern)."""
+def test_encode_output_reused_buffer_isolated():
+    """A model that reuses its output buffer across predict() calls must
+    not corrupt in-flight responses: each encoding captures the state of
+    the buffer at encode time."""
     buffer = np.zeros(4, dtype=np.float32)
 
     # First call
     output_1 = NumpyCodec.encode_output(name="foo", payload=buffer)
-    # Model mutates the buffer between calls (the anti-pattern)
+    # Model mutates the buffer between calls (the reuse pattern)
     buffer[0] = 99.0
     # Second call
     output_2 = NumpyCodec.encode_output(name="foo", payload=buffer)
 
-    # The second encoding sees the mutated value (aliasing)
+    # The second encoding sees the mutated value
     assert output_2.data.root[0] == 99.0
-    # The first response's root ALSO sees it (same buffer) — documented
-    assert output_1.data.root[0] == 99.0
+    # The first response is unaffected — it captured the original state
+    assert output_1.data.root[0] == 0.0
 
 
 def test_decode_input_invalid_datatype_raises():
     """An unknown datatype string raises a pydantic ValidationError."""
-    with pytest.raises(Exception):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
         RequestInput(name="foo", shape=[2], datatype="NOT_A_TYPE", data=[1, 2])
 
 
@@ -419,3 +497,123 @@ def test_encode_output_zero_dimension_array():
     assert response_output.datatype == "FP32"
     assert response_output.shape == [1]
     assert response_output.data.root[0] == np.float32(3.14)
+
+
+def test_ndarray_pipeline_topology_gate():
+    """The bootstrap pin: which topologies get ndarray IPC payloads.
+
+    2+ frontend processes only — the pipeline relocates list
+    materialisation to the frontend loops and is a win only when N of
+    them share it. At frontend_workers == 1 (the supervised single
+    frontend) there is exactly one loop: the same saturation profile
+    as the direct server, where the relocation measured as a p99
+    regression (FINDINGS-json-zmq-tail.md). This pin exists so the
+    gate cannot drift from the batcher placement gate
+    (frontend_workers >= 1) in either direction.
+    """
+    from mlserver.codecs.numpy import ndarray_response_pipeline_for
+
+    assert ndarray_response_pipeline_for(0) is False  # direct server
+    assert ndarray_response_pipeline_for(1) is False  # one supervised frontend
+    assert ndarray_response_pipeline_for(2) is True
+    assert ndarray_response_pipeline_for(4) is True
+    assert ndarray_response_pipeline_for(64) is True
+
+
+def test_encode_output_default_is_list_payload():
+    """Default (direct server, frontend_workers=0) topology: master's data flow — the
+    codec materialises the Python element list, IPC carries lists, and
+    every wire boundary takes its legacy path."""
+    payload = np.array([[1.5, 2.5], [3.5, 4.5]], dtype=np.float32)
+
+    response_output = NumpyCodec.encode_output(name="foo", payload=payload)
+
+    root = response_output.data.root
+    assert isinstance(root, list)
+    assert root == [1.5, 2.5, 3.5, 4.5]
+
+
+def test_encode_output_multi_frontend_keeps_ndarray():
+    """Multi-frontend opt-in: the ndarray-native pipeline stays on."""
+    set_ndarray_response_pipeline(True)
+    payload = np.array([[1.5, 2.5], [3.5, 4.5]], dtype=np.float32)
+
+    response_output = NumpyCodec.encode_output(name="foo", payload=payload)
+
+    root = response_output.data.root
+    assert isinstance(root, np.ndarray)
+    np.testing.assert_array_equal(
+        root, np.array([1.5, 2.5, 3.5, 4.5], dtype=np.float32)
+    )
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        np.float32,
+        np.float64,
+        np.int64,
+        np.int32,
+        np.bool_,
+    ],
+)
+def test_encode_output_gate_values_identical(dtype):
+    """Both gate states produce identical element values — the gate
+    changes payload representation and placement, never values."""
+    payload = np.array([[1, 2], [3, 4]], dtype=dtype)
+
+    set_ndarray_response_pipeline(True)
+    nd_root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
+    set_ndarray_response_pipeline(False)
+    list_root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
+
+    assert isinstance(nd_root, np.ndarray)
+    assert isinstance(list_root, list)
+    assert nd_root.tolist() == list_root
+
+
+def test_encode_output_default_path_nan_passes_through():
+    """Default (fw=1) path: NaN stays a float in the materialised list.
+
+    orjson renders it as null on REST JSON (byte-identical to master's
+    convert_nan -> None -> null wire form) and gRPC typed contents
+    serialise it natively — both pinned by wire tests elsewhere.
+    """
+    payload = np.array([1.5, np.nan, 3.0], dtype=np.float32)
+
+    root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
+
+    assert isinstance(root, list)
+    assert root[0] == 1.5
+    assert root[2] == 3.0
+    assert isinstance(root[1], float) and np.isnan(root[1])
+
+
+def test_encode_output_default_path_nan_free_values_untouched():
+    """Negative: NaN-free payloads carry plain floats, no mapping."""
+    payload = np.array([1.5, 2.5], dtype=np.float32)
+
+    root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
+
+    assert root == [1.5, 2.5]
+
+
+def test_encode_output_default_path_all_nan():
+    """Edge: every entry NaN."""
+    payload = np.array([np.nan, np.nan], dtype=np.float64)
+
+    root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
+
+    assert len(root) == 2
+    assert all(np.isnan(value) for value in root)
+
+
+def test_encode_output_default_path_nan_rest_json_renders_null():
+    """Wire pin: the default path's NaN list renders as null —
+    byte-identical to master's wire form."""
+    from mlserver.codecs.json import encode_to_json_bytes
+
+    payload = np.array([1.5, np.nan], dtype=np.float32)
+    root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
+
+    assert encode_to_json_bytes({"data": root}) == b'{"data":[1.5,null]}'

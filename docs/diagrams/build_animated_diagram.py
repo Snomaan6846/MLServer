@@ -101,6 +101,7 @@ html = f"""<!DOCTYPE html>
   .arrow-purple {{ stroke: #7D3C98; }}
   .arrow-teal   {{ stroke: #117A65; }}
   .arrow-cyan   {{ stroke: #0097A7; }}
+  .arrow-gold   {{ stroke: #B58900; }}
 
   .cluster {{
     fill: none; stroke-width: 1.5; stroke-dasharray: 6 4;
@@ -150,6 +151,9 @@ html = f"""<!DOCTYPE html>
     <marker id="ah-cyan" viewBox="0 0 10 10" refX="9" refY="5"
       markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#0097A7"/></marker>
+    <marker id="ah-gold" viewBox="0 0 10 10" refX="9" refY="5"
+      markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#B58900"/></marker>
   </defs>
 
   <!-- ═══ TITLE ═══ -->
@@ -200,7 +204,9 @@ html = f"""<!DOCTYPE html>
     fill="#4B9A1E" stroke="#4B9A1E"/>
   <text x="415" y="363" class="cluster-title" fill="#4B9A1E">MLServer Container</text>
 
-{node("pod", "MLServer", 415, 425, size=56, sublabel="(main process)")}
+{node("pod", "Frontends × N", 270, 425, sublabel="SO_REUSEPORT")}
+{node("pod", "Supervisor", 415, 425, sublabel="owns shared pool")}
+{node("pod", "Workers", 560, 425, sublabel="one copy per model")}
 
   <!-- ═══ Shipped Runtimes ═══ -->
   <rect x="150" y="510" width="530" height="120" class="cluster-solid"
@@ -233,21 +239,21 @@ html = f"""<!DOCTYPE html>
   <!-- Ingress → gRPC SVC (right then down) -->
 {arrow("M 95,235 L 330,235 L 330,258", "arrow-blue", "flow-right", "ah-blue")}
 
-  <!-- REST SVC → MLServer pod (down then right) -->
-{arrow("M 210,315 L 210,400 L 380,400", "arrow-green", "flow-down", "ah-green")}
+  <!-- REST SVC → Frontends (down then right) -->
+{arrow("M 210,315 L 210,425 L 238,425", "arrow-green", "flow-down", "ah-green")}
 
-  <!-- gRPC SVC → MLServer pod (down then right) -->
-{arrow("M 330,315 L 330,400 L 390,400", "arrow-green", "flow-down", "ah-green")}
+  <!-- gRPC SVC → Frontends (down then into the top) -->
+{arrow("M 330,315 L 330,368 L 250,368 L 250,393", "arrow-green", "flow-down", "ah-green")}
 
-  <!-- Metrics SVC → MLServer pod (down) -->
-{arrow("M 450,315 L 450,400 L 440,400", "arrow-green", "flow-down", "ah-green")}
+  <!-- Metrics SVC → container (metrics served by every frontend) -->
+{arrow("M 450,315 L 450,342", "arrow-green", "flow-down", "ah-green")}
 
   <!-- KServe → InferenceService CRD (down then left) -->
 {arrow("M 600,200 L 600,258", "arrow-blue", "flow-down", "ah-blue",
        "reconcile", 618, 230)}
 
-  <!-- InferenceService CRD → MLServer pod (down then left) -->
-{arrow("M 580,315 L 580,400 L 445,400", "arrow-blue", "flow-down", "ah-blue",
+  <!-- InferenceService CRD → Supervisor (down then left) -->
+{arrow("M 580,315 L 580,425 L 447,425", "arrow-blue", "flow-down", "ah-blue",
        "manage pod", 530, 360)}
 
   <!-- Prometheus → Metrics SVC (left then down) -->
@@ -257,26 +263,38 @@ html = f"""<!DOCTYPE html>
   <!-- Prometheus → Grafana (horizontal) -->
 {arrow("M 780,165 L 805,165", "arrow-red", "flow-right", "ah-red")}
 
-  <!-- Security ConfigMap → MLServer (left then down) -->
-{arrow("M 895,282 L 680,282 L 680,425 L 448,425", "arrow-red", "flow-left", "ah-red",
+  <!-- Security ConfigMap → MLServer Pod (mount) -->
+{arrow("M 895,282 L 688,282", "arrow-red", "flow-left", "ah-red",
        "mount", 790, 272)}
 
-  <!-- MLServer → Runtimes (down then left/right) -->
-{arrow("M 380,460 L 380,490 L 225,490 L 225,548", "arrow-cyan", "flow-down", "ah-cyan")}
-{arrow("M 395,460 L 395,490 L 345,490 L 345,548", "arrow-cyan", "flow-down", "ah-cyan")}
-{arrow("M 435,460 L 435,490 L 465,490 L 465,548", "arrow-cyan", "flow-down", "ah-cyan")}
-{arrow("M 450,460 L 450,490 L 585,490 L 585,548", "arrow-cyan", "flow-down", "ah-cyan")}
+  <!-- Frontends ↔ Supervisor (control pipes) -->
+{arrow("M 298,415 L 385,415", "arrow-gold", "flow-right", "ah-gold",
+       "lifecycle", 341, 405)}
 
-  <!-- MLServer → Model Store (right then down) -->
-{arrow("M 445,445 L 690,445 L 690,570 L 750,570", "arrow-orange", "flow-right", "ah-orange",
+  <!-- Supervisor → Workers (owns the shared pool) -->
+{arrow("M 443,425 L 528,425", "arrow-purple", "flow-right", "ah-purple",
+       "owns", 485, 415)}
+
+  <!-- Frontends → Workers (ZeroMQ inference traffic) -->
+{arrow("M 270,391 L 270,381 L 560,381 L 560,391", "arrow-red", "flow-right", "ah-red",
+       "ZeroMQ", 320, 374)}
+
+  <!-- Workers → Runtimes (down then left/right) -->
+{arrow("M 540,453 L 540,498 L 225,498 L 225,548", "arrow-cyan", "flow-down", "ah-cyan")}
+{arrow("M 550,453 L 550,498 L 345,498 L 345,548", "arrow-cyan", "flow-down", "ah-cyan")}
+{arrow("M 560,453 L 560,498 L 465,498 L 465,548", "arrow-cyan", "flow-down", "ah-cyan")}
+{arrow("M 570,453 L 570,498 L 585,498 L 585,548", "arrow-cyan", "flow-down", "ah-cyan")}
+
+  <!-- Workers → Model Store (right then down) -->
+{arrow("M 588,443 L 690,443 L 690,566 L 752,566", "arrow-orange", "flow-right", "ah-orange",
        "load artifacts", 690, 510)}
 
-  <!-- MLServer → S3 (right then down) -->
-{arrow("M 450,440 L 700,440 L 700,475 L 910,475 L 910,548", "arrow-orange", "flow-right", "ah-orange",
+  <!-- Workers → S3 (right then down) -->
+{arrow("M 588,450 L 700,450 L 700,475 L 910,475 L 910,548", "arrow-orange", "flow-right", "ah-orange",
        "fetch remote", 810, 465)}
 
-  <!-- Response path back: MLServer → REST → Ingress → Client -->
-{arrow("M 395,395 L 195,395 L 195,310", "arrow-green", "flow-left", "ah-green")}
+  <!-- Response path back: Frontends → REST → Ingress → Client -->
+{arrow("M 244,410 L 195,410 L 195,310", "arrow-green", "flow-left", "ah-green")}
 {arrow("M 195,270 L 80,270 L 80,240", "arrow-green", "flow-left", "ah-green")}
 {arrow("M 65,200 L 65,135", "arrow-green", "flow-up", "ah-green")}
 

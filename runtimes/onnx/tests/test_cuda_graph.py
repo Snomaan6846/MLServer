@@ -91,18 +91,20 @@ class Session:
 
 
 @pytest.fixture
-def device_values(monkeypatch):
+def device_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[list[str], list[DeviceValue], list[tuple[Any, Any]]]:
     events: list[str] = []
     allocated: list[DeviceValue] = []
-    devices = []
+    devices: list[tuple[Any, Any]] = []
 
-    def from_numpy(array, device, ordinal):
+    def from_numpy(array: np.ndarray, device: Any, ordinal: Any) -> DeviceValue:
         devices.append((device, ordinal))
         value = DeviceValue(array, events)
         allocated.append(value)
         return value
 
-    def from_shape(shape, dtype, device, ordinal):
+    def from_shape(shape: Any, dtype: Any, device: Any, ordinal: Any) -> DeviceValue:
         return from_numpy(np.zeros(shape, dtype=dtype), device, ordinal)
 
     monkeypatch.setattr(

@@ -585,3 +585,48 @@ class TestBatchingCompatibility:
 
         restored = getattr(payload.inputs[0].data, "root", payload.inputs[0].data)
         assert isinstance(restored, np.ndarray)
+
+
+def test_binary_output_itemsize_mismatch_falls_back_to_json():
+    """A response array whose byte width differs from the declared
+    datatype cannot pack losslessly: the output falls back to inline
+    JSON (protocol-legal) instead of silently truncating or padding —
+    the same check the gRPC raw path raises on."""
+    import numpy as np
+
+    from mlserver.rest.binary import _encode_output_bytes
+
+    # int32 array declared INT64: widths differ (4 vs 8 bytes).
+    output = Mock()
+    output.datatype = "INT64"
+    output.data = np.array([1, 2], dtype=np.int32)
+    assert _encode_output_bytes(output) is None
+
+    # Same-width kind conversion still packs (values convert exactly).
+    output2 = Mock()
+    output2.datatype = "FP64"
+    output2.data = np.array([1, 2], dtype=np.int64)
+    packed = _encode_output_bytes(output2)
+    assert packed == np.array([1, 2], dtype=np.float64).tobytes()
+
+
+def test_binary_output_big_endian_normalises_to_little_endian():
+    """A big-endian response array packs as little-endian bytes (the
+    wire format's requirement), matching the little-endian array's
+    output exactly."""
+    import numpy as np
+
+    from mlserver.rest.binary import _encode_output_bytes
+
+    big_endian = np.array([1.5, -2.5], dtype=">f4")
+    little_endian = np.array([1.5, -2.5], dtype="<f4")
+
+    output_be = Mock()
+    output_be.datatype = "FP32"
+    output_be.data = big_endian
+    output_le = Mock()
+    output_le.datatype = "FP32"
+    output_le.data = little_endian
+
+    assert _encode_output_bytes(output_be) == _encode_output_bytes(output_le)
+    assert _encode_output_bytes(output_be) == little_endian.tobytes()

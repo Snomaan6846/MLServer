@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import signal
 
 from mlserver.repository.factory import ModelRepositoryFactory
@@ -9,7 +10,7 @@ from .logging import configure_logger
 from .registry import MultiModelRegistry
 from .handlers import DataPlane, ModelRepositoryHandlers
 from .parallel import InferencePoolRegistry
-from .batching import load_batching, unload_batching
+from .batching import load_batching, unload_batching, warn_batching_misconfigured
 from .rest import RESTServer
 from .grpc import GRPCServer
 from .metrics import MetricsServer
@@ -18,11 +19,54 @@ from .utils import logger
 HANDLED_SIGNALS = [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT]
 
 
+def _freeze_startup_heap() -> None:
+    """Move the startup heap to the GC's permanent generation.
+
+    collect() first (so no startup garbage is frozen), then freeze:
+    frozen objects are excluded from every future collection, so
+    request-driven gen-0/gen-1 scans no longer traverse the resident
+    imports/models/code objects. Trade-off (recorded, standard for
+    gc.freeze): cyclic garbage among frozen objects is never
+    collected — bounded to objects alive at startup, one-time, and
+    unload does not unfreeze (a startup model later unloaded leaves
+    its frozen graph resident).
+    """
+    gc.collect()
+    gc.freeze()
+
+
 class MLServer:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, inference_pool_registry=None):
         self._settings = settings
         self._live: bool = False
         self._stop_task: asyncio.Task | None = None
+
+        # Response payload topology: the ndarray pipeline only fits at
+        # 2+ frontend processes (ndarray_response_pipeline_for) — the
+        # direct server and the single supervised frontend both keep
+        # master's list-based data flow.
+        from .codecs.numpy import (
+            ndarray_response_pipeline_for,
+            set_ndarray_response_pipeline,
+        )
+
+        set_ndarray_response_pipeline(
+            ndarray_response_pipeline_for(settings.frontend_workers)
+        )
+
+        if settings.frontend_workers >= 1 and inference_pool_registry is None:
+            # Only the CLI entry point spawns the supervisor; a
+            # programmatic MLServer(settings) embed would otherwise run
+            # single-process with the setting silently ignored.
+            # Frontend children construct MLServer with the shared
+            # pool registry, so they do not take this path.
+            logger.warning(
+                "frontend_workers=%s requires the 'mlserver start' CLI "
+                "entry point, which spawns the frontend supervisor; a "
+                "programmatically constructed MLServer runs "
+                "single-process regardless of this setting.",
+                settings.frontend_workers,
+            )
         self._startup_model_tasks: list[asyncio.Task] = []
         self._server_tasks: list[asyncio.Task] = []
         self._add_signal_handlers()
@@ -32,14 +76,16 @@ class MLServer:
             self._metrics_server = MetricsServer(self._settings)
 
         self._inference_pool_registry = None
-        if self._settings.parallel_workers:
+        if inference_pool_registry is not None:
+            # Shared-pool topology: the frontend dispatches to workers owned
+            # by the supervisor's pool (see mlserver/frontend.py).
+            self._inference_pool_registry = inference_pool_registry
+        elif self._settings.parallel_workers:
             # Only load inference pool if parallel inference has been enabled
             on_worker_stop = []
             if self._metrics_server:
                 on_worker_stop = [self._metrics_server.on_worker_stop]
 
-            # When using parallel workers, batching is applied to the main
-            # process' ParallelModel before dispatch.
             self._inference_pool_registry = InferencePoolRegistry(
                 self._settings,
                 on_worker_stop=on_worker_stop,
@@ -52,6 +98,12 @@ class MLServer:
         self._data_plane = DataPlane(
             settings=self._settings, model_registry=self._model_registry
         )
+        # The DataPlane's stream-check cache invalidates on model
+        # lifecycle; the registry stores the hook lists by reference, so
+        # appending here (after the DataPlane exists) is equivalent to
+        # constructor wiring.
+        self._on_model_load.append(self._data_plane.on_model_load)
+        self._on_model_unload.append(self._data_plane.on_model_unload)
         self._model_repository_handlers = ModelRepositoryHandlers(
             repository=self._model_repository,
             model_registry=self._model_registry,
@@ -62,36 +114,80 @@ class MLServer:
         self._create_servers()
 
     def _create_model_registry(self) -> MultiModelRegistry:
-        on_model_load = [
+        # Kept on self: the DataPlane appends its cache-invalidation
+        # hooks after it is constructed (it needs the registry, so it
+        # cannot exist yet here) — the registry stores these lists by
+        # reference, so appending later is equivalent to constructor
+        # wiring.
+        self._on_model_load = [
             self.add_custom_handlers,
             load_batching,
         ]
-        on_model_unload = [
+        self._on_model_unload = [
             unload_batching,
             self.remove_custom_handlers,
         ]
         if not self._inference_pool_registry:
             return MultiModelRegistry(
-                on_model_load=on_model_load,
-                on_model_unload=on_model_unload,
+                on_model_load=self._on_model_load,
+                on_model_unload=self._on_model_unload,
                 model_operation_timeout=self._settings.model_operation_timeout,
             )
 
-        # Batch the main-process ParallelModel before dispatching merged
-        # requests to the inference workers.
-        on_model_load = [
-            self._inference_pool_registry.load_model,
+        # The adaptive batcher wraps the model at its point of execution.
+        # In the supervised topology (frontend_workers >= 1) the worker's
+        # registry installs it (one batcher in the shared worker sees
+        # every frontend's traffic — a per-frontend batcher would only
+        # see 1/N of it). At frontend_workers == 0 (the default, direct
+        # server) the batcher stays in the MAIN process, wrapping the
+        # parallel wrapper exactly as before the multi-frontend change:
+        # direct deployments keep their previous behaviour. Models that
+        # opt out of parallel inference (model-level parallel_workers=0)
+        # always run in-process and always get the main-process batcher.
+        batching_in_main = self._settings.frontend_workers == 0
+
+        async def _pool_load(model):
+            loaded = await self._inference_pool_registry.load_model(model)
+            batched = (
+                model.settings.max_batch_size > 1 and model.settings.max_batch_time > 0
+            )
+            # The pooled paths below skip load_batching for models it
+            # would not wrap; its misconfiguration warning must still
+            # fire, or pooled deployments lose the diagnosis.
+            warn_batching_misconfigured(model)
+            if loaded is model:
+                # Pool returned the model unchanged (no parallel inference
+                # for this model); apply batching in-process.
+                if batched:
+                    return await load_batching(model)
+                return loaded
+            if batched and batching_in_main:
+                # Single-frontend topology: wrap the parallel wrapper in
+                # the main process (the previous behaviour); the worker
+                # skipped its own batcher install for this topology.
+                return await load_batching(loaded)
+            return loaded
+
+        self._on_model_load = [
+            _pool_load,
             self.add_custom_handlers,
-            load_batching,
         ]
-        on_model_unload = [
-            unload_batching,
-            self.remove_custom_handlers,
-            self._inference_pool_registry.unload_model,
-        ]
+        if batching_in_main:
+            # Teardown while the wrapped instance is still in hand, then
+            # the standard chain (a no-op for models without a batcher).
+            self._on_model_unload = [
+                unload_batching,
+                self.remove_custom_handlers,
+                self._inference_pool_registry.unload_model,
+            ]
+        else:
+            self._on_model_unload = [
+                self.remove_custom_handlers,
+                self._inference_pool_registry.unload_model,
+            ]
         return MultiModelRegistry(
-            on_model_load=on_model_load,
-            on_model_unload=on_model_unload,
+            on_model_load=self._on_model_load,
+            on_model_unload=self._on_model_unload,
             model_initialiser=self._inference_pool_registry.model_initialiser,
             model_operation_timeout=self._settings.model_operation_timeout,
         )
@@ -152,10 +248,41 @@ class MLServer:
             await asyncio.gather(*self._startup_model_tasks)
             self._startup_model_tasks.clear()
 
-            # Mark startup complete only if all models loaded successfully
-            self._data_plane.startup_complete()
+            # Freeze the startup heap (imports, models, code objects)
+            # into the GC's permanent generation: these objects are
+            # long-lived and never garbage, and rescanning them during
+            # request-driven collections was measured at 3-5% of wall
+            # time under concurrent streaming load (ssebench campaign
+            # findings, 2026-11-22; the same pattern documented
+            # industry-wide — Instagram's gc.freeze, Rippling's and
+            # Close's tail-latency write-ups). collect() first so no
+            # startup garbage gets frozen.
+            _freeze_startup_heap()
 
-            if not models_settings and not self._settings.empty_registry_readiness:
+            # Mark startup complete only if all models loaded successfully.
+            # With a shared pool, defer until the supervisor confirms all
+            # startup models have been applied (StartupComplete message);
+            # the SharedPoolRegistry calls startup_complete on receipt.
+            if (
+                hasattr(self._inference_pool_registry, "startup_models_pending")
+                and self._inference_pool_registry.startup_models_pending
+            ):
+                logger.info(
+                    "Startup models pending broadcast; deferring " "startup_complete"
+                )
+                startup_models_pending = True
+            else:
+                self._data_plane.startup_complete()
+                startup_models_pending = False
+
+            if (
+                not models_settings
+                and not self._settings.empty_registry_readiness
+                and not startup_models_pending
+            ):
+                # A frontend in the shared-pool topology always starts
+                # with an empty registry (models arrive by broadcast):
+                # the warning only applies when nothing is coming.
                 logger.warning(
                     "No models were loaded at startup and empty_registry_readiness "
                     "is False, so the server will report not ready until a model is "

@@ -52,11 +52,10 @@ async def test_raw_model_error_logs_one_worker_traceback(
     if transport == "queue":
         response = await error_worker._process_request(envelope)
     else:
-        pytest.importorskip("zmq")
         from mlserver.parallel.zmq import _reply
 
         socket = SimpleNamespace(send=AsyncMock())
-        await _reply(error_worker, envelope, socket)
+        await _reply(error_worker, envelope, [socket])
         response = ForkingPickler.loads(socket.send.call_args.args[0])
     assert isinstance(response.exception, WorkerError)
     assert response.exception.status_code == 400

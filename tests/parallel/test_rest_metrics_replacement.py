@@ -18,8 +18,6 @@ from ..utils import RESTClient
 def settings(
     settings: Settings, tmp_path: Path, request: pytest.FixtureRequest
 ) -> Settings:
-    if request.param == "zmq":
-        pytest.importorskip("zmq")
     settings.parallel_workers = 1
     settings.parallel_inference_transport = request.param
     settings.rest_worker_json = True

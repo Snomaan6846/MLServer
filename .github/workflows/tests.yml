@@ -83,7 +83,6 @@ jobs:
         tox-env:
           - mlserver-conda
           - mlserver-venv
-          - mlserver-venv-zmq
         is-pr:
           - ${{ github.event_name == 'pull_request' }}
         exclude:
@@ -191,7 +190,6 @@ jobs:
         tox-env:
           - all-runtimes-conda
           - all-runtimes-venv
-          - all-runtimes-venv-zmq
         is-pr:
           - ${{ github.event_name == 'pull_request' }}
         exclude:

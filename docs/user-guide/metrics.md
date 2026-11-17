@@ -23,6 +23,8 @@ These internal queues are used for [adaptive batching](./adaptive-batching) and
 | `pool_cleanup_failures_total`   | Number of failed inference pool cleanup operations.                 |
 | `batch_request_queue`           | Queue size for the [adaptive batching](./adaptive-batching) queue.  |
 | `parallel_request_queue`        | Queue size for the [inference workers](./parallel-inference) queue. |
+| `mlserver_live_frontends`       | Number of live [frontend processes](./parallel-inference); scrape any frontend — the value is aggregated across the supervisor and frontends through Prometheus multiprocess mode. Alert when it stays below `frontend_workers` (including zero after the restart budget is exhausted). |
+| `mlserver_frontend_restarts_total` | Total frontend process restarts, labelled by `frontend_id`.      |
 
 ### REST Server Metrics
 

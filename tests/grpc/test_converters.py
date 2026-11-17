@@ -293,6 +293,9 @@ def test_modelinferresponse_raw_preserves_large_outputs():
 def test_modelinferresponse_ndarray_contents_match_list(data):
     """Typed-contents conversion of ndarray roots matches the equivalent
     Python-list representation byte for byte."""
+    from mlserver.codecs.numpy import set_ndarray_response_pipeline
+
+    set_ndarray_response_pipeline(True)
     values = np.asarray([data], dtype=np.float32)
     ndarray_output = NumpyCodec.encode_output(name="output-0", payload=values)
     list_output = types.ResponseOutput(
@@ -628,3 +631,25 @@ def test_repositoryindexresponse_from_types(repository_index_response):
         assert expected.version == grpc_model.version
         assert expected.state == grpc_model.state
         assert expected.reason == grpc_model.reason
+
+
+def test_modelinferresponse_default_path_nan_serialises_natively():
+    """Default (fw=1) path: NaN entries serialise natively in typed
+    contents instead of raising the pre-ndarray TypeError (master's
+    behaviour when convert_nan mapped NaN to None ahead of protobuf)."""
+    import math
+
+    output = types.ResponseOutput(
+        name="output-0",
+        datatype=types.Datatype.FP32,
+        shape=[2],
+        data=types.TensorData(root=[1.5, float("nan")]),
+    )
+
+    pb_object = ModelInferResponseConverter.from_types(
+        types.InferenceResponse(model_name="model", outputs=[output])
+    )
+
+    contents = list(pb_object.outputs[0].contents.fp32_contents)
+    assert contents[0] == 1.5
+    assert math.isnan(contents[1])

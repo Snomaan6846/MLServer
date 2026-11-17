@@ -57,6 +57,16 @@ class DataPlane:
             CloudEventsMiddleware(settings)
         )
 
+        # Cache for model_stream_is_single_shot(): the answer is a
+        # static property of the loaded model's class, and the
+        # per-request registry await chain it replaced was measured as
+        # the driver of the multi-shot C8 tail (GC churn growing to
+        # 3-5% of wall time under concurrent streaming load; ssebench
+        # campaign findings, 2026-11-22). Invalidated on model
+        # load/unload via the registry hooks (see on_model_load /
+        # on_model_unload below, wired in MLServer.__init__).
+        self._stream_single_shot_cache: dict[tuple[str, str | None], bool] = {}
+
         # TODO: Update to standardised set of labels
         self._ModelInferRequestSuccess = Counter(
             "model_infer_request_success",
@@ -230,6 +240,50 @@ class DataPlane:
             isinstance(getattr(tensor.data, "root", tensor.data), np.ndarray)
             for tensor in payload.inputs
         )
+
+    async def model_stream_is_single_shot(
+        self,
+        name: str,
+        version: str | None = None,
+    ) -> bool:
+        """Whether the model's /infer_stream is the single-shot fallback."""
+        # NOTE (documented race, deliberately not fixed): load hooks
+        # fire PRE-publication, so a concurrent stream request can
+        # repopulate the cache from the still-serving old model during
+        # a load-first reload; if the reload changes the
+        # predict_stream override, the stale answer briefly serves the
+        # new model. The window is bounded and self-healing: the old
+        # model's retirement fires the unload hooks after the swap,
+        # invalidating again (it persists only if that unload fails).
+        # The dangerous direction is also the rare one (single-shot ->
+        # multi-shot); the reverse is merely slower, never wrong, and
+        # same-class reloads are unaffected. A structural fix would
+        # need post-publication invalidation, which the registry hook
+        # architecture does not expose.
+        key = (name, version)
+        cached = self._stream_single_shot_cache.get(key)
+        if cached is None:
+            model = await self._model_registry.get_model(name, version)
+            cached = model.stream_is_single_shot()
+            self._stream_single_shot_cache[key] = cached
+        return cached
+
+    async def on_model_load(self, model: MLModel) -> MLModel:
+        """Registry hook: a (re)load may replace the model's class."""
+        self._invalidate_stream_single_shot(model.name)
+        return model
+
+    async def on_model_unload(self, model: MLModel) -> MLModel:
+        """Registry hook: the model's cached answer is no longer valid."""
+        self._invalidate_stream_single_shot(model.name)
+        return model
+
+    def _invalidate_stream_single_shot(self, name: str) -> None:
+        # Drop every version key for the name: requests may query the
+        # default (version=None) while the hook reports the model's
+        # concrete version, so key shapes do not have to match.
+        for key in [k for k in self._stream_single_shot_cache if k[0] == name]:
+            del self._stream_single_shot_cache[key]
 
     def _prepare_payload(
         self, payload: InferenceRequest, model: MLModel

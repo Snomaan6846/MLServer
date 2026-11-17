@@ -42,6 +42,11 @@ def _generate_metadata_index(
     return metadata_index
 
 
+# Shared with the parallel model wrapper's error translation: a single
+# constant prevents the two literals from drifting apart.
+PREDICT_NOT_IMPLEMENTED = "predict() method not implemented"
+
+
 class MLModel:
     """
     Abstract inference runtime which exposes the main interface to interact
@@ -97,7 +102,7 @@ class MLModel:
         **This method can be overriden to implement your custom inference
         logic.**
         """
-        raise NotImplementedError("predict() method not implemented")
+        raise NotImplementedError(PREDICT_NOT_IMPLEMENTED)
 
     async def predict_stream(
         self, payloads: AsyncIterator[InferenceRequest]
@@ -111,6 +116,15 @@ class MLModel:
         logic.**
         """
         yield await self.predict((await payloads.__anext__()))
+
+    def stream_is_single_shot(self) -> bool:
+        """Whether predict_stream is the base single-shot fallback.
+
+        True means every ``/infer_stream`` request for this model
+        produces exactly one response — semantically equivalent to the
+        regular infer path.
+        """
+        return type(self).predict_stream is MLModel.predict_stream
 
     def _load_complete(self) -> None:
         """Internal notification after all registry load hooks have succeeded."""

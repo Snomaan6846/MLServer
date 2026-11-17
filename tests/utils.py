@@ -5,6 +5,10 @@ import yaml  # type: ignore[import-untyped]
 
 import os
 
+from typing import Any
+
+from prometheus_client.parser import text_string_to_metric_families
+
 from itertools import filterfalse
 from string import Template
 from asyncio import subprocess
@@ -263,3 +267,61 @@ class RESTClient:
 
         raw_payload = await response.text()
         return InferenceResponse.parse_raw(raw_payload)
+
+
+async def query_metrics_series(
+    client: Any,
+    series: str,
+    labels: dict[str, str],
+    endpoint: str = "/metrics",
+) -> list[float]:
+    """Query a Prometheus series from a /metrics exposition.
+
+    Parses the exposition with prometheus_client's official text-format
+    parser and selects samples by label matchers — the equivalent of a
+    PromQL ``series{label="value", ...}`` query. The exposition's series
+    order is unspecified (it follows the collector's directory
+    iteration), so selection is never positional or first-match.
+    """
+    response = await client.get(endpoint)
+    response.raise_for_status()
+    return [
+        sample.value
+        for family in text_string_to_metric_families(response.text)
+        for sample in family.samples
+        if sample.name == series
+        and all(sample.labels.get(k) == v for k, v in labels.items())
+    ]
+
+
+async def metrics_series_snapshot(
+    client: Any,
+    prefix: str,
+    endpoint: str = "/metrics",
+) -> list[str]:
+    """Render every sample whose name starts with ``prefix``.
+
+    Failure diagnostics for metrics assertions: the full label set and
+    value of each sample makes a mismatch self-explaining.
+    """
+    response = await client.get(endpoint)
+    response.raise_for_status()
+    return [
+        f"{sample.name}{sample.labels} {sample.value}"
+        for family in text_string_to_metric_families(response.text)
+        for sample in family.samples
+        if sample.name.startswith(prefix)
+    ]
+
+
+async def handle_and_settle(shared, message):
+    """Drive a shared-pool control message and settle its apply task.
+
+    Apply messages run as sequenced background tasks (the listener
+    stays receptive); a driver that asserts on the applied state must
+    await the returned task. Non-apply messages return None.
+    """
+    task = await shared._handle(message)
+    if task is not None:
+        await task
+    return task

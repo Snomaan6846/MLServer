@@ -6,9 +6,8 @@ from multiprocessing.reduction import ForkingPickler
 from pathlib import Path
 import tempfile
 
-import pytest
-
-zmq = pytest.importorskip("zmq")
+import zmq
+import zmq.asyncio
 from mlserver.parallel.utils import configure_inference_pool  # noqa: E402
 from mlserver.parallel.messages import ModelResponseMessage  # noqa: E402
 from mlserver.parallel.worker import Worker  # noqa: E402

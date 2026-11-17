@@ -8,7 +8,6 @@ from grpc import ServicerContext
 from .logging import logger
 from ..errors import MLServerError
 
-
 STATUS_CODE_MAPPING = {
     status.HTTP_400_BAD_REQUEST: grpc.StatusCode.INVALID_ARGUMENT,
     status.HTTP_404_NOT_FOUND: grpc.StatusCode.NOT_FOUND,
@@ -45,6 +44,14 @@ def handle_mlserver_error(f: Callable):
         except MLServerError as err:
             logger.exception(err)
             await context.abort(code=_grpc_status_code(err), details=str(err))
+        except TimeoutError:
+            # An expired inference deadline (or any await timeout):
+            # DEADLINE_EXCEEDED, not INTERNAL, so clients can tell a
+            # timing failure from a server fault apart.
+            await context.abort(
+                code=grpc.StatusCode.DEADLINE_EXCEEDED,
+                details="Inference request timed out",
+            )
         except Exception as err:
             logger.exception(err)
             await context.abort(code=grpc.StatusCode.INTERNAL, details=str(err))
@@ -60,6 +67,13 @@ def handle_mlserver_stream_error(f: Callable):
         except MLServerError as err:
             logger.exception(err)
             await context.abort(code=_grpc_status_code(err), details=str(err))
+        except TimeoutError:
+            # An expired inference deadline (or any await timeout):
+            # DEADLINE_EXCEEDED, not INTERNAL.
+            await context.abort(
+                code=grpc.StatusCode.DEADLINE_EXCEEDED,
+                details="Inference request timed out",
+            )
         except Exception as err:
             logger.exception(err)
             await context.abort(code=grpc.StatusCode.INTERNAL, details=str(err))

@@ -12,8 +12,6 @@ from httpx import AsyncClient
 import pytest
 from pytest_mock import MockerFixture
 
-pytest.importorskip("zmq")
-
 from mlserver.grpc import dataplane_pb2_grpc as rpc  # noqa: E402
 from mlserver.grpc.converters import ModelInferRequestConverter  # noqa: E402
 from mlserver.grpc.servicers import InferenceServicer  # noqa: E402

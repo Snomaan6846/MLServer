@@ -10,6 +10,7 @@ from ..codecs.numpy import (
     LOGICAL_BYTES_ELEMENTS,
     LOGICAL_BYTES_SENTINEL,
     _has_logical_elements,
+    to_dtype,
 )
 from ..types import (
     InferenceRequest,
@@ -186,7 +187,9 @@ def _merge_input_parameters(
     return new_all_params
 
 
-def _merge_data(all_data: list | list[str] | list[bytes]) -> list | str | bytes:
+def _merge_data(
+    all_data: list | list[str] | list[bytes], dtype: "np.dtype | None" = None
+) -> Any:
     sampled_datum = all_data[0]
 
     if isinstance(sampled_datum, str):
@@ -194,6 +197,33 @@ def _merge_data(all_data: list | list[str] | list[bytes]) -> list | str | bytes:
 
     if isinstance(sampled_datum, bytes):
         return b"".join(all_data)  # type: ignore
+
+    # Check the WHOLE batch: a list-backed entry followed by an
+    # ndarray-backed one (a JSON request batched with a binary one)
+    # must concatenate, not sum — the list branch's sum() would
+    # broadcast the list against the ndarray ([1,2] + array([3,4])
+    # == [4,6]), silently producing the wrong element count for the
+    # declared merged shape.
+    if any(isinstance(datum, np.ndarray) for datum in all_data):
+        # Ndarray-backed inputs (from the ndarray-native codecs)
+        # concatenate their elements, matching the list path's sum()
+        # flattening: minibatches of different sizes merge into the
+        # flattened total that the merged shape declares. Returning
+        # the arrays unmerged would hand the decoder a list of
+        # unequal-length arrays it cannot convert.
+        # Every entry converts to the tensor's DECLARED dtype: numpy's
+        # promotion would otherwise combine e.g. a uint64 array with
+        # an int64-converted list into float64, rounding large
+        # integers before the decoder can cast them back.
+        # Each entry flattens before concatenating: JSON requests may
+        # carry nested data (shape [1,2] -> [[1,2]]) while
+        # ndarray-native ones are flat, and concatenate() rejects the
+        # dimension mismatch instead of merging them.
+        if dtype is None:
+            dtype = next(d.dtype for d in all_data if isinstance(d, np.ndarray))
+        return np.concatenate(
+            [np.asarray(datum, dtype=dtype).reshape(-1) for datum in all_data]
+        )
 
     if isinstance(sampled_datum, list):
         return sum(all_data, [])
@@ -279,7 +309,34 @@ class BatchedRequests:
         else:
             all_data = [data for data, _ in entries]
 
-        data = _merge_data(all_data)
+        # The dtype-specific merge needs a valid datatype, but requests
+        # assembled without pydantic validation (the gRPC converters use
+        # InferenceRequest.construct) can carry an invalid datatype
+        # string this far. On failure, re-run the public validation so
+        # the error matches what the non-batched path would have
+        # returned, instead of the internal enum message.
+        try:
+            dtype = to_dtype(sampled)
+        except (KeyError, ValueError):
+            RequestInput.model_validate(
+                {
+                    "name": sampled.name,
+                    "shape": sampled.shape,
+                    "datatype": sampled.datatype,
+                    "data": _get_data(sampled),
+                }
+            )
+            raise
+
+        if normalized:
+            # Normalized logical byte elements must never pass through
+            # a fixed-width 'S' dtype (selected from the sampled entry
+            # when it is a plain bytes ndarray): it truncates longer
+            # elements before the logical-elements flag is applied.
+            # Object dtype keeps every element's exact value and length.
+            dtype = np.dtype(object)
+
+        data = _merge_data(all_data, dtype=dtype)
         if normalized:
             all_params[LOGICAL_BYTES_ELEMENTS] = LOGICAL_BYTES_SENTINEL
             # A per-request content_type (e.g. "str") would select that
@@ -378,6 +435,11 @@ class BatchedRequests:
             idx += minibatch_size * element_size
             all_data[internal_id] = data
 
+        # NOTE: with an ndarray merged root these splits are views into
+        # the merged buffer, not copies. Every current consumer is
+        # read-only or copies (_encode_data's ravel-view guard); a hook
+        # that ever mutates response data in place would corrupt the
+        # sibling minibatches sharing this buffer.
         return all_data
 
     def _split_parameters(

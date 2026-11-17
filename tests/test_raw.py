@@ -12,7 +12,7 @@ from mlserver.raw import (
     extract_raw,
     inject_raw,
 )
-from mlserver.codecs.numpy import NumpyCodec
+from mlserver.codecs.numpy import NumpyCodec, set_ndarray_response_pipeline
 
 
 def test_unpack_bytes():
@@ -161,6 +161,7 @@ def test_pack_tensor_restores_nan_without_mutating_data(dtype):
 def test_pack_tensor_ndarray_matches_list_representation(tensor: np.ndarray):
     """Packing the ndarray root gives the same bytes as the equivalent
     Python-list representation (the pre-ndarray pipeline's form)."""
+    set_ndarray_response_pipeline(True)
     ndarray_input = NumpyCodec.encode_input(name="foo", payload=tensor)
     assert isinstance(ndarray_input.data.root, np.ndarray)
 

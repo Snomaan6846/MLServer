@@ -138,3 +138,58 @@ async def test_worker_env(
     assert response.outputs[0].name == "sklearn_version"
     [sklearn_version] = StringCodec.decode_output(response.outputs[0])
     assert sklearn_version == "1.6.1"
+
+
+def _worker_registry_hooks(frontend_workers: int):
+    """Construct a worker's registry hooks for the given frontend count."""
+    from mlserver.settings import Settings
+
+    # Zmq is required in the supervised topology (settings validation);
+    # the endpoints only need to be well-formed strings at construction —
+    # nothing binds in __inner_init__.
+    settings = Settings(
+        parallel_workers=1,
+        parallel_inference_transport="zmq",
+        frontend_workers=frontend_workers,
+    )
+    responses: Queue = Queue()  # type: ignore[type-arg]
+    setattr(responses, "_zmq_reply_endpoints", ["ipc:///tmp/test-worker-hooks"])
+    worker = Worker(settings, responses)
+    worker._prepare_queues()
+    worker.__inner_init__()
+    return worker._model_registry
+
+
+def test_worker_skips_batcher_at_direct_server():
+    """At frontend_workers=0 (the direct server) the batcher stays in
+    the main process (the previous behaviour): the worker must NOT
+    install batching hooks — exactly one placement, selected by the
+    topology."""
+    from mlserver.batching import load_batching, unload_batching
+
+    registry = _worker_registry_hooks(frontend_workers=0)
+    assert load_batching not in registry._on_model_load
+    assert unload_batching not in registry._on_model_unload
+
+
+def test_worker_installs_batcher_at_single_supervised_frontend():
+    """At frontend_workers=1 (one supervised frontend) the worker's
+    registry installs the batcher: supervised frontends never host
+    models, so the worker is the batcher's only correct home even at
+    the minimum supervised scale."""
+    from mlserver.batching import load_batching, unload_batching
+
+    registry = _worker_registry_hooks(frontend_workers=1)
+    assert load_batching in registry._on_model_load
+    assert unload_batching in registry._on_model_unload
+
+
+def test_worker_installs_batcher_at_multiple_frontends():
+    """In the supervised topology the worker's registry installs the
+    batcher so ONE batcher in the shared worker sees the model's full
+    traffic rate regardless of the frontend count."""
+    from mlserver.batching import load_batching, unload_batching
+
+    registry = _worker_registry_hooks(frontend_workers=2)
+    assert load_batching in registry._on_model_load
+    assert unload_batching in registry._on_model_unload

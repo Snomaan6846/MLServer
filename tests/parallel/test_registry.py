@@ -411,6 +411,7 @@ async def test_load_model_serializes_models_sharing_pool(
 
     class FakePool:
         env_hash = None
+        routing_id = None
 
         async def start(self):
             pass
@@ -476,6 +477,7 @@ async def test_load_model_allows_different_pools_concurrently(
 
     class FakePool:
         env_hash = None
+        routing_id = None
 
         async def start(self):
             pass
@@ -538,6 +540,7 @@ async def test_load_model_serializes_unload_for_same_pool(
 
     class FakePool:
         env_hash = None
+        routing_id = None
 
         async def start(self):
             pass
@@ -609,6 +612,7 @@ async def test_load_model_allows_unload_for_different_pools(
 
     class FakePool:
         env_hash = None
+        routing_id = None
 
         async def start(self):
             pass
@@ -670,6 +674,7 @@ async def test_load_model_cancellation_settles_and_preserves_pool_state(
 
     class FakePool:
         env_hash = None
+        routing_id = None
 
         async def start(self):
             pass
@@ -712,6 +717,7 @@ async def test_unload_model_cancellation_settles_and_clears_pool_state(
 
     class FakePool:
         env_hash = None
+        routing_id = None
 
         async def start(self):
             pass

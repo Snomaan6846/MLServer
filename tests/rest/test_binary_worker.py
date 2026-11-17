@@ -851,7 +851,7 @@ class TestBinaryBatchingEndToEnd:
             frames.append((header + tensor.tobytes(), len(header)))
 
         endpoint = BinaryTensorEndpoints(data_plane, worker_binary=True)
-        (response_a, response_b) = await asyncio.gather(
+        response_a, response_b = await asyncio.gather(
             *(
                 endpoint.infer(binary_request(body, header_length), "sum-model")
                 for body, header_length in frames

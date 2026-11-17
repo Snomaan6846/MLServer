@@ -55,7 +55,9 @@ TEST_ONLY_EXTRA_IMPLEMENTATIONS = {
     "tests.fixtures.EchoModel",
     "tests.fixtures.TextModel",
     "tests.fixtures.TextStreamModel",
+    "tests.fixtures.FailingStreamModel",
     "tests.metrics.test_custom.CustomMetricsModel",
+    "tests.batching.test_hooks.RecordingBatchModel",
     "fixtures.SumModel",
     "env_models.DummySKLearnModel",
 }

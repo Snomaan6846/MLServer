@@ -171,3 +171,27 @@ def test_missing_child_during_release_keeps_directory_owned(tmp_path, monkeypatc
     assert path.exists()
     env.close()
     assert not path.exists()
+
+
+def test_close_skipped_during_interpreter_shutdown(tmp_path, mocker):
+    """__del__ can run close() while the interpreter is finalising:
+    logging or rmtree then is noise (and may fail half-way as modules
+    are torn down). The guard leaves the directory for the operator
+    instead, and only during finalisation — the explicit close path is
+    unaffected."""
+    env_path = tmp_path / "env-dir"
+    env_path.mkdir()
+    env = Environment(str(env_path), "some-hash", delete_env=True)
+    mocker.patch.object(sys, "is_finalizing", return_value=True)
+
+    env.close()
+
+    assert env_path.exists()
+    # Not revoked: a later explicit close (post-finalisation in tests,
+    # or the owner's normal path) still owns the directory.
+    assert env._delete_env
+
+    mocker.patch.object(sys, "is_finalizing", return_value=False)
+    env.close()
+    assert not env_path.exists()
+    assert not env._delete_env

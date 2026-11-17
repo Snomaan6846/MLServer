@@ -233,6 +233,7 @@ async def test_rest_health_log_filter_condition(
     server = RESTServer.__new__(RESTServer)
     server._settings = settings
     server._app = MagicMock()
+    server._shared_port_sockets = None
 
     with patch(
         "mlserver.rest.server.disable_health_access_logs"
@@ -518,6 +519,7 @@ async def test_rest_server_stop_removes_health_filter(_clean_uvicorn_filters):
     server = RESTServer.__new__(RESTServer)
     server._settings = settings
     server._server = MagicMock()
+    server._shared_port_sockets = None
 
     disable_health_access_logs()
     assert any(isinstance(f, HealthEndpointFilter) for f in uvicorn_logger.filters)
@@ -1247,6 +1249,93 @@ def test_dynamic_loading_actually_imports_from_model_folder(development_mode, tm
     assert runtime_class.__module__ == "custom_runtime"
 
 
+def test_development_mode_does_not_reload_shared_modules(development_mode, tmp_path):
+    """A shared implementation module must keep a stable identity.
+
+    importlib.reload re-executes a module in place, rebinding every class
+    it defines to a fresh object: isinstance checks and patched methods
+    break across the model lifecycle. Only the model's own folder-local
+    code is reloaded (see test_development_mode_reloads_folder_local_modules).
+    """
+    model_folder = tmp_path / "my_model"
+    model_folder.mkdir()
+    settings_file = model_folder / "model-settings.json"
+    settings_file.write_text(
+        '{"name": "test-model", "implementation": "tests.fixtures.SumModel"}',
+        encoding="utf-8",
+    )
+
+    # Two separately-parsed settings objects, so each access resolves the
+    # implementation independently: the assertion stays meaningful even
+    # if `implementation` ever becomes a cached property (a same-instance
+    # check could then pass vacuously without ever re-resolving).
+    first = ModelSettings.parse_file(str(settings_file)).implementation
+    second = ModelSettings.parse_file(str(settings_file)).implementation
+
+    assert first is second
+
+
+def test_development_mode_reloads_folder_local_modules(development_mode, tmp_path):
+    """Folder-local model code is reloaded so edits are picked up: the
+    documented purpose of the development-mode dynamic reload."""
+    model_folder = tmp_path / "hot_model"
+    model_folder.mkdir()
+    runtime = model_folder / "hot_runtime.py"
+    runtime.write_text(
+        "from mlserver import MLModel\nclass MyRuntime(MLModel):\n    pass\n",
+        encoding="utf-8",
+    )
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "hot-model", "implementation": "hot_runtime.MyRuntime"}',
+        encoding="utf-8",
+    )
+    model_settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+
+    first = model_settings.implementation
+    assert first.__name__ == "MyRuntime"
+
+    # Edit the module: the next access must pick up the new code.
+    runtime.write_text(
+        "from mlserver import MLModel\nclass MyRuntime(MLModel):\n    marker = 2\n",
+        encoding="utf-8",
+    )
+    second = model_settings.implementation
+
+    assert second is not first
+    assert second.marker == 2
+
+
+def test_development_mode_skips_reload_for_modules_without_source(
+    development_mode, tmp_path, mocker
+):
+    """A module with no filesystem location keeps its identity: there is
+    no folder-local source to refresh."""
+    import types
+
+    model_folder = tmp_path / "fileless"
+    model_folder.mkdir()
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "fileless-model", "implementation": "nomod.Runtime"}',
+        encoding="utf-8",
+    )
+    model_settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+
+    fileless = types.ModuleType("nomod")  # no __file__
+    # Patch by direct reference: string-based patch targets are resolved
+    # through importlib.import_module, which is itself mocked here.
+    import importlib as importlib_module
+
+    import mlserver.settings as settings_module
+
+    mocker.patch.object(importlib_module, "import_module", return_value=fileless)
+    reload_mock = mocker.patch.object(importlib_module, "reload")
+    mocker.patch.object(settings_module, "import_string", return_value=object())
+
+    model_settings.implementation
+
+    reload_mock.assert_not_called()
+
+
 def test_is_valid_runtime_import_path_valid():
     """Test is_valid_runtime_import_path() with valid import paths."""
     from mlserver.settings import is_valid_runtime_import_path
@@ -1388,3 +1477,19 @@ def test_worker_binary_defaults_off():
     settings = Settings()
     assert settings.rest_binary_tensor is False
     assert settings.rest_worker_binary is False
+
+
+def test_inference_timeout_rejects_non_positive():
+    """The opt-in reply deadline must be positive or absent: zero or
+    negative would fail every request immediately."""
+    import pytest
+    from pydantic import ValidationError
+
+    from mlserver.settings import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(inference_timeout=0)
+    with pytest.raises(ValidationError):
+        Settings(inference_timeout=-1)
+    # Absent keeps the historical unbounded wait.
+    assert Settings().inference_timeout is None

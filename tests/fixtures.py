@@ -192,3 +192,14 @@ class EchoModel(MLModel):
                 for input in payload.inputs
             ],
         )
+
+
+class FailingStreamModel(SumModel):
+    """Yields one successful response, then raises a mid-stream error.
+    Used to verify SSE error handling for multi-stream models.
+    Inherits predict() from SumModel so the first event succeeds."""
+
+    async def predict_stream(self, payloads):
+        async for payload in payloads:
+            yield await self.predict(payload)
+            raise MLServerError("mid-stream failure")

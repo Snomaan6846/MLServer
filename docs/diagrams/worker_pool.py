@@ -28,36 +28,41 @@ with Diagram(
     clients = Users("Inference Requests")
 
     with Cluster(
-        "Main Process", graph_attr={"bgcolor": "#E8F4FD", "pencolor": "#4A90D9"}
+        "Main Process (or a Frontend at frontend_workers >= 1)",
+        graph_attr={"bgcolor": "#E8F4FD", "pencolor": "#4A90D9"},
     ):
         rest = FastAPI("REST :8080")
         grpc = Server("gRPC :8081")
         dataplane = Rack("DataPlane")
         parallel_model = Rack("ParallelModel\n(proxy)")
-        dispatcher = Rack("Dispatcher")
+        dispatcher = Rack(
+            "Dispatcher\n(round-robin, or model-affine\nfor batched models)"
+        )
 
-        with Cluster("Request / Response Queues"):
-            req_queue = Storage("Request Queue\n(multiprocessing)")
-            resp_queue = Storage("Response Queue\n(multiprocessing)")
+        with Cluster("IPC (parallel_inference_transport)"):
+            req_channel = Storage("Per-worker request channel\n(queue or ZeroMQ PUSH)")
+            resp_channel = Storage(
+                "Response channel\n(shared queue, or per-frontend\nZeroMQ PULL)"
+            )
 
     with Cluster(
         "Worker Process 1", graph_attr={"bgcolor": "#F0FFF0", "pencolor": "#7ED321"}
     ):
-        worker1_loop = Server("asyncio event loop")
+        worker1_loop = Server("asyncio event loop\n(batching hooks live here)")
         worker1_model = Rack("MLModel copy 1\n(sklearn / xgboost / ...)")
         worker1_metrics = Storage(".metrics/\n(Prometheus dir)")
 
     with Cluster(
         "Worker Process 2", graph_attr={"bgcolor": "#F0FFF0", "pencolor": "#7ED321"}
     ):
-        worker2_loop = Server("asyncio event loop")
+        worker2_loop = Server("asyncio event loop\n(batching hooks live here)")
         worker2_model = Rack("MLModel copy 2\n(sklearn / xgboost / ...)")
         worker2_metrics = Storage(".metrics/\n(Prometheus dir)")
 
     with Cluster(
         "Worker Process N", graph_attr={"bgcolor": "#F0FFF0", "pencolor": "#7ED321"}
     ):
-        worker3_loop = Server("asyncio event loop")
+        worker3_loop = Server("asyncio event loop\n(batching hooks live here)")
         worker3_model = Rack("MLModel copy N\n(sklearn / xgboost / ...)")
         worker3_metrics = Storage(".metrics/\n(Prometheus dir)")
 
@@ -73,31 +78,31 @@ with Diagram(
     dataplane >> Edge(label="infer()", color="#7ED321") >> parallel_model
     parallel_model >> Edge(label="predict()", color="#7ED321") >> dispatcher
 
-    # Dispatcher → Queues
+    # Dispatcher → request channels
     (
         dispatcher
         >> Edge(label="enqueue request", color="#F5A623", style="bold")
-        >> req_queue
+        >> req_channel
     )
 
-    # Queues → Workers (fan-out)
-    req_queue >> Edge(label="dequeue", color="#F5A623") >> worker1_loop
-    req_queue >> Edge(label="dequeue", color="#F5A623") >> worker2_loop
-    req_queue >> Edge(label="dequeue", color="#F5A623") >> worker3_loop
+    # Request channels → Workers (fan-out)
+    req_channel >> Edge(label="dequeue", color="#F5A623") >> worker1_loop
+    req_channel >> Edge(label="dequeue", color="#F5A623") >> worker2_loop
+    req_channel >> Edge(label="dequeue", color="#F5A623") >> worker3_loop
 
-    # Workers process
+    # Workers process (batching hooks wrap the model here)
     worker1_loop >> Edge(color="#7ED321") >> worker1_model
     worker2_loop >> Edge(color="#7ED321") >> worker2_model
     worker3_loop >> Edge(color="#7ED321") >> worker3_model
 
-    # Workers → Response Queue (fan-in)
-    worker1_loop >> Edge(label="result", color="#D0021B") >> resp_queue
-    worker2_loop >> Edge(label="result", color="#D0021B") >> resp_queue
-    worker3_loop >> Edge(label="result", color="#D0021B") >> resp_queue
+    # Workers → response channel (fan-in; replies routed per frontend)
+    worker1_loop >> Edge(label="result", color="#D0021B") >> resp_channel
+    worker2_loop >> Edge(label="result", color="#D0021B") >> resp_channel
+    worker3_loop >> Edge(label="result", color="#D0021B") >> resp_channel
 
     # Response back to dispatcher
     (
-        resp_queue
+        resp_channel
         >> Edge(label="return result", color="#D0021B", style="bold")
         >> dispatcher
     )

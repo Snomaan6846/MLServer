@@ -16,8 +16,6 @@ from .test_replacement_ownership import fail_acquisition
 
 @pytest.fixture(params=["queue", "zmq"])
 def settings(settings, request):
-    if request.param == "zmq":
-        pytest.importorskip("zmq")
     settings.parallel_inference_transport = request.param
     settings.parallel_workers = 1
     settings.model_operation_timeout = 10

@@ -229,7 +229,10 @@ For CPU-bound models, enable parallel workers to bypass the Python GIL:
 ```
 
 Each worker runs in a separate process with its own copy of the model.
-Communication between the main process and workers uses multiprocessing queues.
+Inference traffic between the server process and the workers uses either
+multiprocessing queues (the default) or ZeroMQ sockets, selected with
+`parallel_inference_transport` (ZeroMQ ships as a direct dependency).
+Model-control messages always use multiprocessing queues.
 
 ### Resource Considerations
 
@@ -237,6 +240,46 @@ Communication between the main process and workers uses multiprocessing queues.
 - Total memory ≈ `parallel_workers × model_size + overhead`
 - Set CPU requests/limits to at least `parallel_workers` cores
 - The `.metrics` directory must be shared across workers (configured via `metrics_dir`)
+
+### Multi-Frontend Serving
+
+When request parsing and response serialisation (rather than model
+execution) become the bottleneck, `frontend_workers` scales the REST/gRPC
+frontend across multiple processes inside the same pod while keeping a
+single shared inference pool:
+
+```json
+{
+  "frontend_workers": 4,
+  "parallel_workers": 2,
+  "parallel_inference_transport": "zmq"
+}
+```
+
+Deployment notes:
+
+- Requires `parallel_inference_transport = "zmq"` (validated at startup);
+  the queue transport is parent-child and cannot be shared across
+  frontends.
+- All frontend processes bind the same REST, gRPC and metrics ports using
+  `SO_REUSEPORT`; the kernel balances connections between them. No extra
+  Services or ports are needed — the pod looks identical from outside.
+- Model memory does not scale with the frontend count: the models live in
+  the shared pool's workers (`parallel_workers` copies), regardless of how
+  many frontends serve traffic. This is the main difference from scaling
+  with additional pod replicas, where every replica loads its own copy of
+  every model.
+- Scale `frontend_workers` when CPU time is spent in parsing/serialisation
+  (visible as saturation in the main/frontend process while workers stay
+  idle); scale pod replicas when model execution itself is saturated.
+- Size CPU requests/limits for `frontend_workers + parallel_workers`
+  processes.
+- A crashed frontend is restarted by the supervisor with exponential
+  backoff, up to `frontend_max_restarts` (default 5) times; the remaining
+  frontends keep serving throughout.
+
+See [Multi-Frontend Serving](../user-guide/parallel-inference.md#multi-frontend-serving)
+for the full behavioural contract.
 
 ---
 
@@ -299,6 +342,11 @@ MLSERVER_LOAD_MODELS_AT_STARTUP=true
 # Parallel inference
 MLSERVER_PARALLEL_WORKERS=1
 MLSERVER_PARALLEL_WORKERS_TIMEOUT=5
+MLSERVER_PARALLEL_INFERENCE_TRANSPORT=queue
+
+# Multi-frontend serving (requires the zmq transport above)
+MLSERVER_FRONTEND_WORKERS=1
+MLSERVER_FRONTEND_MAX_RESTARTS=5
 
 # Tracing
 MLSERVER_TRACING_SERVER=jaeger:4317

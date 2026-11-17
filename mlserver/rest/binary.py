@@ -465,6 +465,17 @@ def _encode_output_bytes(output: Any) -> bytes | None:
         if not isinstance(data, np.ndarray):
             data = np.asarray(data, dtype=dtype)
         elif data.dtype != dtype:
+            if data.dtype.itemsize != dtype.itemsize:
+                # A byte-width mismatch cannot convert losslessly: the
+                # packed bytes would not match the declared datatype's
+                # width. Same check as the gRPC raw path; the output
+                # falls back to inline JSON instead of silently
+                # truncating or padding the values.
+                raise BinaryTensorError(
+                    f"binary output declared {datatype} "
+                    f"({dtype.itemsize} bytes) but the array dtype is "
+                    f"{data.dtype} ({data.dtype.itemsize} bytes)"
+                )
             data = data.astype(dtype)
         # NOTE: no reshape — tobytes(order="C") on a flat contiguous
         # array does not depend on .shape, and a declared-shape/data

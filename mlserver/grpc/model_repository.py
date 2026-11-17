@@ -17,7 +17,7 @@ def _deprecated(f: Callable):
             "DEPRECATED!! "
             f"The `inference.model_repository.ModelRepositoryService/{f.__name__}` "
             "endpoint has now been deprecated and will be removed in "
-            "MLServer 1.2.0. "
+            "a future release. "
             f"Please use the `inference.GRPCInferenceService/{f.__name__}` "
             "endpoint instead."
         )

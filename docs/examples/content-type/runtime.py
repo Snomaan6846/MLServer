@@ -1,5 +1,5 @@
-import io
 import json
+from typing import Any
 
 from PIL import Image
 
@@ -9,10 +9,10 @@ from mlserver.types import (
     InferenceResponse,
     RequestInput,
     ResponseOutput,
+    TensorData,
 )
-from mlserver.codecs import InputCodec, register_input_codec, DecodedParameterName
+from mlserver.codecs import NumpyCodec, register_input_codec, DecodedParameterName
 from mlserver.codecs.utils import InputOrOutput
-
 
 _to_exclude = {
     "parameters": {DecodedParameterName},
@@ -21,7 +21,7 @@ _to_exclude = {
 
 
 @register_input_codec
-class PillowCodec(InputCodec):
+class PillowCodec(NumpyCodec):
     ContentType = "img"
     DefaultMode = "L"
 
@@ -32,16 +32,26 @@ class PillowCodec(InputCodec):
     @classmethod
     def _decode(cls, input_or_output: InputOrOutput) -> Image.Image:
         if input_or_output.datatype != "BYTES":
-            # If not bytes, assume it's an array
+            # If not bytes, assume it's an array. The mode is inferred
+            # from the array's dtype (e.g. uint8 -> "L", int32 -> "I");
+            # forcing DefaultMode here would reject wider dtypes.
             image_array = super().decode_input(input_or_output)  # type: ignore
-            return Image.fromarray(image_array, mode=cls.DefaultMode)
+            return Image.fromarray(image_array)
 
         encoded = input_or_output.data
-        if isinstance(encoded, str):
-            encoded = encoded.encode()
+        # Unwrap the raw payload, which can be a str, bytes or a list
+        # of either depending on how the request was sent.
+        raw: Any = encoded.root if isinstance(encoded, TensorData) else encoded
+        if isinstance(raw, str):
+            raw = raw.encode()
+        elif isinstance(raw, list):
+            raw = b"".join(
+                part.encode() if isinstance(part, str) else bytes(part) for part in raw
+            )
 
+        shape = input_or_output.shape
         return Image.frombytes(
-            mode=cls.DefaultMode, size=input_or_output.shape, data=encoded
+            mode=cls.DefaultMode, size=(shape[0], shape[1]), data=raw
         )
 
     @classmethod
@@ -50,15 +60,16 @@ class PillowCodec(InputCodec):
         name: str,
         payload: Image.Image,
     ) -> ResponseOutput:  # type: ignore
-        byte_array = io.BytesIO()
-        payload.save(byte_array, mode=cls.DefaultMode)
-
+        # Raw pixel bytes in the image's mode, the counterpart of
+        # Image.frombytes() in _decode().
         return ResponseOutput(
-            name=name, shape=payload.size, datatype="BYTES", data=byte_array.getvalue()
+            name=name, shape=payload.size, datatype="BYTES", data=payload.tobytes()
         )
 
     @classmethod
-    def decode_output(cls, response_output: ResponseOutput) -> Image.Image:
+    def decode_output(  # type: ignore
+        cls, response_output: ResponseOutput
+    ) -> Image.Image:
         return cls._decode(response_output)
 
     @classmethod
@@ -76,7 +87,7 @@ class PillowCodec(InputCodec):
         )
 
     @classmethod
-    def decode_input(cls, request_input: RequestInput) -> Image.Image:
+    def decode_input(cls, request_input: RequestInput) -> Image.Image:  # type: ignore
         return cls._decode(request_input)
 
 

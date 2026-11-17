@@ -14,7 +14,7 @@ from mlserver.batching.requests import (
 from mlserver.codecs.numpy import (
     LOGICAL_BYTES_ELEMENTS,
     LOGICAL_BYTES_SENTINEL,
-    _set_logical_elements,
+    set_logical_elements,
 )
 from mlserver.types import Parameters, RequestInput, TensorData
 
@@ -31,7 +31,7 @@ def _input(data, shape=None, datatype="BYTES", parameters=None):
 
 def _logical_input(elements, shape=None):
     inp = _input(list(elements), shape=shape)
-    _set_logical_elements(inp)
+    set_logical_elements(inp)
     return inp
 
 

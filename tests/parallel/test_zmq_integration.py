@@ -12,8 +12,6 @@ import numpy as np
 import pytest
 from pytest_mock import MockerFixture
 
-pytest.importorskip("zmq")
-
 from mlserver.codecs import NumpyCodec  # noqa: E402
 from mlserver.grpc import dataplane_pb2 as pb  # noqa: E402
 from mlserver.grpc.buffers import convert_request  # noqa: E402

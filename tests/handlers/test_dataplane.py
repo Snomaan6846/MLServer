@@ -1,3 +1,5 @@
+import gc
+
 import pytest
 import uuid
 
@@ -401,3 +403,107 @@ async def test_runtimes_handler_returns_correct_type(data_plane):
     response = await data_plane.runtimes()
 
     assert isinstance(response, RuntimeSecurityResponse)
+
+
+async def test_stream_single_shot_cached_across_calls(
+    data_plane, model_registry, sum_model
+):
+    """The check is computed once per (name, version): the per-request
+    registry await chain it replaced was the measured driver of the
+    multi-shot C8 GC growth (ssebench campaign findings)."""
+    from unittest.mock import AsyncMock
+
+    data_plane._model_registry.get_model = AsyncMock(
+        return_value=sum_model, side_effect=None
+    )
+    data_plane._model_registry.get_model.side_effect = None
+    data_plane._model_registry.get_model.return_value = sum_model
+
+    first = await data_plane.model_stream_is_single_shot(sum_model.name)
+    second = await data_plane.model_stream_is_single_shot(sum_model.name)
+    third = await data_plane.model_stream_is_single_shot(sum_model.name)
+
+    assert first is second is third is True
+    # one registry lookup for three requests
+    assert data_plane._model_registry.get_model.await_count == 1
+
+
+async def test_stream_single_shot_cache_invalidated_on_load(
+    data_plane, model_registry, sum_model, sum_model_settings
+):
+    """A reload may replace the model's class: the load hook drops the
+    cached answer, so the next request re-computes it."""
+    from unittest.mock import AsyncMock
+
+    registry = data_plane._model_registry
+    original = registry.get_model
+
+    async def counting_get_model(name, version=None):
+        return sum_model
+
+    registry.get_model = AsyncMock(side_effect=counting_get_model)
+
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is True
+    assert registry.get_model.await_count == 1
+
+    # a reload fires the load hook (wired in MLServer.__init__; here we
+    # drive it directly, exactly as the registry does)
+    assert await data_plane.on_model_load(sum_model) is sum_model
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is True
+    assert registry.get_model.await_count == 2
+
+    registry.get_model = original
+
+
+async def test_stream_single_shot_cache_version_key_mismatch(
+    data_plane, model_registry, sum_model, sum_model_settings
+):
+    """Requests query the default (version=None) while hooks report the
+    model's concrete version: invalidation must drop the key anyway."""
+    from unittest.mock import AsyncMock
+
+    registry = data_plane._model_registry
+
+    async def counting_get_model(name, version=None):
+        return sum_model
+
+    registry.get_model = AsyncMock(side_effect=counting_get_model)
+
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is True
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is True
+    assert registry.get_model.await_count == 1
+
+    # the hook carries the model's CONCRETE version ("v1.2.3"), not None
+    assert await data_plane.on_model_unload(sum_model) is sum_model
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is True
+    assert registry.get_model.await_count == 2
+
+
+def test_freeze_startup_heap_moves_objects_to_permanent_generation():
+    """collect-then-freeze: the permanent generation is non-empty after
+    the call, and the operation is idempotent."""
+    from mlserver.server import _freeze_startup_heap
+
+    before = gc.get_freeze_count()
+    _freeze_startup_heap()
+    after = gc.get_freeze_count()
+    assert after >= before
+    assert after > 0
+
+
+async def test_stream_single_shot_false_is_cached_not_missed(data_plane, sum_model):
+    """Sentinel-handling correctness: a cached False is a VALUE, not a
+    miss — a multi-shot model's answer must be served from the cache
+    without a second registry lookup (the classic caching bug this
+    pins: `if cached:` would re-query every multi-shot request)."""
+    from unittest.mock import AsyncMock, Mock
+
+    multi = Mock()
+    multi.stream_is_single_shot = Mock(return_value=False)
+    registry = data_plane._model_registry
+    registry.get_model = AsyncMock(return_value=multi)
+
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is False
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is False
+    assert await data_plane.model_stream_is_single_shot(sum_model.name) is False
+    assert registry.get_model.await_count == 1

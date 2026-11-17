@@ -23,7 +23,7 @@ LOGICAL_BYTES_ELEMENTS = "_mlserver_logical_bytes_elements"
 LOGICAL_BYTES_SENTINEL = ("mlserver-internal", "logical-bytes-elements")
 
 
-def _set_logical_elements(request_input: InputOrOutput) -> None:
+def set_logical_elements(request_input: InputOrOutput) -> None:
     """Mark an input as carrying logical (opaque) byte elements.
 
     Used by test fixtures and any internal caller that needs to flag
@@ -147,11 +147,76 @@ def _to_ndarray(input_or_output: InputOrOutput) -> np.ndarray:
             expected *= dim
         try:
             if expected == len(data):
+                # Reject nested data: np.fromiter would silently convert
+                # a non-empty inner list to True (bool([False]) is True),
+                # changing the wire format for BOOL tensors. Other
+                # dtypes self-error on nested items, so only the first
+                # element needs the fast check; BOOL must scan every
+                # element because fromiter accepts a nested item hiding
+                # behind leading scalars ([1, [2]] -> [True, True]).
+                if data and isinstance(data[0], (list, tuple)):
+                    raise TypeError("nested data not supported by fromiter")
+                if dtype == np.bool_ and any(
+                    isinstance(value, (list, tuple)) for value in data
+                ):
+                    raise TypeError("nested data not supported by fromiter")
                 return np.fromiter(data, dtype, count=expected)
         except (TypeError, ValueError, OverflowError):
             pass
 
     return np.array(data, dtype)
+
+
+# Topology gate for the ndarray-native response pipeline.
+#
+# Default True = master's list-based response payloads: the worker
+# materialises Python element lists at the codec, IPC carries lists,
+# and every wire boundary takes its legacy path. This is the exact
+# data flow of direct deployments (frontend_workers == 0, the
+# default), where the frontend's event loop is the bottleneck on
+# JSON-family wires — the cluster campaign (2026-11-21,
+# FINDINGS-json-zmq-tail.md) measured 5-14% p99 regressions there when
+# the list materialisation ran on the saturated frontend loop instead.
+#
+# The process bootstrap (worker or server) enables the ndarray
+# pipeline only through ndarray_response_pipeline_for() below —
+# 2+ frontend processes, under either scale semantics.
+_MATERIALISE_LIST_PAYLOADS = True
+
+
+def ndarray_response_pipeline_for(frontend_workers: int) -> bool:
+    """Whether the ndarray-native response pipeline fits this topology.
+
+    True only at 2+ frontend processes: the pipeline keeps NumPy
+    payloads over IPC but relocates the list materialisation to the
+    frontend loops, which is a win only when N >= 2 of them share it.
+    At frontend_workers == 1 — supervised or not — there is exactly
+    one frontend loop, the same saturation profile as the direct
+    server (frontend_workers == 0), where the relocation was measured
+    as a 5-14% p99 regression on JSON-family wires
+    (FINDINGS-json-zmq-tail.md, 2026-11-21).
+
+    NOTE: this criterion differs deliberately from the adaptive
+    batcher's placement gate (frontend_workers >= 1, see
+    mlserver/parallel/worker.py): batchers follow where models live
+    (supervised frontends never host models, so the worker is the
+    batcher's home even at one frontend); payloads follow how many
+    loops absorb the materialisation work.
+    """
+    return frontend_workers > 1
+
+
+def set_ndarray_response_pipeline(enabled: bool) -> None:
+    """Enable the ndarray-native response pipeline.
+
+    Called once at process bootstrap with
+    ``ndarray_response_pipeline_for(frontend_workers)``:
+    ``enabled=True`` (2+ frontend processes) keeps NumPy payloads from
+    the codec to the wire boundaries; ``enabled=False`` (zero or one
+    frontend process) restores master's list payloads.
+    """
+    global _MATERIALISE_LIST_PAYLOADS
+    _MATERIALISE_LIST_PAYLOADS = not enabled
 
 
 def _encode_data(data: np.ndarray, datatype: Datatype) -> Any:
@@ -174,12 +239,47 @@ def _encode_data(data: np.ndarray, datatype: Datatype) -> Any:
         # lengths as an element list.
         return data.flatten().tolist()
 
+    if isinstance(data, np.ma.MaskedArray):
+        # Masked arrays keep the legacy list representation: tolist
+        # converts masked entries to None, matching the pre-ndarray
+        # wire format. An ndarray root would carry the MaskedArray
+        # subclass through to the wire encoders, whose tobytes()
+        # substitutes the array's fill_value instead of a missing
+        # value marker.
+        return data.flatten().tolist()
+
+    if _MATERIALISE_LIST_PAYLOADS:
+        # Single-frontend deployments (the default): master's response
+        # data flow. The list is materialised here, in the worker (or
+        # in-process model host), IPC carries Python lists, and every
+        # wire boundary takes its legacy path. REST JSON output is
+        # byte-identical to master (orjson renders both NaN and None
+        # as null — verified); gRPC NaN payloads now serialise natively
+        # instead of raising the pre-ndarray TypeError (a deliberate
+        # improvement retained from the ndarray work, verified).
+        return data.flatten().tolist()
+
     flat = data.ravel()
-    if np.issubdtype(flat.dtype, np.floating) and np.isnan(flat).any():
-        # Normalise NaN to the platform quiet NaN on a copy; never mutate
-        # the model's output buffer (which a ravel view may alias).
+    if flat is data or flat.base is not None:
+        # ravel returned a view sharing the caller's buffer; copy to
+        # detach so post-encode mutation of the model's output (e.g. a
+        # model reusing its buffer for the next request) cannot change
+        # a response that is still in flight. This fires for every
+        # contiguous output (ravel returns a view of itself) — one
+        # memcpy per output tensor, the accepted cost of buffer safety.
         flat = flat.copy()
-        flat[np.isnan(flat)] = np.nan
+    if np.issubdtype(flat.dtype, np.floating):
+        nan_mask = np.isnan(flat)
+        if nan_mask.any():
+            # Canonicalise noncanonical NaN bit patterns (e.g. 0x7FC00001)
+            # to the canonical quiet NaN: mask-assignment with the np.nan
+            # scalar stores that constant's bits (a scalar broadcast, not
+            # an FPU arithmetic op), so every NaN payload collapses to one
+            # bit pattern and bit-exact parity checks hold. In-place is
+            # safe: flat is private here (explicit copy above, or ravel's
+            # own copy for non-contiguous inputs). Verified by
+            # TestBufferMutation.test_nan_payload_does_not_mutate_source.
+            flat[nan_mask] = np.nan
     return flat
 
 

@@ -87,8 +87,6 @@ async def test_native_wrapper_failure_cannot_publish_through_retry_or_unload(
     # replay and retry publication.
     # Method: Mark committed/abandoned/retried settings, fault wrapping, await recovery
     # and query actual worker metadata across unload or retry.
-    if transport == "zmq":
-        pytest.importorskip("zmq")
     settings.parallel_inference_transport = transport
     settings.parallel_workers = 1
     settings.model_operation_timeout = 10

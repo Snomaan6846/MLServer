@@ -207,6 +207,14 @@ That broader request-ownership contract needs separate implementation and
 qualification before placement, caching, admission or inference offloading can
 rely on safe retirement of all previously accepted requests.
 
+Inference requests themselves wait for their reply without a deadline by default
+(matching unbounded model execution times). The opt-in `inference_timeout`
+setting bounds that wait per request: expiry fails the request (HTTP 504 on
+REST), clears the pending dispatcher entry and evicts the queued request from
+the worker-side batcher. It complements — and is deliberately independent of —
+`model_operation_timeout` (lifecycle operations) and `worker_start_timeout`
+(worker initialization and replay).
+
 The detailed ownership and failure contracts below qualify these flows.
 
 ### Regression test guide
@@ -519,3 +527,25 @@ The feeder and retirement owner serialize closure of each parent reader. Native
 descriptor close can release the GIL between checking and clearing the handle;
 concurrent close calls could otherwise close the same descriptor twice. The lock
 is installed before the feeder starts and adds no work to prediction dispatch.
+
+## Multi-frontend coordination (frontend_workers >= 1)
+
+The ownership contracts above describe one MLServer process. At
+`frontend_workers = N >= 1`, a supervisor process owns the inference
+pool and coordinates the same lifecycle across processes:
+
+| Concern | Owner | Contract |
+| --- | --- | --- |
+| Pool, workers, model instances | Supervisor's `InferencePoolRegistry` | Unchanged from the single-process contracts above. |
+| Frontend routing tables | Each frontend's `MultiModelRegistry` | Mirrors the supervisor's committed state; never loads or unloads workers on its own. |
+| Load / unload | Supervisor | Applied on the pool first, then broadcast to every frontend; the origin's call returns only after all live frontends acknowledge (within `model_operation_timeout`). |
+| Frontend crash | Supervisor | The crashed frontend's pending acknowledgement slots are auto-acknowledged, so in-flight operations resolve immediately; the frontend is restarted (capped backoff) and the full registry is re-applied to it. |
+| Worker crash | Supervisor (SIGCHLD reaper) | Replacement and replay follow the contracts above; the new incarnation is broadcast to every frontend's dispatcher. |
+| Shutdown | Supervisor | Frontends drain first (their unloads become local no-ops), then the pool stops the workers through their control queues. |
+
+The control plane runs over inherited multiprocessing pipes; the
+inference data plane stays peer-to-peer ZeroMQ with per-frontend reply
+routing. The per-name and per-pool serialisation locks described above
+all live in the supervisor; frontends apply broadcast results under
+their own registry locks without forwarding (which would loop the
+operation back to the supervisor).
