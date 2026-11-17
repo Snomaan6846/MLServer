@@ -2,6 +2,8 @@
 
 import asyncio
 
+import numpy as np
+
 from mlserver_onnx import OnnxModel
 from mlserver_onnx.onnx import PREDICT_OUTPUT
 from mlserver.types import RequestOutput
@@ -54,7 +56,8 @@ async def test_parallel_predict(model: OnnxModel, inference_request):
     responses = await asyncio.gather(*tasks)
 
     assert all(len(response.outputs) == 1 for response in responses)
-    # Verify all predictions return same result
-    first_output = responses[0].outputs[0].data
+    # Verify all predictions return same result. Outputs keep their NumPy
+    # representation (flat ndarray roots), so compare element-wise.
+    first_output = responses[0].outputs[0].data.root
     for response in responses[1:]:
-        assert response.outputs[0].data == first_output
+        np.testing.assert_array_equal(response.outputs[0].data.root, first_output)

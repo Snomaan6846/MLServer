@@ -2,8 +2,10 @@ import struct
 
 from functools import reduce
 from operator import mul
-from .types import Datatype, TensorData
 
+import numpy as np
+
+from .types import Datatype, TensorData
 from .codecs.string import encode_str
 from .codecs.utils import InputOrOutput
 from .codecs.lists import ListElement
@@ -83,12 +85,29 @@ def _unpack_tensor(elem: InputOrOutput, raw: bytes) -> list:
 
 
 def _pack_tensor(elem: InputOrOutput) -> bytes:
+    data = getattr(elem.data, "root", elem.data)
+    if isinstance(data, np.ndarray):
+        return _pack_ndarray(elem, data)
+
     tensor_format = _tensor_format(elem)
     if Datatype(elem.datatype) in (Datatype.FP16, Datatype.FP32, Datatype.FP64):
         # Codecs represent NaN as None for JSON; restore it for binary transport.
         values = [float("nan") if value is None else value for value in elem.data]
         return struct.pack(tensor_format, *values)
     return struct.pack(tensor_format, *elem.data)
+
+
+def _pack_ndarray(elem: InputOrOutput, data: np.ndarray) -> bytes:
+    # Contiguous-buffer fast path (native byte order, matching struct exactly).
+    expected = _tensor_length(elem.shape)
+    if data.size != expected:
+        # Fail with the same error the list path raises on mismatches.
+        raise struct.error(
+            f"pack expected {expected} items for packing (got {data.size})"
+        )
+    # Native byte order (no copy when already native); NaN normalised upstream.
+    data = data.reshape(-1).astype(data.dtype.newbyteorder("="), copy=False)
+    return data.tobytes(order="C")
 
 
 def unpack(elem: InputOrOutput, raw: bytes) -> list:

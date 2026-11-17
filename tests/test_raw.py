@@ -1,4 +1,6 @@
 import pytest
+import struct
+
 import numpy as np
 
 from mlserver.types import RequestInput, ResponseOutput, TensorData
@@ -122,7 +124,63 @@ def test_pack_tensor_restores_nan_without_mutating_data(dtype):
     packed = _pack_tensor(request_input)
 
     np.testing.assert_array_equal(np.frombuffer(packed, dtype=dtype), tensor.flatten())
-    assert request_input.data.root == [1.5, None, 2.0]
+    # The ndarray root keeps NaN in memory (canonicalised at encode time);
+    # packing restores it on the wire without touching the in-memory data.
+    np.testing.assert_array_equal(request_input.data.root, tensor.flatten())
+
+
+@pytest.mark.parametrize(
+    "tensor",
+    [
+        # bool
+        np.array([True, False, True]),
+        # uint8
+        np.array([[1, 2], [3, 4]], dtype=np.ubyte),
+        # uint16
+        np.array([[1, 2], [3, 4]], dtype=np.ushort),
+        # uint32
+        np.array([[1, 2], [3, 4]], dtype=np.uintc),
+        # uint64
+        np.array([[1, 2], [3, 4]], dtype=np.uint),
+        # int8
+        np.array([[1], [-2], [3]], dtype=np.byte),
+        # int16
+        np.array([[1], [-2], [3]], dtype=np.short),
+        # int32
+        np.array([[1], [-2], [3]], dtype=np.intc),
+        # int64
+        np.array([[1], [-2], [3]], dtype=np.int_),
+        # fp16
+        np.array([[1.2, 3.3]], dtype=np.half),
+        # fp32
+        np.array([[1.2, 3.3]], dtype=np.single),
+        # fp64
+        np.array([[1.2, 3.3]], dtype=np.double),
+    ],
+)
+def test_pack_tensor_ndarray_matches_list_representation(tensor: np.ndarray):
+    """Packing the ndarray root gives the same bytes as the equivalent
+    Python-list representation (the pre-ndarray pipeline's form)."""
+    ndarray_input = NumpyCodec.encode_input(name="foo", payload=tensor)
+    assert isinstance(ndarray_input.data.root, np.ndarray)
+
+    list_input = RequestInput(
+        name=ndarray_input.name,
+        datatype=ndarray_input.datatype,
+        shape=ndarray_input.shape,
+        data=TensorData(ndarray_input.data.root.tolist()),
+    )
+
+    assert _pack_tensor(list_input) == _pack_tensor(ndarray_input)
+
+
+def test_pack_tensor_ndarray_size_mismatch_raises_struct_error():
+    tensor = np.array([1.0, 2.0, 3.0], dtype=np.single)
+    request_input = NumpyCodec.encode_input(name="foo", payload=tensor)
+    request_input.shape = [2, 2]  # declared shape no longer matches the data
+
+    with pytest.raises(struct.error):
+        _pack_tensor(request_input)
 
 
 @pytest.mark.parametrize(

@@ -68,7 +68,9 @@ async def test_batcher(
         assert sent_request.id == response.id
 
         expected = await sum_model.predict(sent_request)
-        assert expected == response
+        # Wire-level comparison: the split output's ndarray root must
+        # serialise to exactly the direct prediction's JSON.
+        assert expected.model_dump_json() == response.model_dump_json()
 
 
 async def test_batcher_propagates_errors(
@@ -360,4 +362,6 @@ async def test_predict(
         assert req_shape.batch_size == res_shape.batch_size
 
         expected = await sum_model.predict(req)
-        assert res == expected
+        # Wire-level comparison: the split output's ndarray root must
+        # serialise to exactly the direct prediction's JSON.
+        assert res.model_dump_json() == expected.model_dump_json()

@@ -205,7 +205,7 @@ def test_decode_request_not_found(
                     name="output-1",
                     datatype="INT64",
                     shape=[1, 1],
-                    data=[2],
+                    data=np.array([2]),
                     parameters=Parameters(content_type=NumpyCodec.ContentType),
                 ),
             ],
@@ -253,7 +253,7 @@ def test_decode_request_not_found(
                     name="output-0",
                     datatype="INT64",
                     shape=[1, 1],
-                    data=[3],
+                    data=np.array([3]),
                     parameters=Parameters(content_type=NumpyCodec.ContentType),
                 ),
                 ResponseOutput(name="a", datatype="INT64", shape=[1, 1], data=[2]),
@@ -278,7 +278,19 @@ def test_encode_response(
     response = signature_codec.encode_response(model_name="foo", payload=output_values)
 
     assert response.model_name == "foo"
-    assert response.outputs == expected_outputs
+    assert len(response.outputs) == len(expected_outputs)
+    for actual, expected in zip(response.outputs, expected_outputs):
+        assert actual.name == expected.name
+        assert actual.datatype == expected.datatype
+        assert actual.shape == expected.shape
+        assert actual.parameters == expected.parameters
+        if isinstance(actual.data.root, np.ndarray) or isinstance(
+            expected.data.root, np.ndarray
+        ):
+            # NumpyCodec outputs keep their NumPy representation
+            np.testing.assert_array_equal(actual.data.root, expected.data.root)
+        else:
+            assert actual.data.root == expected.data.root
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,8 @@
 from typing import Any
 from collections.abc import Mapping
 
+import numpy as np
+
 from ..types import Datatype
 
 from . import dataplane_pb2 as pb
@@ -415,6 +417,11 @@ class InferTensorContentsConverter:
         if datatype == Datatype.FP16:
             raise InferenceError("FP16 tensor contents must use raw contents")
         field = _FIELDS[datatype]
+        data = getattr(type_object, "root", type_object)
+        if isinstance(data, np.ndarray):
+            # Hand protobuf a Python list: it accepts NumPy scalars but
+            # iterates them far slower; NaN serialises natively.
+            return {field: data.reshape(-1).tolist()}
         return {field: type_object}
 
 
