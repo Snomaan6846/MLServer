@@ -1,11 +1,14 @@
 import pytest
 
+import numpy as np
+
 from mlserver.types import (
     InferenceRequest,
     RequestInput,
     ResponseOutput,
     InferenceResponse,
     Parameters,
+    TensorData,
 )
 from mlserver.batching.requests import BatchedRequests, _get_parameters
 
@@ -628,3 +631,70 @@ def test_split_response(
 
     assert inference_requests.keys() == responses.keys()
     assert list(responses.values()) == expected
+
+
+def test_split_response_ndarray_output_data():
+    """Ndarray output roots split into per-request views, matching the
+    equivalent list-based splits."""
+    requests = {
+        "request-1": InferenceRequest(
+            id="external-1",
+            inputs=[
+                RequestInput(
+                    name="input",
+                    datatype="FP32",
+                    shape=[3, 2],
+                    data=[float(i) for i in range(6)],
+                )
+            ],
+        ),
+        "request-2": InferenceRequest(
+            id="external-2",
+            inputs=[
+                RequestInput(
+                    name="input",
+                    datatype="FP32",
+                    shape=[5, 2],
+                    data=[float(i) for i in range(6, 16)],
+                )
+            ],
+        ),
+    }
+    batched = BatchedRequests(requests)
+    response = InferenceResponse(
+        model_name="test-model",
+        outputs=[
+            ResponseOutput(
+                name="input",
+                datatype="FP32",
+                shape=[8, 2],
+                data=TensorData(np.arange(16, dtype=np.float32)),
+            )
+        ],
+    )
+
+    split = batched.split_response(response)
+
+    np.testing.assert_array_equal(
+        split["request-1"].outputs[0].data.root, np.arange(6, dtype=np.float32)
+    )
+    np.testing.assert_array_equal(
+        split["request-2"].outputs[0].data.root, np.arange(6, 16, dtype=np.float32)
+    )
+    assert split["request-1"].outputs[0].shape == [3, 2]
+    assert split["request-2"].outputs[0].shape == [5, 2]
+
+    # The split views serialise to the same JSON as equivalent lists
+    list_response = InferenceResponse(
+        id="external-1",
+        model_name="test-model",
+        outputs=[
+            ResponseOutput(
+                name="input",
+                datatype="FP32",
+                shape=[3, 2],
+                data=TensorData([float(i) for i in range(6)]),
+            )
+        ],
+    )
+    assert split["request-1"].model_dump_json() == list_response.model_dump_json()

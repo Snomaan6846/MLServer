@@ -136,10 +136,26 @@ def _to_ndarray(input_or_output: InputOrOutput) -> np.ndarray:
             decoded = [np.frombuffer(buffer, dtype) for buffer in data]
             return np.concatenate(decoded)
 
+    if isinstance(data, list):
+        # Fast path: a flat list whose length matches the declared shape
+        # converts element-wise through fromiter. Anything fromiter cannot
+        # consume (nested lists, strings, overflow, unsupported dtypes)
+        # falls back to the generic np.array path, so behaviour stays
+        # bit-identical for every input the generic path accepts.
+        expected = 1
+        for dim in input_or_output.shape:
+            expected *= dim
+        try:
+            if expected == len(data):
+                return np.fromiter(data, dtype, count=expected)
+        except (TypeError, ValueError, OverflowError):
+            pass
+
     return np.array(data, dtype)
 
 
-def _encode_data(data: np.ndarray, datatype: Datatype) -> list:
+def _encode_data(data: np.ndarray, datatype: Datatype) -> Any:
+    # Non-BYTES tensors keep their NumPy representation (flat view) to the wire.
     if datatype == Datatype.BYTES:
         if np.issubdtype(data.dtype, str):
             # Handle special case of a string Numpy array, where the diff elems
@@ -154,17 +170,17 @@ def _encode_data(data: np.ndarray, datatype: Datatype) -> list:
             # need to encapsulate it into a list so that it's compatible.
             return [data.tobytes()]
 
-    flattened_list = data.flatten().tolist()
+        # Opaque byte elements (e.g. object arrays): exact values and
+        # lengths as an element list.
+        return data.flatten().tolist()
 
-    # Replace NaN with null
-    if datatype != Datatype.BYTES:
-        # The `isnan` method doesn't work on Numpy arrays with non-numeric
-        # types
-        has_nan = np.isnan(data).any()
-        if has_nan:
-            flattened_list = list(map(convert_nan, flattened_list))
-
-    return flattened_list
+    flat = data.ravel()
+    if np.issubdtype(flat.dtype, np.floating) and np.isnan(flat).any():
+        # Normalise NaN to the platform quiet NaN on a copy; never mutate
+        # the model's output buffer (which a ravel view may alias).
+        flat = flat.copy()
+        flat[np.isnan(flat)] = np.nan
+    return flat
 
 
 def convert_nan(val):

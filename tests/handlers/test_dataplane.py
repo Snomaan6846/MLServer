@@ -1,9 +1,11 @@
 import pytest
 import uuid
 
+import numpy as np
+
 from mlserver.errors import ModelNotReady
 from mlserver.settings import ModelSettings, ModelParameters
-from mlserver.types import MetadataTensor, TensorData
+from mlserver.types import MetadataTensor
 
 from ..fixtures import SumModel
 
@@ -287,7 +289,7 @@ async def test_infer(data_plane, sum_model, inference_request):
     )
 
     assert len(prediction.outputs) == 1
-    assert prediction.outputs[0].data == TensorData(root=[6])
+    np.testing.assert_array_equal(prediction.outputs[0].data.root, [6])
 
 
 async def test_infer_stream(data_plane, text_stream_model, generate_request):

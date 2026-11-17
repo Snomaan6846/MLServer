@@ -48,6 +48,25 @@ class TensorData(RootModel[list[Any] | Any]):
     def __len__(self):
         return len(self.root)
 
+    from pydantic import model_serializer  # type: ignore[misc]
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler, info):
+        # Ndarray roots serialise as flat lists (NaN -> None); others unchanged.
+        from numpy import isnan, ndarray
+
+        data = self.root
+        if isinstance(data, ndarray):
+            flat = data.reshape(-1)
+            as_list = flat.tolist()
+            if flat.dtype.kind in "fc" and isnan(flat).any():
+                from math import isnan as _isnan
+
+                as_list = [None if _isnan(v) else v for v in as_list]
+            return as_list
+
+        return handler(self)
+
 
 class RequestOutput(BaseModel):
     name: str

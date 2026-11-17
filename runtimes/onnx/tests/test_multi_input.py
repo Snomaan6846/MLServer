@@ -3,6 +3,7 @@
 import os
 import onnx
 import pytest
+import numpy as np
 from onnx import TensorProto, helper
 
 from mlserver_onnx import OnnxModel
@@ -190,8 +191,9 @@ async def test_multi_input_order_independent(
     response2 = await multi_input_model.predict(request2)
     output2 = response2.outputs[0].data
 
-    # Results should be identical (mapping is by name, not position)
-    assert output1 == output2
+    # Results should be identical (mapping is by name, not position).
+    # Outputs keep their NumPy representation, so compare element-wise.
+    np.testing.assert_array_equal(output1.root, output2.root)
     expected = [2.0, 3.0, 4.0, 5.0]
     for actual, exp in zip(output1, expected):
         assert abs(actual - exp) < 0.001

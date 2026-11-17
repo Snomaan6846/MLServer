@@ -78,7 +78,12 @@ def test_encode_response_output(
         )
     }
     response_output = encode_response_output(payload, request_output, metadata_outputs)
-    assert response_output == expected
+    if expected is None:
+        assert response_output is None
+    else:
+        # Wire-level comparison: NumpyCodec outputs keep their ndarray
+        # root, which serialises to the same JSON as the expected list.
+        assert response_output.model_dump_json() == expected.model_dump_json()
 
 
 @pytest.mark.parametrize(
@@ -149,7 +154,9 @@ def test_encode_inference_response(
     sum_model_settings: ModelSettings,
 ):
     inference_response = encode_inference_response(payload, sum_model_settings)
-    assert inference_response == expected
+    # Wire-level comparison: NumpyCodec outputs keep their ndarray root,
+    # which serialises to the same JSON as the expected list.
+    assert inference_response.model_dump_json() == expected.model_dump_json()
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,6 @@
 import pytest
+import math
+
 import numpy as np
 
 from google.protobuf import json_format
@@ -237,7 +239,7 @@ def test_modelinferrequest_fp16_uses_raw_contents(data):
     decoded = NumpyCodec.decode_input(decoded_request.inputs[0])
     np.testing.assert_array_equal(decoded, values)
     assert decoded.dtype == values.dtype
-    assert request_input.data == original_data
+    np.testing.assert_array_equal(request_input.data.root, original_data.root)
 
 
 @pytest.mark.parametrize("data", [[1.5, 2.0], [1.5, np.nan, 2.0]])
@@ -260,7 +262,7 @@ def test_modelinferresponse_fp16_uses_raw_contents(data):
     decoded = NumpyCodec.decode_output(decoded_response.outputs[0])
     np.testing.assert_array_equal(decoded, values)
     assert decoded.dtype == values.dtype
-    assert response_output.data == original_data
+    np.testing.assert_array_equal(response_output.data.root, original_data.root)
 
 
 def test_modelinferresponse_raw_preserves_large_outputs():
@@ -278,13 +280,52 @@ def test_modelinferresponse_raw_preserves_large_outputs():
     assert converted.raw_output_contents == [values.tobytes()]
     assert converted_again.raw_output_contents == [values.tobytes()]
     assert not converted.outputs[0].contents.ListFields()
-    assert response_output.data == original_data
+    np.testing.assert_array_equal(response_output.data.root, original_data.root)
     assert len(response_output.data.root) == 300 * 91
 
     decoded_response = ModelInferResponseConverter.to_types(converted)
     decoded = NumpyCodec.decode_output(decoded_response.outputs[0])
     np.testing.assert_array_equal(decoded, values)
     assert decoded.dtype == values.dtype
+
+
+@pytest.mark.parametrize("data", [[1.5, 2.0, -3.25], [1.0]])
+def test_modelinferresponse_ndarray_contents_match_list(data):
+    """Typed-contents conversion of ndarray roots matches the equivalent
+    Python-list representation byte for byte."""
+    values = np.asarray([data], dtype=np.float32)
+    ndarray_output = NumpyCodec.encode_output(name="output-0", payload=values)
+    list_output = types.ResponseOutput(
+        name="output-0",
+        datatype=ndarray_output.datatype,
+        shape=ndarray_output.shape,
+        data=types.TensorData(ndarray_output.data.root.tolist()),
+        parameters=ndarray_output.parameters,
+    )
+
+    from_ndarray = ModelInferResponseConverter.from_types(
+        types.InferenceResponse(model_name="model", outputs=[ndarray_output])
+    )
+    from_list = ModelInferResponseConverter.from_types(
+        types.InferenceResponse(model_name="model", outputs=[list_output])
+    )
+
+    assert from_ndarray.SerializeToString(deterministic=True) == (
+        from_list.SerializeToString(deterministic=True)
+    )
+
+
+def test_modelinferresponse_ndarray_nan_contents_succeed():
+    """NaN over typed contents serialises natively instead of raising
+    TypeError (the pre-ndarray pipeline crashed on the None placeholder)."""
+    values = np.asarray([[1.5, np.nan]], dtype=np.float32)
+    response_output = NumpyCodec.encode_output(name="output-0", payload=values)
+    response = types.InferenceResponse(model_name="model", outputs=[response_output])
+
+    converted = ModelInferResponseConverter.from_types(response)
+
+    assert math.isnan(converted.outputs[0].contents.fp32_contents[1])
+    assert converted.outputs[0].contents.fp32_contents[0] == 1.5
 
 
 def test_modelinferrequest_mixed_datatypes_raw_roundtrip():
