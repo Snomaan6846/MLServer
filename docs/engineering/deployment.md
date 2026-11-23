@@ -261,8 +261,11 @@ Deployment notes:
 - Requires `parallel_inference_transport = "zmq"` (validated at startup);
   the queue transport is parent-child and cannot be shared across
   frontends.
-- All frontend processes bind the same REST, gRPC and metrics ports using
-  `SO_REUSEPORT`; the kernel balances connections between them. No extra
+- All frontend processes serve the same REST, gRPC and metrics ports
+  from a single pod. REST flows through one listening socket the
+  supervisor binds and shares with every frontend (one accept queue,
+  least-loaded cooperative accepting); gRPC and metrics share their
+  ports via `SO_REUSEPORT`. No extra
   Services or ports are needed — the pod looks identical from outside.
 - Model memory does not scale with the frontend count: the models live in
   the shared pool's workers (`parallel_workers` copies), regardless of how

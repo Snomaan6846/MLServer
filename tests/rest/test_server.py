@@ -129,3 +129,26 @@ async def test_failed_custom_route_registration_removes_partial_routes(
         assert response.status_code == 404
     finally:
         await rest_server.delete_custom_handlers(partial)
+
+
+async def test_add_custom_handlers_idempotent(rest_server: RESTServer, sum_model):
+    """Adding the same model's handlers twice registers the routes
+    once: a superseded origin's hook chain re-runs on the wrapper an
+    apply already routed (the stale-publication swap). Without the
+    dedup, the duplicate registration leaks a route on removal (each
+    handler removes exactly one matching route)."""
+    await rest_server.add_custom_handlers(sum_model)
+    await rest_server.add_custom_handlers(sum_model)
+
+    scope = to_scope(sum_model.my_payload.__custom_handler__)
+    full_matches: list = []
+    for route in rest_server._app.routes:
+        match, _ = route.matches(scope)
+        if match == match.FULL:
+            full_matches.append(route)
+    assert len(full_matches) == 1
+
+    await rest_server.delete_custom_handlers(sum_model)
+    for route in rest_server._app.routes:
+        match, _ = route.matches(scope)
+        assert match == match.NONE

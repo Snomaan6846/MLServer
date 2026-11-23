@@ -125,10 +125,11 @@ class TestBufferMutation:
         """NaN canonicalisation writes to the detached copy, never to
         the model's output buffer — proven with a noncanonical NaN: an
         encoder that canonicalised the input in place (then copied it)
-        would flip the input's payload bits and fail here."""
-        from mlserver.codecs.numpy import NumpyCodec, set_ndarray_response_pipeline
-
-        set_ndarray_response_pipeline(True)
+        would flip the input's payload bits and fail here. (The old
+        default-path test pair collapsed into this single-mode
+        successor: the ndarray path's detach-copy proves the
+        invariant; the wire renders null either way.)"""
+        from mlserver.codecs.numpy import NumpyCodec
 
         # 0x7FC00001: a quiet NaN with a noncanonical payload (np.nan
         # itself is the canonical 0x7FC00000 and would prove nothing).
@@ -143,44 +144,37 @@ class TestBufferMutation:
         root = output.data.root
         assert root.view(np.uint32)[1] == 0x7FC00000
 
-    def test_nan_payload_default_path_never_mutates_source(self):
-        """Default (direct server) path: tolist() snapshots without
-        touching the source buffer, and the noncanonical NaN passes
-        through as a plain Python float (the wire renders null either
-        way)."""
-        from mlserver.codecs.numpy import NumpyCodec
-
-        noncanonical = struct.unpack("<f", struct.pack("<I", 0x7FC00001))[0]
-        original = np.array([1.5, noncanonical], dtype=np.float32)
-
-        output = NumpyCodec.encode_output(name="test", payload=original)
-
-        assert original.view(np.uint32)[1] == 0x7FC00001
-        root = output.data.root
-        assert isinstance(root, list)
-        assert root[0] == 1.5
-        assert np.isnan(root[1])
-
 
 class TestRawDtypeMismatch:
-    """Raw packing validates dtype matches the declared datatype."""
+    """Raw packing routes dtype mismatches to the legacy conversion.
 
-    def test_int64_array_with_int32_datatype_raises(self):
-        """An int64 array with INT32 datatype raises an error."""
-        from mlserver.raw import _pack_ndarray
+    An ndarray whose dtype does not exactly match the declared
+    datatype returns None from _pack_ndarray (the fast path declines)
+    and the public pack() applies struct semantics: numeric coercion
+    for representable values, rejection otherwise.
+    """
+
+    def test_int64_array_with_int32_datatype_converts(self):
+        """An int64 array with INT32 datatype takes the legacy
+        conversion: struct coerces (or raises on range) — never raw
+        int64 storage under an INT32 declaration."""
+        import struct as struct_module
+
+        from mlserver.raw import _pack_ndarray, pack
         from mlserver.types import ResponseOutput
 
-        data = np.array([7], dtype=np.int64)  # mismatched
+        data = np.array([7], dtype=np.int64)  # representable in int32
         output = ResponseOutput(
             name="test",
             shape=[1],
             datatype="INT32",
             data=data,
         )
-        # Access the underlying ndarray from TensorData
         raw_data = np.asarray(output.data.root)
-        with pytest.raises(struct.error, match="expected INT32"):
-            _pack_ndarray(output, raw_data)
+        # The fast path declines (dtype mismatch).
+        assert _pack_ndarray(output, raw_data) is None
+        # The public pack applies the legacy struct conversion.
+        assert pack(output) == struct_module.pack("i", 7)
 
     def test_matching_dtype_succeeds(self):
         """Correct dtype works normally."""
@@ -198,12 +192,16 @@ class TestRawDtypeMismatch:
         result = _pack_ndarray(output, raw_data)
         assert len(result) == 4  # 1 element * 4 bytes
 
-    def test_fp32_array_with_fp64_datatype_raises(self):
-        """An FP32 array with FP64 datatype raises an error."""
-        from mlserver.raw import _pack_ndarray
+    def test_fp32_array_with_fp64_datatype_converts(self):
+        """An FP32 array with FP64 datatype takes the legacy
+        conversion: struct coerces to double — never raw float32
+        storage under an FP64 declaration."""
+        import struct as struct_module
+
+        from mlserver.raw import _pack_ndarray, pack
         from mlserver.types import ResponseOutput
 
-        data = np.array([1.5], dtype=np.float32)  # mismatched
+        data = np.array([1.5], dtype=np.float32)  # exactly representable
         output = ResponseOutput(
             name="test",
             shape=[1],
@@ -211,18 +209,46 @@ class TestRawDtypeMismatch:
             data=data,
         )
         raw_data = np.asarray(output.data.root)
-        with pytest.raises(struct.error, match="expected FP64"):
-            _pack_ndarray(output, raw_data)
+        assert _pack_ndarray(output, raw_data) is None
+        assert pack(output) == struct_module.pack("d", 1.5)
+
+    def test_out_of_range_rejection(self):
+        """A value outside the declared type's range rejects (struct
+        semantics — the reference behavior)."""
+        import struct as struct_module
+
+        from mlserver.raw import pack
+        from mlserver.types import ResponseOutput
+
+        data = np.array([2**63], dtype=np.float64)  # not representable in int64
+        output = ResponseOutput(
+            name="test",
+            shape=[1],
+            datatype="INT64",
+            data=data,
+        )
+        with pytest.raises(struct_module.error):
+            pack(output)
 
 
 class TestRawBytesSkipsItemsize:
-    """BYTES is variable-width: itemsize validation must skip it."""
+    """BYTES is variable-width: width validation must skip it."""
 
-    def test_bytes_datatype_returns_none_itemsize(self):
-        from mlserver.raw import _datatype_to_itemsize
+    def test_bytes_datatype_has_no_fixed_width(self):
+        """The production width authorities exclude BYTES from every
+        fixed-width path: the numpy dtype table (pack-side) has no
+        entry, and the struct ctype mapping (unpack-side) cannot
+        format it — which is why both routes branch BYTES out first.
+        The numeric widths those tables imply come from numpy itself
+        (the single source of truth), not a parallel table."""
+        import numpy as np
 
-        assert _datatype_to_itemsize("BYTES") is None
-        assert _datatype_to_itemsize("FP32") == 4
+        from mlserver.raw import _DATATYPE_DTYPES, _DatatypeToCtype
+        from mlserver.types import Datatype
+
+        assert _DATATYPE_DTYPES.get("BYTES") is None
+        assert Datatype.BYTES not in _DatatypeToCtype
+        assert np.dtype(_DATATYPE_DTYPES["FP32"]).itemsize == 4
 
     def test_bytes_packing_not_rejected_by_itemsize(self):
         """A BYTES output with any numpy dtype is not rejected by the

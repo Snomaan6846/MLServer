@@ -1,9 +1,11 @@
 # Multi-process frontend supervisor: at frontend_workers=0 (default)
 # it is never used. At N>=1 the supervisor owns the shared inference
-# pool, spawns N frontends onto the same SO_REUSEPORT ports, and
-# coordinates model lifecycle over inherited pipes. Shutdown order:
-# frontends drain first, then the pool stops workers via control
-# queues. Children arm PR_SET_PDEATHSIG so a crashed supervisor leaves
+# pool, binds the REST listening socket ONCE and shares it by fd with
+# N frontends (each accepting cooperatively — least loaded first,
+# publishing connection counts into a shared array), and coordinates
+# model lifecycle over inherited pipes. Shutdown order: frontends
+# drain first, then the pool stops workers via control queues.
+# Children arm PR_SET_PDEATHSIG so a crashed supervisor leaves
 # no orphans.
 
 import asyncio
@@ -20,7 +22,13 @@ from concurrent.futures import ThreadPoolExecutor
 from .logging import logger
 from .settings import Settings, ModelSettings
 from .model import MLModel
-from .utils import set_parent_death_signal, generate_uuid, consume_send_failure
+from .utils import (
+    set_parent_death_signal,
+    generate_uuid,
+    consume_send_failure,
+    _shared_listening_sockets,
+)
+from .rest.server import _NOT_ACCEPTING
 
 from .parallel.registry import ENV_HASH_ATTR, InferencePoolRegistry
 from .parallel.zmq import create_endpoint
@@ -60,12 +68,126 @@ def _process_exited(proc: "multiprocessing.process.BaseProcess") -> bool:
     return bool(connection_wait([proc.sentinel], timeout=0))
 
 
+class _DeadPopen:
+    """Inert Popen stand-in installed on a released Process.
+
+    A released Process can still be observed by paths that did not
+    perform the release (the monitor's death scan sees a frontend that
+    a terminate-for-restart confirmation already released). With
+    ``_popen`` deleted, ``is_alive``/``exitcode``/``sentinel`` raise
+    AttributeError — which killed the monitor loop and orphaned the
+    slot's replacement (found by
+    test_startup_apply_failure_exits_and_recovers_slot). Every
+    observable reads as exited instead.
+    """
+
+    def __init__(self, exit_code: "int | None", pid: "int | None") -> None:
+        # The honest status: None when the releaser did not know it
+        # (a later observer resolves it through the registry's stash).
+        self.exitcode = exit_code
+        self.pid = pid
+        # Never readable; every check short-circuits on is_alive()
+        # before touching the sentinel.
+        self.sentinel = -1
+
+    def poll(self, flag: int = 0) -> int:
+        # Non-None means exited (the Process.close/join contract): an
+        # unknown code reads as a plain exit rather than "running".
+        return self.exitcode if self.exitcode is not None else 0
+
+    def is_alive(self) -> bool:
+        return False
+
+    def wait(self, timeout: "float | None" = None) -> int:
+        return self.poll()
+
+    def close(self) -> None:
+        pass
+
+
+def _install_dead_stand_in(
+    proc: "multiprocessing.process.BaseProcess", exit_code: "int | None"
+) -> None:
+    # VERSION COUPLING: this surgery reads CPython 3.12's BaseProcess
+    # internals (_popen's accessor shapes, the _closed flag, the
+    # strong _children set). A Python minor upgrade that changes these
+    # would break it in production while the pinned-runtime tests
+    # change with it — the canary is
+    # TestReleaseProcess.test_release_helper_closes_spawned_process_fds
+    # (it exercises a REAL spawned process through release and
+    # post-release observation; if the stand-in drifts from the
+    # stdlib, its fd-count and observability assertions fail).
+    # pid is read BEFORE overwriting _popen, defensively: the property
+    # runs _check_closed (ValueError on a closed object) and reads
+    # _popen.pid (AttributeError once close() cleared it).
+    try:
+        pid = proc.pid
+    except (ValueError, AttributeError):
+        pid = None
+    proc._popen = _DeadPopen(exit_code, pid)  # type: ignore[attr-defined]
+    # close() marks the object closed, after which every check raises
+    # ValueError("process object is closed") — the stand-in must make
+    # them read dead instead.
+    proc._closed = False  # type: ignore[attr-defined]
+
+
+def _release_frontend_process(
+    proc: "multiprocessing.process.BaseProcess", exit_code: "int | None" = None
+) -> None:
+    """Release a dead frontend's Process object and its held fds.
+
+    ``Process.close()`` is the supported release, but it raises when
+    the corpse was reaped elsewhere: the pool's SIGCHLD
+    ``waitpid(-1)`` usually wins the race, and the resulting ECHILD
+    makes ``Popen.poll()`` report the process as still running. The
+    fallback drops the same references ``close()`` would have dropped:
+    the Popen (whose weakref finalizer then closes the sentinel and
+    bootstrap pipes) and the ``_children`` registry entry — a strong
+    ``set`` in Python 3.12, so without the discard every frontend ever
+    started is retained forever together with its 2 pipe fds (the
+    +2-fds-per-restart leak).
+
+    The caller must already have confirmed the exit (sentinel
+    readable). The sentinel re-check in the fallback guards against a
+    ``ValueError`` from a genuinely-live process: releasing a live
+    child would fire its Popen finalizer and close the sentinel of a
+    running process. After the release an inert stand-in keeps the
+    process observably dead (see _DeadPopen) — later observers (the
+    monitor's scan, a second sweep) must never see AttributeError.
+    """
+    try:
+        proc.close()
+    except ValueError:
+        # Either a foreign-reaped corpse (proceed) or a live process
+        # (the sentinel check below bails out).
+        pass
+    except AttributeError:
+        # Double release: the stdlib close() is not idempotent (it
+        # deletes _sentinel unconditionally); the object is already
+        # released — normalize to the inert stand-in.
+        _install_dead_stand_in(proc, exit_code)
+        return
+    else:
+        _install_dead_stand_in(proc, exit_code)
+        return
+    from multiprocessing.connection import wait as connection_wait
+
+    if not connection_wait([proc.sentinel], timeout=0):
+        return
+    import multiprocessing.process
+
+    multiprocessing.process._children.discard(proc)  # type: ignore[attr-defined]
+    _install_dead_stand_in(proc, exit_code)
+
+
 def _run_frontend(
     frontend_id: int,
     settings_dict: dict,
     reply_endpoint: str,
     control: Connection,
     custom_server_settings: dict | None = None,
+    rest_shared_sockets: "list | None" = None,
+    rest_peer_loads: "list | None" = None,
 ) -> None:
     """Entry point for each frontend process."""
     from .server import MLServer
@@ -84,9 +206,16 @@ def _run_frontend(
         settings._custom_rest_server_settings = custom_server_settings.get("rest")
         settings._custom_metrics_server_settings = custom_server_settings.get("metrics")
         settings._custom_grpc_server_settings = custom_server_settings.get("grpc")
-    # Lets operators verify SO_REUSEPORT distribution from the client
+    # Lets operators verify connection distribution from the client
     # side; absent in single-frontend mode.
     os.environ["MLSERVER_FRONTEND_ID"] = str(frontend_id)
+
+    peer_loads = None
+    if rest_shared_sockets is not None and rest_peer_loads is not None:
+        # Pair the shared load array with this frontend's slot: the
+        # REST server publishes its connection count here and defers
+        # accepting to less loaded peers (see rest.server).
+        peer_loads = (rest_peer_loads, frontend_id)
 
     async def _main() -> None:
         shared_pool = SharedPoolRegistry(
@@ -95,7 +224,12 @@ def _run_frontend(
             reply_endpoint=reply_endpoint,
             control=control,
         )
-        server = MLServer(settings, inference_pool_registry=shared_pool)
+        server = MLServer(
+            settings,
+            inference_pool_registry=shared_pool,
+            rest_shared_sockets=rest_shared_sockets,
+            rest_peer_loads=peer_loads,
+        )
         shared_pool.attach_registry(server._model_registry)
         shared_pool.attach_data_plane(server._data_plane)
         # Frontends start empty: the supervisor loads models into the
@@ -137,11 +271,41 @@ def _run_frontend(
 class _PendingOp:
     """Tracks broadcast acknowledgement for one model operation."""
 
-    def __init__(self, origin: int, ok: bool, error: str | None) -> None:
+    def __init__(
+        self,
+        origin: int,
+        ok: bool,
+        error: str | None,
+        broadcast_controls: "dict[int, Connection] | None" = None,
+    ) -> None:
         self.origin = origin
         self.ok = ok
         self.error = error
         self.acks: set[int] = set()
+        # Frontends whose apply FAILED (acked ok=False): they hold
+        # state the pool has moved past and are retired through the
+        # restart path once the operation resolves.
+        self.diverged: set[int] = set()
+        # The control connection each broadcast recipient owned at
+        # BROADCAST time — the incarnation identity for retirement.
+        # A diverged frontend may die and be replaced before the
+        # collection resolves; retiring by slot alone would terminate
+        # the healthy replacement for the dead incarnation's
+        # divergence. The identity-guarded termination helper skips
+        # when the slot's current connection differs, which also
+        # invalidates a second collector's request after the first
+        # retirement closed the connection.
+        if broadcast_controls is None:
+            broadcast_controls = {}
+        self.broadcast_controls = broadcast_controls
+
+
+# Replay-queue watermark: live messages queued behind one in-flight
+# replay, per frontend. Crossing it (each multiple) logs a warning —
+# the queue is correctness-safe (drained in order after the replay,
+# dropped wholesale only when the replacement dies and its ops fail by
+# timeout) but growth far beyond it means a stuck replay.
+_REPLAY_PENDING_WATERMARK = 1024
 
 
 class FrontendSupervisor:
@@ -180,6 +344,13 @@ class FrontendSupervisor:
         self._ack_condition = asyncio.Condition()
         self._transport_directory: TemporaryDirectory | None = None
         self._listener_tasks: list[asyncio.Task] = []
+        # The shared REST listener (supervised topology): one socket set
+        # plus one load slot per frontend, created in
+        # _prepare_shared_resources and shared by fd with every
+        # frontend process. The supervisor's reference keeps the socket
+        # (and its single accept queue) alive across frontend restarts.
+        self._rest_sockets: "list | None" = None
+        self._peer_loads: "list | None" = None
         # Model operations spawned from control messages: fire-and-
         # forget by design (their results reach the origin through the
         # ack path), but stop() must cancel and settle them — an op
@@ -290,9 +461,19 @@ class FrontendSupervisor:
                 self._reply_endpoints[frontend_id],
                 child_conn,
                 custom_server_settings,
+                self._rest_sockets,
+                self._peer_loads,
             ),  # noqa: E501
             name=f"mlserver-frontend-{frontend_id}",
         )
+        # The slot reads as not-accept until the fresh frontend
+        # publishes its first load: a stale low value from the previous
+        # occupant would make peers defer to a frontend that is not
+        # there (each defer is capped at 5 ms, but why defer at all).
+        # None-check: tests (and only tests) drive the factory without
+        # start(), where no shared resources exist yet.
+        if self._peer_loads is not None:
+            self._peer_loads[frontend_id] = _NOT_ACCEPTING
         # Retire the previous occupant's resources before overwriting
         # the slot: a failed earlier start() (or a restart racing this
         # factory) can leave an untracked connection whose fds would
@@ -350,7 +531,7 @@ class FrontendSupervisor:
                 logger.info(f"Frontend {i} started (PID {proc.pid})")
 
             for frontend_id, control in list(self._controls.items()):
-                self._listener_tasks.append(
+                self._track_listener(
                     asyncio.create_task(self._listen_frontend(frontend_id, control))
                 )
 
@@ -370,6 +551,22 @@ class FrontendSupervisor:
             create_endpoint(directory, "r")
             for _ in range(self._settings.frontend_workers)
         ]
+        # The shared REST listener: ONE socket set (no SO_REUSEPORT —
+        # exactly one accept queue) bound here in the supervisor and
+        # duplicated into every frontend, plus the peer load array the
+        # frontends publish their connection counts into. Binding here
+        # also fails fast on port conflicts (previously each frontend
+        # discovered them by crash-looping through its restart budget)
+        # and keeps the port held across frontend restart gaps: pending
+        # connections queue instead of being refused.
+        # RawArray: no lock — slot writes are aligned int32s whose
+        # worst-case race is a stale read for one publish interval.
+        self._peer_loads = multiprocessing.RawArray(
+            "i", [_NOT_ACCEPTING] * self._settings.frontend_workers
+        )
+        self._rest_sockets = _shared_listening_sockets(
+            self._settings.host, self._settings.http_port
+        )
 
     async def _start_shared_pool(self) -> None:
         # Warn when rotation could fragment batch windows: a rotation
@@ -394,6 +591,7 @@ class FrontendSupervisor:
             on_worker_stop=[
                 self._broadcast_worker_stopped,
                 self._stop_worker_metrics,
+                self._remove_worker_endpoint,
             ],
             on_worker_ready=[self._broadcast_worker_ready],
             on_pool_quarantined=[self._broadcast_pool_quarantined],
@@ -470,6 +668,27 @@ class FrontendSupervisor:
     # ------------------------------------------------------------------
     # Control plane
     # ------------------------------------------------------------------
+
+    def _track_listener(self, task: asyncio.Task) -> None:
+        """Track a control listener task, discarding it on completion.
+
+        A completed listener (frontend died or its pipe hit EOF) must
+        not accumulate: every other tracked task set discards on
+        completion, and without it each frontend restart retains one
+        task object (with its frame's connection reference) for the
+        supervisor's lifetime.
+        """
+        self._listener_tasks.append(task)
+        task.add_done_callback(self._discard_listener_task)
+
+    def _discard_listener_task(self, task: asyncio.Task) -> None:
+        # Tolerant removal: the restart-retirement path removes the
+        # task explicitly inside a synchronous block, and a cancelled
+        # task's callback can fire after that.
+        try:
+            self._listener_tasks.remove(task)
+        except ValueError:
+            pass
 
     async def _listen_frontend(self, frontend_id: int, control: Connection) -> None:
         loop = asyncio.get_running_loop()
@@ -726,7 +945,9 @@ class FrontendSupervisor:
         # Register the ack collector before broadcasting: the origin
         # frontend acknowledges on receipt, which can beat _collect_acks.
         if origin is not None:
-            self._pending_ops[own_op] = _PendingOp(origin, ok, error)
+            self._pending_ops[own_op] = _PendingOp(
+                origin, ok, error, broadcast_controls=dict(self._controls)
+            )
         delivered = await self._broadcast(
             ApplyLoad(
                 op_id=own_op,
@@ -840,9 +1061,28 @@ class FrontendSupervisor:
         # that failed (matching the pool's per-key state).
         ok = not failures
         error = "; ".join(failures) if failures else None
+        # A successful unload ADVANCES the key's generation counter
+        # (like a committed load does): every wrapper of the removed
+        # state carries a generation that no longer matches the
+        # counter, so a later retirement or duplicate unload of those
+        # wrappers resolves as superseded — fast, without a pool call
+        # or a broadcast. Without the advance, a retirement of the
+        # just-removed wrapper would still look current (its
+        # generation equals the counter) and be processed as a REAL
+        # unload: its broadcast would chain behind the very applies
+        # whose cleanups produced it — the unload-side ACK cycle.
+        # The counter stays monotonic (never reset), preserving the
+        # replay guarantee that the next load commits above every
+        # earlier value.
+        removed_generation = generation or 0
+        if key_ok:
+            removed_generation = self._generations.get(retired_key, 0) + 1
+            self._generations[retired_key] = removed_generation
         # Same pre-broadcast registration as loads (see _load_settings).
         if origin is not None:
-            self._pending_ops[own_op] = _PendingOp(origin, ok, error)
+            self._pending_ops[own_op] = _PendingOp(
+                origin, ok, error, broadcast_controls=dict(self._controls)
+            )
         # Broadcast the resolved key with its concrete version so every
         # peer exact-unloads the version it holds (a peer that missed
         # the version's apply no-ops on it). The outcome was captured
@@ -855,11 +1095,12 @@ class FrontendSupervisor:
                 version=retired_key[1],
                 ok=key_ok,
                 error=None if key_ok else error,
-                # The generation this unload actually removed: a
-                # peer holding a newer generation must skip this
-                # stale unload (the newer load committed during the
-                # pool await).
-                generation=generation or 0,
+                # The removal's generation: a peer holding a NEWER
+                # generation must skip this stale unload (the newer
+                # load committed during the pool await), and peers
+                # mark it so a delayed origin load does not
+                # republish over the removal.
+                generation=removed_generation,
             )
         )
         return ok, error, delivered
@@ -882,7 +1123,9 @@ class FrontendSupervisor:
             # broadcasts): without the registration the early acks are
             # already lost, so waiting for one ack per frontend matches
             # the pre-existing behaviour of this path.
-            pending = _PendingOp(origin, ok, error)
+            pending = _PendingOp(
+                origin, ok, error, broadcast_controls=dict(self._controls)
+            )
             self._pending_ops[op_id] = pending
         try:
             # The captured recipient set from the broadcast: a
@@ -913,7 +1156,37 @@ class FrontendSupervisor:
                     except asyncio.TimeoutError:
                         break
         finally:
+            diverged = set(pending.diverged)
+            # Frontends that never confirmed (the deadline expired
+            # without their ack) are either dead — the monitor owns
+            # their slot — or hung past the operation bound.
+            unconfirmed = expected_acks - pending.acks - diverged
+            broadcast_controls = dict(pending.broadcast_controls)
             self._pending_ops.pop(op_id, None)
+        for frontend_id in diverged | unconfirmed:
+            # A frontend that diverged (acked ok=False) or never
+            # confirmed holds state the pool has moved past, or
+            # unknown state. Retire LIVE ones through the restart
+            # machinery — the same discipline as
+            # _handle_startup_apply_failed: the control is closed and
+            # the process terminated, the death monitor schedules the
+            # replacement, and the replacement starts empty and
+            # converges through the readiness-gated inventory
+            # replay. Dead slots are already owned by the monitor.
+            # The BROADCAST-TIME connection is the incarnation
+            # identity: a diverged frontend that died and was
+            # replaced before this collection must not take its
+            # healthy replacement down with it — the identity guard
+            # in the termination helper skips replaced slots, and the
+            # first retirement's close invalidates any subsequent
+            # collector's request for the same connection.
+            proc = self._frontends.get(frontend_id)
+            if proc is not None:
+                self._terminate_frontend_for_restart(
+                    frontend_id,
+                    proc,
+                    broadcast_controls.get(frontend_id),
+                )
         # On timeout the origin gets the pool's result (ok/error), not a
         # convergence guarantee: some frontends may not have applied yet.
         # The broadcast itself is not rolled back (matching the pool's
@@ -927,10 +1200,20 @@ class FrontendSupervisor:
 
     async def _handle_ack(self, frontend_id: int, message: ApplyAck) -> None:
         pending = self._pending_ops.get(message.op_id)
-        if pending is not None:
-            async with self._ack_condition:
-                pending.acks.add(frontend_id)
-                self._ack_condition.notify_all()
+        if pending is None:
+            # A late ack whose collector expired: the frontend was
+            # already accounted for at collection time (diverged or
+            # in the missing-ack set) — nothing further to route.
+            return
+        if not message.ok:
+            # The frontend's local apply failed: it acknowledged (so
+            # the collection proceeds) but holds state the pool has
+            # moved past. It is retired through the restart path once
+            # the operation resolves.
+            pending.diverged.add(frontend_id)
+        async with self._ack_condition:
+            pending.acks.add(frontend_id)
+            self._ack_condition.notify_all()
 
     def _handle_startup_apply_failed(
         self,
@@ -1021,7 +1304,7 @@ class FrontendSupervisor:
                 # after the snapshot (e.g. restoring a superseded
                 # wrapper or pool tag).
                 if self._controls.get(frontend_id) is control:
-                    self._replay_pending.setdefault(frontend_id, []).append(message)
+                    self._queue_replay_pending(frontend_id, message)
                     delivered.add(frontend_id)
                 continue
             sends.append(self._send_on_connection(frontend_id, control, message))
@@ -1043,9 +1326,31 @@ class FrontendSupervisor:
             # Queue live traffic behind the replay: a live unload or
             # reload committing mid-replay must apply AFTER the
             # snapshot, not interleave with it.
-            self._replay_pending.setdefault(frontend_id, []).append(message)
+            self._queue_replay_pending(frontend_id, message)
             return
         await self._send_direct(frontend_id, message)
+
+    def _queue_replay_pending(self, frontend_id: int, message: object) -> None:
+        """Queue a live message behind an in-flight replay.
+
+        Watermark: the queue only grows while a replay is in flight and
+        is drained in passes afterwards (or dropped wholesale when the
+        replacement dies and its ops fail by timeout), so it is bounded
+        by the traffic committing during one replay window. A queue far
+        beyond the watermark means a replay is stuck — log it so the
+        condition is visible instead of silently absorbing memory.
+        """
+        queue = self._replay_pending.setdefault(frontend_id, [])
+        queue.append(message)
+        if len(queue) % _REPLAY_PENDING_WATERMARK == 0:
+            logger.warning(
+                "Replay queue for frontend %d reached %d pending messages "
+                "(/replay batch): the replay appears slow or stalled — "
+                "the delivery deadline machinery will terminate and "
+                "replace the frontend if it does not progress.",
+                frontend_id,
+                len(queue),
+            )
 
     async def _send_direct(
         self, frontend_id: int, message: object, strict: bool = False
@@ -1146,6 +1451,10 @@ class FrontendSupervisor:
                 pid=worker.pid,
                 exit_code=exit_code,
                 env_hash=getattr(worker, "env_hash", None),
+                # Identify the stopped incarnation so frontends can
+                # distinguish a delayed old-incarnation stop from the
+                # replacement's proxy (same PID, different endpoint).
+                request_endpoint=getattr(worker, "_zmq_request_endpoint", None),
             )
         )
 
@@ -1162,6 +1471,28 @@ class FrontendSupervisor:
 
         await stop_metrics(self._settings, worker.pid)
 
+    async def _remove_worker_endpoint(self, worker) -> None:
+        """Unlink a dead worker's IPC endpoint file.
+
+        ZMQ removes ``ipc://`` socket files on graceful close, but a
+        SIGKILLed worker (OOM, crash) leaves its endpoint file behind —
+        one stale file per worker death accumulates in the transport
+        directory for the supervisor's lifetime.
+        The callback runs after the worker's
+        queues are retired and before its replacement binds a NEW
+        endpoint (endpoint names are unique per worker), so removing
+        the file cannot race a rebind.
+        """
+        endpoint = getattr(worker, "_zmq_request_endpoint", None)
+        if not endpoint or not endpoint.startswith("ipc://"):
+            return
+        try:
+            os.unlink(endpoint[len("ipc://") :])
+        except OSError:
+            # Graceful stops already unlinked it; a missing file is
+            # the expected case.
+            pass
+
     # ------------------------------------------------------------------
     # Frontend death and restart
     # ------------------------------------------------------------------
@@ -1173,15 +1504,39 @@ class FrontendSupervisor:
     def _handle_dead_frontend(
         self, frontend_id: int, proc: multiprocessing.process.BaseProcess
     ) -> None:
+        # The exit code is unrecoverable from a foreign-reaped corpse
+        # (the pool's SIGCHLD waitpid(-1) consumed the status before
+        # this Process object could); the registry stashes exactly
+        # those statuses for this lookup.
+        exit_code = proc.exitcode
+        if exit_code is None and self._pool_registry is not None:
+            exit_code = self._pool_registry.pop_foreign_exit(proc.pid or -1)
         del self._frontends[frontend_id]
         self._observe_live_frontends()
+        # The dead frontend's load slot must stop looking least-loaded
+        # immediately (its published count is frozen at death): without
+        # this, peers defer up to 5 ms per new connection expecting a
+        # frontend that no longer exists to accept.
+        if self._peer_loads is not None:
+            self._peer_loads[frontend_id] = _NOT_ACCEPTING
         control = self._controls.pop(frontend_id, None)
         if control is not None:
             try:
                 control.close()
             except Exception:
                 pass
-        # A dead frontend can no longer acknowledge pending operations.
+        # The dead frontend's single-thread send executor has one
+        # thread blocked on control.send() to the now-closed pipe —
+        # the BrokenPipeError unblocks it, but the executor itself
+        # would otherwise linger until the NEXT restart's replacement
+        # shuts it down (wait=False). Shut it down now so restart
+        # storms do not accumulate blocked threads between death
+        # detection and replacement.
+        dead_executor = self._send_executors.pop(frontend_id, None)
+        if dead_executor is not None:
+            dead_executor.shutdown(wait=False)
+        # A dead frontend can no longer acknowledge pending
+        # operations.
         for pending in self._pending_ops.values():
             pending.acks.add(frontend_id)
         # Wake any in-flight ack collection: it may now be complete.
@@ -1196,17 +1551,23 @@ class FrontendSupervisor:
             logger.error(
                 f"Frontend {frontend_id} died and exceeded "
                 f"{self._settings.frontend_max_restarts} restarts "
-                f"(exit code {proc.exitcode}); "
+                f"(exit code {exit_code}); "
                 "giving up. Remaining frontends continue serving."
             )
+            _release_frontend_process(proc, exit_code)
             return
 
         logger.warning(
             f"Frontend {frontend_id} (PID {proc.pid}) died with exit "
-            f"code {proc.exitcode}. Restarting "
+            f"code {exit_code}. Restarting "
             f"(restart {restarts + 1}/{self._settings.frontend_max_restarts})..."
         )
         self._schedule_restart(frontend_id)
+        # Last use of the Process object: releases the 2 pipe fds and
+        # the multiprocessing._children entry (the restart-storm leak).
+        # The stand-in keeps the proc observably dead for any path
+        # that already released it (a confirm task may have).
+        _release_frontend_process(proc, exit_code)
 
     def _schedule_restart(
         self, frontend_id: int, exclude: "asyncio.Task | None" = None
@@ -1365,6 +1726,17 @@ class FrontendSupervisor:
                 f"Partial frontend {frontend_id} (PID {proc.pid}) did not "
                 "exit after SIGKILL; shutdown incomplete"
             )
+        # The exit is confirmed (or irrecoverably stuck): release the
+        # Process object's fds and registry entry either way — a
+        # stuck-but-signalled child holds the same resources. The
+        # monitor may observe this same proc after the release: the
+        # inert stand-in keeps every check reading dead, carrying the
+        # best-known exit status (the stash resolves a foreign-reaped
+        # corpse whose own exitcode reads None).
+        exit_code = proc.exitcode
+        if exit_code is None and self._pool_registry is not None:
+            exit_code = self._pool_registry.pop_foreign_exit(proc.pid or -1)
+        _release_frontend_process(proc, exit_code)
 
     def _terminate_frontend_for_restart(
         self,
@@ -1439,7 +1811,7 @@ class FrontendSupervisor:
             listener_task = asyncio.create_task(
                 self._listen_frontend(frontend_id, self._controls[frontend_id])
             )
-            self._listener_tasks.append(listener_task)
+            self._track_listener(listener_task)
             logger.info(f"Frontend {frontend_id} restarted (new PID {new_proc.pid})")
             # From registration on, live control traffic for this
             # frontend queues behind the replay: a live unload
@@ -1599,16 +1971,22 @@ class FrontendSupervisor:
     def _mark_metrics_process_dead(
         self, proc: multiprocessing.process.BaseProcess
     ) -> None:
-        """Remove a dead frontend's multiprocess metric files."""
+        """Remove a dead frontend's multiprocess metric files.
+
+        prometheus_client's ``mark_process_dead`` alone only prunes
+        live-gauge files — counters, histograms and plain gauges of a
+        dead process are left on disk by design, so every frontend
+        restart leaked its metric files AND kept the dead process's
+        stale series merged into every scrape.
+        The full removal matches ``stop_metrics``, the worker-side
+        counterpart.
+        """
         if not self._settings.metrics_endpoint or proc.pid is None:
             return
         try:
-            from prometheus_client import multiprocess
+            from .metrics.prometheus import remove_process_metric_files
 
-            os.environ.setdefault(
-                "PROMETHEUS_MULTIPROC_DIR", self._settings.metrics_dir
-            )
-            multiprocess.mark_process_dead(proc.pid)
+            remove_process_metric_files(self._settings, proc.pid)
         except Exception:
             logger.debug("Failed marking metrics process dead", exc_info=True)
 
@@ -1692,6 +2070,7 @@ class FrontendSupervisor:
             # the pool's SIGCHLD handler makes is_alive() report True
             # forever (see _process_exited).
             if _process_exited(proc):
+                _release_frontend_process(proc)
                 continue
             logger.warning(
                 f"Frontend {frontend_id} (PID {proc.pid}) did not "
@@ -1712,9 +2091,24 @@ class FrontendSupervisor:
                     f"Frontend {frontend_id} (PID {proc.pid}) did not "
                     "exit after SIGKILL; shutdown incomplete"
                 )
+            # Release the Process object's fds and _children entry
+            # (no-ops if the exit could not be confirmed).
+            _release_frontend_process(proc)
         self._controls.clear()
         self._frontends.clear()
         logger.info("All frontend processes stopped.")
+
+        # The supervisor's fd dups of the shared REST listener: every
+        # frontend has exited, so closing them here releases the socket
+        # (pending connections are reset — the server is going away).
+        if self._rest_sockets is not None:
+            for sock in self._rest_sockets:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+            self._rest_sockets = None
+        self._peer_loads = None
 
         # Frontends drained first; now stop the shared pool's workers
         # through their control queues (workers ignore signals).

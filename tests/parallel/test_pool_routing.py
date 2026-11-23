@@ -87,6 +87,88 @@ class TestPoolPartitionRouting:
         assert 201 not in shared._dispatcher._worker_pools
         assert "abc" not in shared._dispatcher._pool_pids
 
+    async def test_delayed_stop_keeps_replacement(self, shared):
+        """A delayed stop for an OLD incarnation must not revoke the
+        replacement proxy.
+
+        The reviewer's in-process ordering: the replacement announces
+        a new endpoint (same PID) BEFORE the old incarnation's stop
+        event is delivered. Stop events carry the stopped
+        incarnation's endpoint; a mismatch against the registry's
+        current proxy means the stop is stale — the ready event
+        already retired the old proxy — and must be ignored.
+        """
+        from mlserver.parallel.shared import WorkerReadyEvent, WorkerStoppedEvent
+
+        await shared._handle_worker_ready(
+            WorkerReadyEvent(pid=301, request_endpoint="ipc:///tmp/w301a")
+        )
+        # Replacement announces a NEW endpoint before the old stop
+        await shared._handle_worker_ready(
+            WorkerReadyEvent(pid=301, request_endpoint="ipc:///tmp/w301b")
+        )
+        # The delayed stop identifies the OLD incarnation
+        shared._handle_worker_stopped(
+            WorkerStoppedEvent(
+                pid=301,
+                exit_code=1,
+                request_endpoint="ipc:///tmp/w301a",
+            )
+        )
+
+        # The replacement survives: same PID, new endpoint, routable
+        proxy = shared._proxies[301]
+        assert proxy.request_endpoint == "ipc:///tmp/w301b"
+        assert shared._dispatcher._ready_workers[301] is proxy
+
+        # A stop matching the CURRENT incarnation still revokes
+        shared._handle_worker_stopped(
+            WorkerStoppedEvent(
+                pid=301,
+                exit_code=0,
+                request_endpoint="ipc:///tmp/w301b",
+            )
+        )
+        assert 301 not in shared._proxies
+        assert 301 not in shared._dispatcher._ready_workers
+
+    async def test_stop_without_endpoint_revokes_by_pid(self, shared):
+        """Backward compatibility: a stop event carrying no endpoint
+        (an incarnation that never bound, or a pre-field event)
+        revokes the PID's proxy — the previous behaviour."""
+        from mlserver.parallel.shared import WorkerReadyEvent, WorkerStoppedEvent
+
+        await shared._handle_worker_ready(
+            WorkerReadyEvent(pid=302, request_endpoint="ipc:///tmp/w302")
+        )
+        shared._handle_worker_stopped(WorkerStoppedEvent(pid=302, exit_code=0))
+
+        assert 302 not in shared._proxies
+        assert 302 not in shared._dispatcher._ready_workers
+
+    async def test_incarnation_replacement_exit_code(self, shared):
+        """Retiring the old proxy on an endpoint change reports
+        exit_code=-1 ("incarnation replaced"), not a clean exit."""
+        from mlserver.parallel.shared import WorkerReadyEvent
+
+        calls = []
+        original = shared._dispatcher.on_worker_stop
+        shared._dispatcher.on_worker_stop = lambda worker, exit_code: calls.append(
+            (worker.pid, exit_code)
+        ) or original(worker, exit_code)
+        try:
+            await shared._handle_worker_ready(
+                WorkerReadyEvent(pid=303, request_endpoint="ipc:///tmp/w303a")
+            )
+            await shared._handle_worker_ready(
+                WorkerReadyEvent(pid=303, request_endpoint="ipc:///tmp/w303b")
+            )
+        finally:
+            shared._dispatcher.on_worker_stop = original
+
+        assert (303, -1) in calls
+        assert shared._proxies[303].request_endpoint == "ipc:///tmp/w303b"
+
     async def test_apply_load_tags_model_pool(self, shared):
         """An applied load tags the model with the loading pool's hash."""
         from mlserver.parallel.shared import ApplyLoad, serialise_model_settings
@@ -898,3 +980,112 @@ class TestDefaultPoolDisplacement:
         # The OLD instance stays tracked: the retry re-stages and
         # re-commits against it.
         assert supervisor._loaded_models[("m", "")] is old_instance
+
+
+async def test_clean_model_error_keeps_routing_for_unrelated_models(
+    inference_pool, sum_model_settings
+) -> None:
+    """A clean model-level load error must not pause pool routing."""
+    # The failing model was never registered on any frontend (a failed
+    # load broadcasts ok=False, which frontends ack without applying),
+    # so no request can route to it — pausing the pool would only deny
+    # service to unrelated models for the rollback window. The
+    # single-process server serves through failed loads; the supervised
+    # pool must match that (regression: whole-pool NoWorkersAvailable
+    # blips on every failed load).
+    import asyncio
+
+    from mlserver.parallel.errors import WorkerError
+    from mlserver.parallel.messages import (
+        ModelUpdateMessage,
+        ModelUpdateType,
+    )
+
+    fired: list = []
+
+    async def hook(env_hash: str | None) -> None:
+        fired.append(env_hash)
+
+    inference_pool._on_pool_quarantined.append(hook)
+    worker = Mock()
+    inference_pool._dispatcher._ready_workers[4242] = worker
+
+    rollback_messages: list = []
+
+    async def dispatch_update(message):
+        if message.update_type == ModelUpdateType.Load:
+            # the model's own load() raised, reported by a live worker
+            raise WorkerError(ValueError("load failed"))
+        rollback_messages.append(message)
+        return []
+
+    inference_pool._dispatcher.dispatch_update = dispatch_update
+    message = ModelUpdateMessage(
+        update_type=ModelUpdateType.Load, model_settings=sum_model_settings
+    )
+
+    with pytest.raises(WorkerError):
+        await inference_pool._dispatch_owned(message)
+
+    recovery_task = inference_pool._recovery_task
+    assert recovery_task is not None
+    await asyncio.wait_for(recovery_task, timeout=5)
+
+    # routing never paused: the ready worker stayed routable
+    assert inference_pool._dispatcher._ready_workers.get(4242) is worker
+    # the quarantine hook never fired
+    assert fired == []
+    # the rollback unload still ran (staged-instance cleanup)
+    assert [m.update_type for m in rollback_messages] == [ModelUpdateType.Unload]
+
+
+async def test_unknown_state_failure_still_quarantines(
+    inference_pool, sum_model_settings
+) -> None:
+    """Unknown-state failures (worker stops, deadlines with the
+    dispatch still running) keep the full quarantine: worker state is
+    unknown and staged instances may be routable."""
+    import asyncio
+
+    from mlserver.parallel.errors import WorkerStop
+    from mlserver.parallel.messages import (
+        ModelUpdateMessage,
+        ModelUpdateType,
+    )
+
+    fired: list = []
+
+    async def hook(env_hash: str | None) -> None:
+        fired.append(env_hash)
+
+    inference_pool._on_pool_quarantined.append(hook)
+    worker = Mock()
+    inference_pool._dispatcher._ready_workers[4242] = worker
+
+    rollback_messages: list = []
+
+    async def dispatch_update(message):
+        if message.update_type == ModelUpdateType.Load:
+            # the worker died mid-load: unknown state
+            raise WorkerStop(-9)
+        # the rollback unload dispatches to the surviving workers
+        rollback_messages.append(message)
+        return []
+
+    inference_pool._dispatcher.dispatch_update = dispatch_update
+    message = ModelUpdateMessage(
+        update_type=ModelUpdateType.Load, model_settings=sum_model_settings
+    )
+
+    with pytest.raises(WorkerStop):
+        await inference_pool._dispatch_owned(message)
+
+    recovery_task = inference_pool._recovery_task
+    assert recovery_task is not None
+    await asyncio.wait_for(recovery_task, timeout=5)
+
+    # routing paused and the hook fired
+    assert 4242 not in inference_pool._dispatcher._ready_workers
+    assert fired == [inference_pool.env_hash]
+    # the rollback still ran
+    assert [m.update_type for m in rollback_messages] == [ModelUpdateType.Unload]

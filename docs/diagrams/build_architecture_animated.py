@@ -3,6 +3,7 @@ Build the animated MLServer Software Architecture diagram as a self-contained HT
 
 Shows the internal component perspective at frontend_workers >= 1: N frontend
 processes (REST, gRPC, metrics, DataPlane, middleware, dispatcher) on
+REST through a shared listening socket (least-loaded accepting), gRPC via
 SO_REUSEPORT, the supervisor process owning the shared inference pool and
 coordinating model lifecycle over control pipes, and the shared worker
 processes (with the adaptive batcher and codec pipeline living next to the
@@ -199,12 +200,12 @@ html = f"""<!DOCTYPE html>
   {node("cm", "Security", 75, 600, sublabel="Trusted Runtimes")}
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  FRONTEND PROCESSES (SO_REUSEPORT)                     -->
+  <!--  FRONTEND PROCESSES (shared listener + REUSEPORT)       -->
   <!-- ═══════════════════════════════════════════════════════ -->
   <rect x="175" y="115" width="330" height="315" class="cluster-solid"
     fill="#2E6EB5" stroke="#2E6EB5"/>
   <text x="340" y="137" class="cluster-title" fill="#2E6EB5">Frontend Processes × N</text>
-  <text x="340" y="152" class="cluster-note">SO_REUSEPORT · same ports · frontend_workers = N</text>
+  <text x="340" y="152" class="cluster-note">shared REST listener · SO_REUSEPORT (gRPC) · frontend_workers = N</text>
 
   {box("REST API", 195, 165, 130, 50, "#2E6EB5", ":8080 · HTTP/JSON")}
   {box("gRPC API", 355, 165, 135, 50, "#2E6EB5", ":8081 · HTTP/2+Protobuf")}

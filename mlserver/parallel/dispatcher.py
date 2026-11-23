@@ -17,6 +17,7 @@ from ..utils import (
     schedule_with_callback,
     with_operation_lock,
 )
+from ..errors import InferenceTimeoutError
 from ..metrics import REGISTRY
 
 from .errors import WorkerStop, NoWorkersAvailable
@@ -223,7 +224,7 @@ class Dispatcher:
         self._pool_round_robins: dict[str | None, Iterator[int]] = {}
         self._ready_workers = dict(workers)
         self._sorted_ready_pids: list[int] = sorted(self._ready_workers)
-        self._workers_round_robin = self._reset_round_robin()
+        self._reset_round_robin()
         self._worker_starting_lock = asyncio.Lock()
         self._active = False
         self._process_responses_task: asyncio.Task | None = None
@@ -335,10 +336,8 @@ class Dispatcher:
             return None
         return worker, pid
 
-    def _reset_round_robin(self) -> Iterator[int]:
-        worker_pids = list(self._ready_workers.keys())
+    def _reset_round_robin(self) -> None:
         self._sorted_ready_pids = sorted(self._ready_workers)
-        self._workers_round_robin = cycle(worker_pids)
         # Partitions are derived from the ready set, so tags of workers
         # removed outside on_worker_stop (e.g. a pool quarantine clearing
         # the ready table directly) cannot leak into routing.
@@ -347,7 +346,6 @@ class Dispatcher:
             by_pool.setdefault(self._worker_pools.get(pid), []).append(pid)
         self._pool_pids = by_pool
         self._pool_round_robins = {pool: cycle(pids) for pool, pids in by_pool.items()}
-        return self._workers_round_robin
 
     @with_operation_lock(lambda self, *args, **kwargs: self._worker_starting_lock)
     @defer_cancellation(lambda self, *args, **kwargs: self._worker_start_timeout)
@@ -479,6 +477,13 @@ class Dispatcher:
         self, request_message: ModelRequestMessage
     ) -> ModelResponseMessage:
         # Workers route each reply to the frontend that dispatched it.
+        # The in-place stamp is deliberate: the message is freshly
+        # constructed per request by the caller (ParallelModel._send)
+        # and never shared, so mutation cannot race — and a
+        # model_copy here would add a per-request allocation to the
+        # hottest path in the server for no safety gain. If
+        # ModelRequestMessage ever becomes frozen, construct it with
+        # the dispatcher's frontend_id instead.
         request_message.frontend_id = self._frontend_id
         worker, wpid = self._get_worker(
             request_message.model_name, request_message.model_version
@@ -511,12 +516,14 @@ class Dispatcher:
             except asyncio.CancelledError:
                 self._notify_cancelled(request_message, wpid)
                 raise
-            except TimeoutError:
+            except TimeoutError as err:
                 # Inference deadline expiry: evict the request from the
                 # worker-side batcher instead of computing a response
-                # nobody waits for.
+                # nobody waits for, and surface the dedicated type so
+                # the error mapping can tell an inference deadline from
+                # any other timeout source.
                 self._notify_cancelled(request_message, wpid)
-                raise
+                raise InferenceTimeoutError() from err
         worker.send_request(request_message)
 
         try:
@@ -526,12 +533,14 @@ class Dispatcher:
         except asyncio.CancelledError:
             self._notify_cancelled(request_message, wpid)
             raise
-        except TimeoutError:
+        except TimeoutError as err:
             # Inference deadline expiry: evict the request from the
             # worker-side batcher instead of computing a response
-            # nobody waits for.
+            # nobody waits for, and surface the dedicated type so
+            # the error mapping can tell an inference deadline from
+            # any other timeout source.
             self._notify_cancelled(request_message, wpid)
-            raise
+            raise InferenceTimeoutError() from err
 
     def _notify_cancelled(
         self, request_message: ModelRequestMessage, worker_pid: int

@@ -37,7 +37,7 @@ def test_frontend_workers_ge1_with_queue_raises():
 
 
 def test_frontend_workers_1_with_queue_raises():
-    """fw=1 is the supervised topology, so the queue transport is
+    """frontend_workers=1 is the supervised topology, so the queue transport is
     rejected there exactly as at any higher count."""
     with pytest.raises(ValueError, match="frontend_workers=1.*requires.*zmq"):
         Settings(
@@ -57,8 +57,8 @@ def test_frontend_workers_ge1_with_zmq_valid():
 
 
 def test_frontend_workers_1_with_zmq_and_pool_valid():
-    """fw=1 (one supervised frontend) is a valid configuration — the
-    uniformity cell: same machinery as fw=N, at minimum scale."""
+    """frontend_workers=1 (one supervised frontend) is a valid configuration — the
+    uniformity cell: same machinery as frontend_workers=N, at minimum scale."""
     settings = Settings(
         frontend_workers=1,
         parallel_workers=1,
@@ -105,7 +105,7 @@ def test_frontend_workers_ge1_without_pool_raises():
 
 
 def test_frontend_workers_1_without_pool_raises():
-    """fw=1 is the supervised topology, so the shared pool is required
+    """frontend_workers=1 is the supervised topology, so the shared pool is required
     there exactly as at any higher count."""
     with pytest.raises(Exception, match="parallel_workers >= 1"):
         Settings(

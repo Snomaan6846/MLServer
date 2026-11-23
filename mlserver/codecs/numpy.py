@@ -136,6 +136,23 @@ def _to_ndarray(input_or_output: InputOrOutput) -> np.ndarray:
             decoded = [np.frombuffer(buffer, dtype) for buffer in data]
             return np.concatenate(decoded)
 
+    # Zero-copy fast path: an ndarray of the target dtype (from the
+    # binary REST path or the native JSON span parser) is reshaped
+    # into a view — no element walk, no copy. Safety: the request
+    # is consumed once by the model (the response pipeline copies
+    # independently, see _encode_data); the batcher's
+    # restore_list_inputs() converts ndarrays back to lists before
+    # list-based merging; and cross-process dispatch (ZMQ pickle)
+    # copies anyway, so the view is only exposed in the direct
+    # single-process topology where the request is short-lived.
+    # Boundary: repeated decode() calls within one request return
+    # views of the same buffer, so an in-place mutation is visible to
+    # later decodes — list roots hand out a fresh copy per decode.
+    # Models that decode, mutate and re-decode the same input are
+    # outside the consumed-once contract.
+    if isinstance(data, np.ndarray) and data.dtype == dtype:
+        return data.reshape(input_or_output.shape)
+
     if isinstance(data, list):
         # Fast path: a flat list whose length matches the declared shape
         # converts element-wise through fromiter. Anything fromiter cannot
@@ -167,56 +184,13 @@ def _to_ndarray(input_or_output: InputOrOutput) -> np.ndarray:
     return np.array(data, dtype)
 
 
-# Topology gate for the ndarray-native response pipeline.
-#
-# Default True = master's list-based response payloads: the worker
-# materialises Python element lists at the codec, IPC carries lists,
-# and every wire boundary takes its legacy path. This is the exact
-# data flow of direct deployments (frontend_workers == 0, the
-# default), where the frontend's event loop is the bottleneck on
-# JSON-family wires — the cluster campaign (2026-11-21,
-# FINDINGS-json-zmq-tail.md) measured 5-14% p99 regressions there when
-# the list materialisation ran on the saturated frontend loop instead.
-#
-# The process bootstrap (worker or server) enables the ndarray
-# pipeline only through ndarray_response_pipeline_for() below —
-# 2+ frontend processes, under either scale semantics.
-_MATERIALISE_LIST_PAYLOADS = True
-
-
-def ndarray_response_pipeline_for(frontend_workers: int) -> bool:
-    """Whether the ndarray-native response pipeline fits this topology.
-
-    True only at 2+ frontend processes: the pipeline keeps NumPy
-    payloads over IPC but relocates the list materialisation to the
-    frontend loops, which is a win only when N >= 2 of them share it.
-    At frontend_workers == 1 — supervised or not — there is exactly
-    one frontend loop, the same saturation profile as the direct
-    server (frontend_workers == 0), where the relocation was measured
-    as a 5-14% p99 regression on JSON-family wires
-    (FINDINGS-json-zmq-tail.md, 2026-11-21).
-
-    NOTE: this criterion differs deliberately from the adaptive
-    batcher's placement gate (frontend_workers >= 1, see
-    mlserver/parallel/worker.py): batchers follow where models live
-    (supervised frontends never host models, so the worker is the
-    batcher's home even at one frontend); payloads follow how many
-    loops absorb the materialisation work.
-    """
-    return frontend_workers > 1
-
-
-def set_ndarray_response_pipeline(enabled: bool) -> None:
-    """Enable the ndarray-native response pipeline.
-
-    Called once at process bootstrap with
-    ``ndarray_response_pipeline_for(frontend_workers)``:
-    ``enabled=True`` (2+ frontend processes) keeps NumPy payloads from
-    the codec to the wire boundaries; ``enabled=False`` (zero or one
-    frontend process) restores master's list payloads.
-    """
-    global _MATERIALISE_LIST_PAYLOADS
-    _MATERIALISE_LIST_PAYLOADS = not enabled
+# The ndarray-native response pipeline runs at EVERY topology: the
+# mode-aware TensorData serializer (python mode keeps the array,
+# float32 widened to float64) plus orjson's OPT_SERIALIZE_NUMPY render
+# eliminates the Python element list entirely, so there is no
+# materialisation work left to relocate — the reason the old topology
+# gate existed is gone.
+# Byte-identity with the list path is verified by the wire fixtures.
 
 
 def _encode_data(data: np.ndarray, datatype: Datatype) -> Any:
@@ -246,17 +220,6 @@ def _encode_data(data: np.ndarray, datatype: Datatype) -> Any:
         # subclass through to the wire encoders, whose tobytes()
         # substitutes the array's fill_value instead of a missing
         # value marker.
-        return data.flatten().tolist()
-
-    if _MATERIALISE_LIST_PAYLOADS:
-        # Single-frontend deployments (the default): master's response
-        # data flow. The list is materialised here, in the worker (or
-        # in-process model host), IPC carries Python lists, and every
-        # wire boundary takes its legacy path. REST JSON output is
-        # byte-identical to master (orjson renders both NaN and None
-        # as null — verified); gRPC NaN payloads now serialise natively
-        # instead of raising the pre-ndarray TypeError (a deliberate
-        # improvement retained from the ndarray work, verified).
         return data.flatten().tolist()
 
     flat = data.ravel()

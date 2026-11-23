@@ -81,6 +81,9 @@ class InferencePoolRegistry:
         self._failed_pools: dict[str | None, InferencePool] = {}
         self._environment_tasks: dict[str, asyncio.Task[Environment]] = {}
         self._worker_stop_tasks: set[asyncio.Task] = set()
+        # Exit statuses of foreign-reaped children (frontends), stashed
+        # by the SIGCHLD reaper for the supervisor's death logs.
+        self._foreign_exit_codes: dict[int, int] = {}
         self._on_worker_stop = on_worker_stop
         self._on_worker_load = on_worker_load
         self._on_worker_unload = on_worker_unload
@@ -148,6 +151,28 @@ class InferencePoolRegistry:
             lambda signum, frame: self._wake_loop(loop, signum, frame),
         )
         self._signal_installed = True
+
+    def record_foreign_exit(self, pid: int, exit_code: int) -> None:
+        """Record the exit status of a non-worker child this reaper consumed.
+
+        ``waitpid(-1)`` reaps ANY child of the process — in the
+        multi-frontend topology that includes the supervisor's
+        frontends. The status of a foreign-reaped child is otherwise
+        unrecoverable: the child's own ``Process`` object gets ECHILD
+        from ``waitpid`` and reports ``exitcode None`` forever, so the
+        supervisor's death logs lose the crash-vs-kill distinction.
+        The stash is consumed by ``pop_foreign_exit`` and bounded so a
+        supervisor that never asks cannot grow it without limit.
+        """
+        self._foreign_exit_codes[pid] = exit_code
+        # Bound: consume order is death order; anything beyond a
+        # generous window is a leak of its own, dropped oldest-first.
+        while len(self._foreign_exit_codes) > 256:
+            self._foreign_exit_codes.pop(next(iter(self._foreign_exit_codes)))
+
+    def pop_foreign_exit(self, pid: int) -> "int | None":
+        """Consume the stashed exit status of a foreign-reaped child."""
+        return self._foreign_exit_codes.pop(pid, None)
 
     def _wake_loop(
         self, loop: asyncio.AbstractEventLoop, signum: int, frame: object
@@ -217,8 +242,13 @@ class InferencePoolRegistry:
                         break
                 if not is_worker:
                     # Not a pool worker (e.g. a frontend child in the
-                    # multi-frontend topology); skip so the supervisor
-                    # can detect it via its own monitor.
+                    # multi-frontend topology); stash the status for the
+                    # supervisor's death logs (its Process object can
+                    # never recover it after this waitpid) and skip so
+                    # the supervisor's monitor can handle the death.
+                    self.record_foreign_exit(
+                        pid, os.waitstatus_to_exitcode(wait_status)
+                    )
                     logger.debug("SIGCHLD: PID %d is not a pool worker; skipping", pid)
                     continue
                 exit_code = os.waitstatus_to_exitcode(wait_status)

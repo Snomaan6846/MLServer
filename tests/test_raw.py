@@ -12,7 +12,7 @@ from mlserver.raw import (
     extract_raw,
     inject_raw,
 )
-from mlserver.codecs.numpy import NumpyCodec, set_ndarray_response_pipeline
+from mlserver.codecs.numpy import NumpyCodec
 
 
 def test_unpack_bytes():
@@ -161,7 +161,6 @@ def test_pack_tensor_restores_nan_without_mutating_data(dtype):
 def test_pack_tensor_ndarray_matches_list_representation(tensor: np.ndarray):
     """Packing the ndarray root gives the same bytes as the equivalent
     Python-list representation (the pre-ndarray pipeline's form)."""
-    set_ndarray_response_pipeline(True)
     ndarray_input = NumpyCodec.encode_input(name="foo", payload=tensor)
     assert isinstance(ndarray_input.data.root, np.ndarray)
 
@@ -254,3 +253,43 @@ def test_extract_raw():
     assert len(expected) == len(without_data)
     for response_output in without_data:
         assert len(response_output.data) == 0
+
+
+def test_pack_ndarray_dtype_mismatch_uses_legacy_conversion():
+    """An ndarray whose dtype differs from the declaration takes the
+    legacy struct semantics (numeric coercion, rejection of
+    non-numerics) — never raw storage bytes for a declaration the
+    array does not exactly match.
+
+    Regression: an int32 array under FP32 has equal width but wrong
+    type — the fast path emitted int32 bytes (silent wire corruption);
+    an object dtype matched INT64's width and emitted POINTER bytes.
+    """
+    import struct as struct_module
+
+    import numpy as np
+
+    from mlserver.raw import _pack_tensor
+    from mlserver.types import RequestInput, TensorData
+
+    def pack(datatype, arr):
+        return _pack_tensor(
+            RequestInput(
+                name="i",
+                shape=[arr.size],
+                datatype=datatype,
+                data=TensorData(root=arr),
+            )
+        )
+
+    # int32 [1] under FP32: struct coerces 1 -> 1.0f (the reference bytes).
+    assert pack("FP32", np.array([1], dtype=np.int32)) == struct_module.pack("f", 1)
+    # float32 under INT32: struct rejects (the reference behavior).
+    with pytest.raises(struct_module.error):
+        pack("INT32", np.array([1], dtype=np.float32))
+    # Object dtype: struct rejects (no pointer bytes on the wire).
+    with pytest.raises(struct_module.error):
+        pack("INT64", np.array([b"x"], dtype=object))
+    # Exact match still takes the zero-copy path.
+    arr = np.array([1.5, -2.5], dtype=np.float32)
+    assert pack("FP32", arr) == arr.tobytes()

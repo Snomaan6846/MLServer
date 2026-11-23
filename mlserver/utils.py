@@ -316,15 +316,15 @@ def set_parent_death_signal(sig: int = signal.SIGTERM) -> None:
         logger.debug("PR_SET_PDEATHSIG unavailable", exc_info=True)
 
 
-def _reuse_port_sockets(host: str, port: int) -> "list[socket.socket]":
-    """Bind TCP sockets with SO_REUSEPORT for uvicorn.
+def _bind_tcp_sockets(
+    host: str, port: int, *, reuse_port: bool
+) -> "list[socket.socket]":
+    """Bind one listening TCP socket per resolvable address of ``host``.
 
-    uvicorn.Config has no ``reuse_port`` option; passing pre-bound
-    sockets lets several frontend processes share the ports with
-    kernel-level connection balancing. Every resolved address that can
-    be bound gets its own listener — matching the single-frontend path
-    (asyncio's create_server), which serves all of a hostname's
-    addresses, not just the first.
+    Shared core of the supervised-topology listeners. ``reuse_port``
+    selects the kernel-balanced per-process sockets; without it the
+    single returned socket set is meant to be shared by fd with every
+    frontend process (one accept queue, load-aware accepting).
     """
     import socket as socket_module
 
@@ -355,7 +355,8 @@ def _reuse_port_sockets(host: str, port: int) -> "list[socket.socket]":
                 socket_module.SOCK_STREAM,
                 proto=socket_module.IPPROTO_TCP,
             )
-            sock.setsockopt(socket_module.SOL_SOCKET, socket_module.SO_REUSEPORT, 1)
+            if reuse_port:
+                sock.setsockopt(socket_module.SOL_SOCKET, socket_module.SO_REUSEPORT, 1)
             sock.setsockopt(socket_module.SOL_SOCKET, socket_module.SO_REUSEADDR, 1)
             sock.bind(sockaddr)
             # Match uvicorn's default accept backlog (2048): a smaller
@@ -373,3 +374,39 @@ def _reuse_port_sockets(host: str, port: int) -> "list[socket.socket]":
     if last_error is not None:
         raise last_error
     raise OSError(f"no addresses resolved for {host}:{port}")
+
+
+def _reuse_port_sockets(host: str, port: int) -> "list[socket.socket]":
+    """Bind TCP sockets with SO_REUSEPORT for uvicorn.
+
+    uvicorn.Config has no ``reuse_port`` option; passing pre-bound
+    sockets lets several frontend processes share the ports with
+    kernel-level connection balancing. Every resolved address that can
+    be bound gets its own listener — matching the single-frontend path
+    (asyncio's create_server), which serves all of a hostname's
+    addresses, not just the first.
+    """
+    return _bind_tcp_sockets(host, port, reuse_port=True)
+
+
+def _shared_listening_sockets(host: str, port: int) -> "list[socket.socket]":
+    """Bind the ONE socket set shared by fd across frontend processes.
+
+    No SO_REUSEPORT: exactly one accept queue, owned by the supervisor
+    and duplicated into every frontend. The kernel's REUSEPORT hash
+    assigns connections blindly (skewing under real client patterns);
+    the shared queue lets the frontends accept cooperatively, each new
+    connection going to the least loaded one (see rest.server's
+    _NoSignalServer).
+
+    The sockets are fully prepared for the frontends' asyncio accept
+    loops: listening (backlog 2048, set in _bind_tcp_sockets) and
+    non-blocking. Every frontend dups the same open file description,
+    so the frontends must NOT re-call listen() or setblocking() —
+    redundant per frontend, and setblocking would mutate the shared
+    description once per process.
+    """
+    sockets = _bind_tcp_sockets(host, port, reuse_port=False)
+    for sock in sockets:
+        sock.setblocking(False)
+    return sockets

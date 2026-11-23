@@ -1,8 +1,7 @@
+import asyncio
 import glob
 import os
-import asyncio
 
-from aiofiles.os import remove
 from prometheus_client import (
     REGISTRY,
     CollectorRegistry,
@@ -35,12 +34,28 @@ def configure_metrics(settings: Settings):
     values.ValueClass = values.get_value_class()
 
 
-async def _remove_if_exists(path: str):
-    """Remove a file, ignoring if it doesn't exist."""
-    try:
-        await remove(path)
-    except FileNotFoundError:
-        pass
+def remove_process_metric_files(settings: Settings, pid: int) -> None:
+    """Remove every multiprocess metric file of a dead process.
+
+    ``prometheus_client``'s ``mark_process_dead`` only prunes live-gauge
+    files — counters, histograms and plain gauges of dead processes are
+    left on disk by design (its README assumes external cleanup).
+    Without the full ``*_{pid}.db`` removal, every process death leaks
+    its metric files into the metrics dir AND keeps the dead process's
+    stale series merged into every scrape forever.
+    """
+    # mark_process_dead reads PROMETHEUS_MULTIPROC_DIR for its path.
+    if os.environ.get(PROMETHEUS_MULTIPROC_DIR) is None:
+        os.environ.setdefault(PROMETHEUS_MULTIPROC_DIR, settings.metrics_dir)
+    mark_process_dead(pid)
+    pattern = os.path.join(settings.metrics_dir, f"*_{pid}.db")
+    # File may not exist if the process was cancelled during
+    # initialization or already cleaned up by another process
+    for path in glob.glob(pattern):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 async def stop_metrics(settings: Settings, pid: int):
@@ -53,12 +68,12 @@ async def stop_metrics(settings: Settings, pid: int):
         # cannot crash the shutting-down process.
         return
 
-    mark_process_dead(pid)
-    pattern = os.path.join(settings.metrics_dir, f"*_{pid}.db")
-    matching_files = glob.glob(pattern)
-    # File may not exist if worker was cancelled during initialization
-    # or already cleaned up by another process
-    await asyncio.gather(*[_remove_if_exists(f) for f in matching_files])
+    # Filesystem I/O off the event loop: rapid worker cycling (a
+    # recovery event cycling 8 workers) runs this per stop — the
+    # glob+remove must not block inference serving.
+    await asyncio.get_event_loop().run_in_executor(
+        None, remove_process_metric_files, settings, pid
+    )
 
 
 class PrometheusEndpoint:

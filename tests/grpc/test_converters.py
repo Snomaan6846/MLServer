@@ -293,9 +293,6 @@ def test_modelinferresponse_raw_preserves_large_outputs():
 def test_modelinferresponse_ndarray_contents_match_list(data):
     """Typed-contents conversion of ndarray roots matches the equivalent
     Python-list representation byte for byte."""
-    from mlserver.codecs.numpy import set_ndarray_response_pipeline
-
-    set_ndarray_response_pipeline(True)
     values = np.asarray([data], dtype=np.float32)
     ndarray_output = NumpyCodec.encode_output(name="output-0", payload=values)
     list_output = types.ResponseOutput(
@@ -634,8 +631,8 @@ def test_repositoryindexresponse_from_types(repository_index_response):
 
 
 def test_modelinferresponse_default_path_nan_serialises_natively():
-    """Default (fw=1) path: NaN entries serialise natively in typed
-    contents instead of raising the pre-ndarray TypeError (master's
+    """Default (frontend_workers=1) path: NaN entries serialise natively in typed
+    contents instead of raising the pre-ndarray TypeError (the
     behaviour when convert_nan mapped NaN to None ahead of protobuf)."""
     import math
 

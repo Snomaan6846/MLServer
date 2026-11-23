@@ -465,17 +465,29 @@ def _encode_output_bytes(output: Any) -> bytes | None:
         if not isinstance(data, np.ndarray):
             data = np.asarray(data, dtype=dtype)
         elif data.dtype != dtype:
-            if data.dtype.itemsize != dtype.itemsize:
-                # A byte-width mismatch cannot convert losslessly: the
-                # packed bytes would not match the declared datatype's
-                # width. Same check as the gRPC raw path; the output
-                # falls back to inline JSON instead of silently
-                # truncating or padding the values.
+            if data.dtype.itemsize > dtype.itemsize:
+                # A narrowing conversion cannot be lossless: the packed
+                # bytes would silently truncate or wrap values the
+                # plain-JSON path preserves exactly (an INT64 array
+                # under an INT32 declaration). Refuse binary packing so
+                # the output falls back to inline JSON — the same
+                # never-corrupt discipline as the gRPC raw path's
+                # checked semantics.
                 raise BinaryTensorError(
                     f"binary output declared {datatype} "
                     f"({dtype.itemsize} bytes) but the array dtype is "
                     f"{data.dtype} ({data.dtype.itemsize} bytes)"
                 )
+            # Same-width or widening conversion to the declared
+            # datatype. Only same-kind widening is provably lossless
+            # (int32->int64, float32->float64). Same-width cross-kind
+            # conversions follow numpy's astype semantics and CAN alter
+            # values (float 1.5 under an INT32 declaration packs as 1;
+            # int32 under FP32 rounds above 2^24; uint32 under INT32
+            # wraps at 2^31) — a documented divergence from the
+            # plain-JSON path, matching the base REST behavior this
+            # path historically kept while the gRPC raw path stayed
+            # struct-checked.
             data = data.astype(dtype)
         # NOTE: no reshape — tobytes(order="C") on a flat contiguous
         # array does not depend on .shape, and a declared-shape/data
@@ -525,8 +537,22 @@ def _inline_json_data(data: Any) -> Any:
     same element loop — orjson cannot serialize raw bytes, so an
     undecoded element would turn a protocol-legal JSON fallback into a
     500.
+
+    FP32 arrays honour the rest_json_compact_floats opt-in: with the
+    flag on, the flat array is returned for orjson's native ndarray
+    rendering (shortest round-trip text) so the fallback renders
+    byte-identically to the plain-JSON path — the fallback's contract
+    is "what the JSON path would have returned". Default (flag off):
+    tolist's widened Python floats, unchanged.
     """
     if isinstance(data, np.ndarray):
+        if data.dtype.name == "float32":
+            # Deferred import: reads the CURRENT flag value (set at
+            # bootstrap from Settings in every process).
+            from ..codecs.json import json_compact_floats_enabled
+
+            if json_compact_floats_enabled():
+                return data.reshape(-1)
         data = data.reshape(-1).tolist()
     if isinstance(data, (list, tuple)):
         return [_inline_json_element(elem) for elem in data]
@@ -589,5 +615,9 @@ def encode_binary_response(
                 out_header["parameters"] = params
         header["outputs"].append(out_header)
 
-    header_bytes = orjson.dumps(header)
+    # OPT_SERIALIZE_NUMPY: renders the compact-floats FP32 arrays
+    # natively (the fallback's contract: byte-identical to the
+    # plain-JSON path). Lists/strings/numbers render identically with
+    # or without the option — every other header value is unaffected.
+    header_bytes = orjson.dumps(header, option=orjson.OPT_SERIALIZE_NUMPY)
     return b"".join([header_bytes, *chunks]), len(header_bytes)

@@ -99,10 +99,12 @@ processes while keeping a single copy of every model in memory.
 
 At `frontend_workers = 0` (the default) nothing changes: MLServer runs
 as a single process exactly as before.
-At `N > 1`, a supervisor process:
+At `N >= 1`, a supervisor process:
 
-- spawns `N` frontend processes, all serving REST and gRPC on the same
-  ports (kernel-level `SO_REUSEPORT` connection balancing),
+- spawns `N` frontend processes, all serving gRPC on the same port
+  (`SO_REUSEPORT`) and REST through a single listening socket shared
+  across them (one accept queue; each frontend accepts
+  cooperatively, least-loaded first),
 - owns the single shared inference pool, so every model exists once in
   memory regardless of the frontend count, and
 - coordinates model loads and unloads across the frontends: a model
@@ -111,7 +113,7 @@ At `N > 1`, a supervisor process:
 
 ```mermaid
 flowchart TB
-    CLIENT["Clients"] -->|"REST / gRPC (SO_REUSEPORT)"| FE0 & FE1 & FEN
+    CLIENT["Clients"] -->|"REST (shared socket) / gRPC (SO_REUSEPORT)"| FE0 & FE1 & FEN
 
     subgraph "Supervisor Process"
         SUP["FrontendSupervisor"]
@@ -146,7 +148,7 @@ flowchart TB
   reports server-wide totals.
 - Every REST response carries an `x-mlserver-frontend-id` header
   identifying the frontend process that served it — useful to verify
-  the SO_REUSEPORT connection distribution from the client side.
+  connection distribution from the client side.
 - A crashed frontend is restarted automatically (with capped
   exponential backoff) and receives the full model registry again.
 - On shutdown the frontends drain in-flight requests first; the
@@ -168,6 +170,14 @@ flowchart TB
   forever. Set it comfortably above your slowest model plus batch
   window.
 
+  When the deadline expires, the request fails with HTTP `504 Gateway
+  Timeout` (REST) or gRPC `DEADLINE_EXCEEDED` and the message
+  "Inference request timed out" — so clients and retries can tell a
+  timing failure from a server fault apart. Timeouts from any other
+  source inside request handling (a custom handler's or model's own
+  internal deadline) keep the generic `500` / `INTERNAL` they have
+  always had: only the inference deadline maps to `504`.
+
 ### `frontend_workers`
 
 The `frontend_workers` field of the `settings.json` file (or the
@@ -183,9 +193,11 @@ The expected values are:
   opt out of the inference pool and run in-process.
 
 Two operational consequences of the shared-port topology are worth
-knowing: because every frontend binds the same ports
-(`SO_REUSEPORT`), a readiness probe that samples a single connection
-lands on one frontend at a time — a degraded frontend is only visible
+knowing: REST connections are assigned by least-loaded accepting (the
+frontends cooperate over one accept queue), but a readiness probe
+that samples a single gRPC connection still lands on one frontend at
+a time (gRPC keeps kernel-level port balancing) — a degraded frontend
+is only visible
 to a fraction of probes, so probe repeatedly or through a load
 balancer that spreads connections. And batched models rotate their
 dedicated worker every `parallel_routing_rotation` seconds (default

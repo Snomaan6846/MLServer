@@ -116,6 +116,17 @@ test:
 test-cuda:
 	tox -c ./runtimes/onnx -e cuda
 
+.PHONY: fastspan
+fastspan:
+	# Compile the native JSON span parser (mlserver/codecs/fastspan).
+	# Image builds compile it into the installed package tree via the
+	# Dockerfile runtime stage; test runs compile it automatically via
+	# tests/conftest.py. This target is for serving from a checkout:
+	# without the library, enabling rest_fast_parse fails at startup.
+	gcc -O3 -shared -fPIC \
+		-o mlserver/codecs/fastspan/libfastspan.so \
+		mlserver/codecs/fastspan/parser.c -lm
+
 lint:
 	black --check .
 	flake8 .

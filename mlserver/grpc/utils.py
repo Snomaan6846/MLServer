@@ -13,6 +13,7 @@ STATUS_CODE_MAPPING = {
     status.HTTP_404_NOT_FOUND: grpc.StatusCode.NOT_FOUND,
     status.HTTP_422_UNPROCESSABLE_ENTITY: grpc.StatusCode.FAILED_PRECONDITION,
     status.HTTP_500_INTERNAL_SERVER_ERROR: grpc.StatusCode.INTERNAL,
+    status.HTTP_504_GATEWAY_TIMEOUT: grpc.StatusCode.DEADLINE_EXCEEDED,
 }
 
 
@@ -42,16 +43,13 @@ def handle_mlserver_error(f: Callable):
         try:
             return await f(self, request, context)
         except MLServerError as err:
+            # Includes InferenceTimeoutError (an expired inference
+            # deadline): 504 maps to DEADLINE_EXCEEDED below. A bare
+            # TimeoutError from any other await inside request
+            # handling is NOT an inference deadline: it falls through
+            # to INTERNAL, as it always was.
             logger.exception(err)
             await context.abort(code=_grpc_status_code(err), details=str(err))
-        except TimeoutError:
-            # An expired inference deadline (or any await timeout):
-            # DEADLINE_EXCEEDED, not INTERNAL, so clients can tell a
-            # timing failure from a server fault apart.
-            await context.abort(
-                code=grpc.StatusCode.DEADLINE_EXCEEDED,
-                details="Inference request timed out",
-            )
         except Exception as err:
             logger.exception(err)
             await context.abort(code=grpc.StatusCode.INTERNAL, details=str(err))
@@ -65,15 +63,10 @@ def handle_mlserver_stream_error(f: Callable):
             async for response in f(self, request_stream, context):
                 yield response
         except MLServerError as err:
+            # Includes InferenceTimeoutError: DEADLINE_EXCEEDED via the
+            # status mapping. Foreign timeouts keep INTERNAL.
             logger.exception(err)
             await context.abort(code=_grpc_status_code(err), details=str(err))
-        except TimeoutError:
-            # An expired inference deadline (or any await timeout):
-            # DEADLINE_EXCEEDED, not INTERNAL.
-            await context.abort(
-                code=grpc.StatusCode.DEADLINE_EXCEEDED,
-                details="Inference request timed out",
-            )
         except Exception as err:
             logger.exception(err)
             await context.abort(code=grpc.StatusCode.INTERNAL, details=str(err))

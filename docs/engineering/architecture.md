@@ -439,8 +439,11 @@ flowchart TB
 
 At `frontend_workers = N >= 1` a supervisor process owns the shared
 inference pool and spawns `N` frontend processes, each running the
-dispatch half of the diagram above on the shared ports
-(`SO_REUSEPORT`); the workers reply to the dispatching frontend over
+dispatch half of the diagram above. REST is served through a single
+listening socket the supervisor binds and shares with every frontend
+(one accept queue, least-loaded cooperative accepting); gRPC and the
+metrics endpoint use the shared port via `SO_REUSEPORT`. The workers
+reply to the dispatching frontend over
 per-frontend ZeroMQ endpoints.
 Model lifecycle operations are forwarded to the supervisor, which
 applies them on the pool and broadcasts the result so every frontend
@@ -752,7 +755,7 @@ flowchart LR
         CLI --> FW_CHECK
         FW_CHECK -->|"Yes"| SUP["FrontendSupervisor<br/>(owns the shared inference pool)"]
         FW_CHECK -->|"No (default)"| SINGLE["Single-process MLServer"]
-        SUP -->|"spawn N processes<br/>(SO_REUSEPORT)"| FES["Frontend Processes × N<br/>(each builds the components below,<br/>starting with an empty registry)"]
+        SUP -->|"spawn N processes<br/>(REST: shared listener,<br/>gRPC: SO_REUSEPORT)"| FES["Frontend Processes × N<br/>(each builds the components below,<br/>starting with an empty registry)"]
         SUP -->|"load models into pool,<br/>broadcast apply (pipes)"| FES
         SINGLE --> INIT
         FES --> INIT

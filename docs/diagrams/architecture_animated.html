@@ -111,12 +111,12 @@
   <text x="75" y="650.0" class="node-sublabel">Trusted Runtimes</text>
 
   <!-- ═══════════════════════════════════════════════════════ -->
-  <!--  FRONTEND PROCESSES (SO_REUSEPORT)                     -->
+  <!--  FRONTEND PROCESSES (shared listener + REUSEPORT)       -->
   <!-- ═══════════════════════════════════════════════════════ -->
   <rect x="175" y="115" width="330" height="315" class="cluster-solid"
     fill="#2E6EB5" stroke="#2E6EB5"/>
   <text x="340" y="137" class="cluster-title" fill="#2E6EB5">Frontend Processes × N</text>
-  <text x="340" y="152" class="cluster-note">SO_REUSEPORT · same ports · frontend_workers = N</text>
+  <text x="340" y="152" class="cluster-note">shared REST listener · SO_REUSEPORT (gRPC) · frontend_workers = N</text>
 
     <rect x="195" y="165" width="130" height="50" rx="8" ry="8" fill="#2E6EB5" fill-opacity="0.12" stroke="#2E6EB5" stroke-width="1.8"/>
   <text x="260.0" y="194.0" fill="#2E6EB5" font-size="12" font-weight="600" text-anchor="middle">REST API</text>

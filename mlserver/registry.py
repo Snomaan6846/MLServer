@@ -32,6 +32,60 @@ def _get_version(model_settings: ModelSettings) -> str | None:
     return None
 
 
+# Attribute a load hook may set on the model it returns: a zero-arg
+# callable re-checked immediately before publication. The shared-pool
+# origin load uses it to close the window between its post-wait
+# generation check (inside the hook) and the registry's publication
+# (after remaining hooks and model preparation have awaited).
+PUBLICATION_GUARD_ATTR = "__publication_guard__"
+
+
+class StalePublication(RuntimeError):
+    """A lock-free apply aborted its publication because a newer
+    generation of the same key was published while its model loaded.
+
+    Raised by ``SingleModelRegistry._load`` when the caller's
+    ``stale_check`` fires immediately before publication: publishing
+    the older wrapper would displace the newer registration and its
+    retirement would unload the CURRENT pool state. The newer
+    registration stands; the caller acknowledges convergence (the
+    frontend holds newer state, not diverged state).
+
+    Carries the ATTEMPTED load's generation (when the wrapper had it
+    attached) and, for removal-caused aborts, the pool's removal
+    watermark — the MultiModelRegistry load path needs both to tell
+    convergence (a ready, strictly newer wrapper that outlives the
+    removal) from a stale success (an older wrapper already due for
+    retirement).
+    """
+
+    def __init__(
+        self,
+        name: str,
+        version: str | None,
+        reason: str,
+        attempted_generation: "int | None" = None,
+        removal_generation: "int | None" = None,
+        live_removal: "Callable[[], float] | None" = None,
+    ) -> None:
+        self.name = name
+        self.version = version
+        self.attempted_generation = attempted_generation
+        # The pool-wide removal watermark at abort time; None when
+        # the abort was a newer publication, not a removal.
+        self.removal_generation = removal_generation
+        # A reader for the LIVE exact-key removal watermark (the
+        # publication guard's contract): the convergence check
+        # re-evaluates it after the rollback — a removal reserved
+        # while the rollback cleanup ran invalidates a winner the
+        # abort-time snapshot endorsed.
+        self.live_removal = live_removal
+        super().__init__(
+            f"Publication of model '{name}'"
+            f"{f' (version {version})' if version else ''} aborted: {reason}"
+        )
+
+
 def _is_newer(a: MLModel, b: MLModel) -> int:
     """
     Returns true if 'a' is newer than 'b'.
@@ -201,6 +255,33 @@ class SingleModelRegistry:
             When True, unloading the previous model is skipped — the main process
             dispatches unload to all workers separately.
         """
+        return await self._load(model_settings, parallel)
+
+    async def _load(
+        self,
+        model_settings: ModelSettings,
+        parallel: bool,
+        stale_check: "Callable[[], bool] | None" = None,
+    ) -> MLModel:
+        """The load body without the operation lock or the cancellation
+        deferral — the entry point for shared-pool peer applies.
+
+        A peer apply must never wait on the operation lock: an origin
+        operation on the same key holds it across its supervisor round
+        (the on-model-load hook waits for the pool's acknowledgements),
+        so a locked peer apply would stall the very acknowledgement
+        collection the origin is waiting on — the ACK-collection
+        deadlock. Callers own the sequencing: the shared pool chains
+        peer applies per model key.
+
+        ``stale_check`` is consulted immediately before publication:
+        the apply's generation may have been superseded while its
+        model loaded (an origin publishing a newer generation of the
+        same key mid-apply). Publishing the older wrapper would
+        displace the newer registration and its retirement would
+        unload the CURRENT pool state. A stale check aborts the
+        publication; the newer registration stands.
+        """
         await self._drain_cleanup()
         version = _get_version(model_settings)
         previous_loaded_model = self._find_exact_version(version)
@@ -216,6 +297,55 @@ class SingleModelRegistry:
             new_model = await self._load_model(
                 new_model, previous_loaded_model is not None
             )
+            if stale_check is None:
+                # A load hook (the shared-pool origin load) may carry
+                # the check on the model it returns — the same gate,
+                # supplied from inside the hook chain.
+                stale_check = getattr(new_model, PUBLICATION_GUARD_ATTR, None)
+            if stale_check is not None and stale_check():
+                # Roll back the unpublished instance's hook side
+                # effects before raising: the load hooks already ran
+                # (REST routes registered, batchers attached), and
+                # nothing else will ever match them for removal —
+                # custom-route matching is bound-method identity, so
+                # no registered instance is this one. The same
+                # machinery as a failed load's cleanup: discard the
+                # registration, then run the unload hooks. The newer
+                # registration is untouched (_unregister and the
+                # cleanup are identity-guarded).
+                self._discard_load(new_model)
+                try:
+                    await asyncio.shield(self._start_cleanup(new_model, None))
+                except Exception:
+                    # The rollback's failure must not mask the abort:
+                    # the cleanup task stays retained in _cleanup_tasks
+                    # for the next operation's retry (its failure is
+                    # logged by _cleanup_done).
+                    logger.error(
+                        "Rollback of a stale publication failed for "
+                        "model '%s'; ownership retained for retry",
+                        model_settings.name,
+                    )
+                # The abort cause from the guard (the
+                # publication_abort attribute contract set by
+                # parallel.shared's publication guard): "removed"
+                # carries the removal watermark.
+                abort = getattr(stale_check, "publication_abort", None)
+                reason = "a newer generation was published while this apply loaded"
+                removal_generation = None
+                if isinstance(abort, tuple) and abort[0] == "removed":
+                    reason = "the model was removed while this apply loaded"
+                    removal_generation = abort[1]
+                raise StalePublication(
+                    model_settings.name,
+                    version,
+                    reason,
+                    attempted_generation=getattr(
+                        new_model, "__pool_generation__", None
+                    ),
+                    removal_generation=removal_generation,
+                    live_removal=getattr(stale_check, "removal_watermark", None),
+                )
             # Workers stage replacement publication until the main process
             # dispatches the old generation's unload separately.
             if not parallel:
@@ -780,8 +910,106 @@ class MultiModelRegistry:
             return await self._models[model_settings.name].load(
                 model_settings, parallel
             )
+        except StalePublication as error:
+            # The publication gate aborted the load: a newer committed
+            # state (or a removal) landed while the hooks and model
+            # preparation ran. Convergence requires a READY, strictly
+            # NEWER generation at the EXACT key that also outlives the
+            # removal watermark — a versioned sibling (the
+            # default-version fallback) must never be returned as this
+            # unversioned load's winner, and an OLDER wrapper still
+            # registered while its removal drains must not be
+            # reported as this load's success (the caller would hold a
+            # model already due for retirement). A removal (nothing
+            # valid registered at the exact key) keeps the failure:
+            # the truth about the removed state.
+            converged = self.find_registered(
+                model_settings.name, _get_version(model_settings)
+            )
+            # The generation attribute is parallel.shared's
+            # GENERATION_ATTR contract ("__pool_generation__",
+            # referenced by literal here — importing it would be
+            # circular: shared imports this module).
+            converged_generation = getattr(converged, "__pool_generation__", None)
+            attempted_generation = getattr(error, "attempted_generation", None)
+            removal_generation = getattr(error, "removal_generation", None)
+            if (
+                converged is not None
+                and getattr(converged, "ready", False)
+                and isinstance(converged_generation, int)
+                and isinstance(attempted_generation, int)
+                # Strictly newer than the attempted load...
+                and converged_generation > attempted_generation
+                # ...and still valid against the removal watermark:
+                # a wrapper at or below it is being retired by that
+                # removal — converging would hand the caller a model
+                # the pool has already removed.
+                and (
+                    not isinstance(removal_generation, int)
+                    or converged_generation > removal_generation
+                )
+            ):
+                # The LIVE exact-key removal watermark, re-read after
+                # the rollback: a removal reserved while the rollback
+                # cleanup ran retires the winner even though the
+                # abort-time snapshot still endorsed it.
+                live_removal = getattr(error, "live_removal", None)
+                if live_removal is not None and converged_generation <= live_removal():
+                    pass  # fall through to the failure cleanup below
+                else:
+                    return converged
+            # Same empty-registry cleanup as every other failure path
+            # (a removal winner leaves nothing registered).
+            if (
+                model_settings.name in self._models
+                and self._models[model_settings.name].empty()
+            ):
+                del self._models[model_settings.name]
+            raise
         except (Exception, asyncio.CancelledError):
             # Clean up the single model registry on load failure if empty
+            if (
+                model_settings.name in self._models
+                and self._models[model_settings.name].empty()
+            ):
+                del self._models[model_settings.name]
+            raise
+
+    async def _load_for_apply(
+        self,
+        model_settings: ModelSettings,
+        stale_check: "Callable[[], bool] | None" = None,
+    ) -> MLModel:
+        """Load a model for a shared-pool peer apply: NO operation lock.
+
+        The per-key chaining in SharedPoolRegistry._sequence_apply
+        already sequences peer applies — the operation lock exists for
+        ORIGIN operations (user-initiated load/unload calls). A peer
+        apply acquiring the lock would deadlock the ACK collection:
+        the origin holds the lock while waiting for this peer's ACK,
+        and the peer waits for the lock the origin holds.
+
+        The body mirrors load() (registry creation, the load, the
+        empty-cleanup on failure) with two deviations: neither the
+        multi- nor the single-registry operation lock is taken, and
+        cancellation is not deferred (the shared pool's shutdown
+        cancels apply tasks and expects prompt settlement).
+        ``stale_check`` forwards to ``_load`` — the publish-time guard
+        against a newer generation published mid-apply.
+        """
+        if model_settings.name not in self._models:
+            self._models[model_settings.name] = SingleModelRegistry(
+                model_settings,
+                on_model_load=self._on_model_load,
+                on_model_unload=self._on_model_unload,
+                model_initialiser=self._model_initialiser,
+                model_operation_timeout=self._model_operation_timeout,
+            )
+        try:
+            return await self._models[model_settings.name]._load(
+                model_settings, False, stale_check
+            )
+        except (Exception, asyncio.CancelledError):
             if (
                 model_settings.name in self._models
                 and self._models[model_settings.name].empty()
@@ -804,7 +1032,10 @@ class MultiModelRegistry:
         finally:
             # Keep resource owners after serving entries have been removed.
             if model_registry.empty():
-                del self._models[name]
+                # pop, not del: a lock-free peer apply can empty and
+                # remove the same registry concurrently with this
+                # (locked) path — the second removal must be a no-op.
+                self._models.pop(name, None)
 
     @with_operation_lock(
         lambda self, name, *args, **kwargs: self._get_operation_lock(name)
@@ -831,7 +1062,10 @@ class MultiModelRegistry:
             # If single model registry is empty after unload version failure
             # remove it from the multi model registry
             if model_registry.empty():
-                del self._models[name]
+                # pop, not del: a lock-free peer apply can empty and
+                # remove the same registry concurrently with this
+                # (locked) path — the second removal must be a no-op.
+                self._models.pop(name, None)
 
     @with_operation_lock(
         lambda self, name, *args, **kwargs: self._get_operation_lock(name)
@@ -858,7 +1092,35 @@ class MultiModelRegistry:
             await model_registry._unload_exact_version(version or None, rollback)
         finally:
             if model_registry.empty():
-                del self._models[name]
+                # pop, not del: a lock-free peer apply can empty and
+                # remove the same registry concurrently with this
+                # (locked) path — the second removal must be a no-op.
+                self._models.pop(name, None)
+
+    async def _unload_for_apply(
+        self, name: str, version: str | None, rollback: bool = False
+    ) -> None:
+        """Unload an exact version for a shared-pool peer apply: NO
+        operation lock (same rationale as _load_for_apply — the
+        per-key chaining sequences peer applies; the lock is for
+        origin operations and would deadlock the ACK collection).
+
+        The body mirrors unload_exact_version exactly, calling the
+        undecorated _unload_version internal directly — the decorated
+        SingleModelRegistry entry points take the per-model operation
+        lock an origin operation may hold across its supervisor round.
+        """
+        if name not in self._models:
+            return
+        model_registry = self._get_model_registry(name, version)
+        try:
+            await model_registry._unload_version(version or None, rollback, exact=True)
+        finally:
+            if model_registry.empty():
+                # pop, not del: a lock-free peer apply can empty and
+                # remove the same registry concurrently with this
+                # (locked) path — the second removal must be a no-op.
+                self._models.pop(name, None)
 
     @with_operation_lock(
         lambda self, model_settings, *args, **kwargs: self._get_operation_lock(
@@ -875,11 +1137,23 @@ class MultiModelRegistry:
             await model_registry._unload_exact_version(model_settings.version, rollback)
         finally:
             if model_registry.empty():
-                del self._models[name]
+                # pop, not del: a lock-free peer apply can empty and
+                # remove the same registry concurrently with this
+                # (locked) path — the second removal must be a no-op.
+                self._models.pop(name, None)
 
     async def get_model(self, name: str, version: str | None = None) -> MLModel:
         model_registry = self._get_model_registry(name, version)
         return await model_registry.get_model(version)
+
+    def find_registered(
+        self, name: str, version: str | None = None
+    ) -> "MLModel | None":
+        """The exactly-versioned registered instance, if any (sync)."""
+        single = self._models.get(name)
+        if single is None:
+            return None
+        return single._find_exact_version(version)
 
     async def get_models(self, name: str | None = None) -> list[MLModel]:
         if name is not None:

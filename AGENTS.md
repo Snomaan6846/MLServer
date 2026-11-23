@@ -120,6 +120,15 @@ poetry run tox -c ./runtimes/<name>  # Single runtime tests
     gracefully and a Slack notification is sent.
     See `hack/README-requirements-generation.md` for details.
 
+11. **Multi-frontend topology** (`frontend_workers >= 1`): a supervisor
+    process spawns the frontends, binds the REST listening socket once and
+    shares it with all of them (one accept queue, least-loaded cooperative
+    accepting), and owns the shared inference pool — see
+    `docs/engineering/adr/0006-multi-frontend-shared-pool.md` and the
+    [user guide](docs/user-guide/parallel-inference.md). gRPC and the
+    metrics endpoint keep `SO_REUSEPORT` deliberately (scope recorded in
+    the ADR).
+
 ## Boundaries
 
 ### Always

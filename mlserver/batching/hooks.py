@@ -23,6 +23,13 @@ async def load_batching(model: MLModel) -> MLModel:
     if model.settings.max_batch_time <= 0:
         return model
 
+    if AdaptiveBatcher.get_batcher(model) is not None:
+        # Idempotent per instance: a superseded origin's hook chain
+        # re-runs on the wrapper an apply already batched (the
+        # stale-publication swap). Wrapping again would nest the
+        # batching decorators and orphan the first batcher.
+        return model
+
     batcher = AdaptiveBatcher(model)
     batcher.setup()
 

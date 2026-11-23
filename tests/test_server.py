@@ -195,27 +195,24 @@ async def test_repeated_stop_does_not_start_duplicate_cleanup(
         await server.stop()
 
 
-@pytest.mark.parametrize(
-    "frontend_workers,expect_ndarray", [(0, False), (1, False), (2, True)]
-)
+@pytest.mark.parametrize("frontend_workers", [0, 1, 2])
 async def test_bootstrap_payload_mode_per_topology(
-    prometheus_registry, frontend_workers, expect_ndarray
+    prometheus_registry, frontend_workers
 ):
-    """Bootstrap pin: MLServer construction sets the process-global
-    payload mode from the topology — list payloads (master's data
-    flow) at zero or ONE frontend process, ndarray payloads only at
-    2+. The single supervised frontend (fw=1) must keep list payloads:
-    it has exactly one frontend loop, the saturation profile where
-    frontend-side materialisation measured as a p99 regression. The
-    autouse conftest fixture resets the global around this test."""
+    """Bootstrap pin after the gate removal: MLServer construction
+    leaves the ndarray pipeline active at EVERY topology — the codec
+    output root stays an ndarray (no process-global list
+    materialisation exists anymore; the mode-aware TensorData
+    serializer + orjson OPT_SERIALIZE_NUMPY render it natively)."""
 
-    def _materialises_lists() -> bool:
-        from mlserver.codecs.numpy import _MATERIALISE_LIST_PAYLOADS
+    import numpy as np
 
-        return _MATERIALISE_LIST_PAYLOADS
+    from mlserver.codecs.numpy import NumpyCodec
 
     server, _ = _placement_server(frontend_workers=frontend_workers)
-    assert _materialises_lists() is (not expect_ndarray)
+    payload = np.array([[1.5, 2.5]], dtype=np.float32)
+    response_output = NumpyCodec.encode_output(name="foo", payload=payload)
+    assert isinstance(response_output.data.root, np.ndarray)
 
 
 def _placement_server(frontend_workers: int):
@@ -276,12 +273,19 @@ def _parallel_stub(settings):
     return ParallelModel(model, MagicMock())
 
 
-async def test_pool_load_wraps_batched_wrapper_at_direct_server(prometheus_registry):
-    """At frontend_workers=0 (the direct server) a batched model's parallel
-    wrapper gets the MAIN-process batcher — the previous behaviour, restored."""
+@pytest.mark.parametrize("frontend_workers", [0, 2], ids=["direct", "multiple"])
+async def test_pool_load_batched_wrapper_placement(
+    prometheus_registry, frontend_workers
+):
+    """A batched model's parallel wrapper gets the MAIN-process
+    batcher at frontend_workers=0 (the direct server — the previous
+    behaviour, restored); in the supervised topology
+    (frontend_workers>=1) the batcher lives in the worker, so the
+    main process must NOT wrap the parallel wrapper (one placement
+    only)."""
     from mlserver.batching import AdaptiveBatcher
 
-    server, pool = _placement_server(frontend_workers=0)
+    server, pool = _placement_server(frontend_workers=frontend_workers)
     settings = _batched_settings()
     wrapper = _parallel_stub(settings)
     pool.load_model.return_value = wrapper
@@ -291,37 +295,20 @@ async def test_pool_load_wraps_batched_wrapper_at_direct_server(prometheus_regis
     )
 
     assert loaded is wrapper
-    assert AdaptiveBatcher.get_batcher(wrapper) is not None
+    if frontend_workers == 0:
+        assert AdaptiveBatcher.get_batcher(wrapper) is not None
+    else:
+        assert AdaptiveBatcher.get_batcher(wrapper) is None
 
 
-async def test_pool_load_leaves_wrapper_unwrapped_at_multiple_frontends(
-    prometheus_registry,
+@pytest.mark.parametrize("frontend_workers", [0, 2], ids=["direct", "multiple"])
+async def test_pool_load_never_wraps_unbatched_model(
+    prometheus_registry, frontend_workers
 ):
-    """In the supervised topology (frontend_workers>=1) the batcher lives
-    in the worker: the main process must NOT wrap the parallel wrapper
-    (one placement only)."""
+    """An unbatched model gets no batcher in either topology."""
     from mlserver.batching import AdaptiveBatcher
 
-    server, pool = _placement_server(frontend_workers=2)
-    settings = _batched_settings()
-    wrapper = _parallel_stub(settings)
-    pool.load_model.return_value = wrapper
-
-    loaded = await server._model_registry._on_model_load[0](
-        type("M", (), {"settings": settings})()
-    )
-
-    assert loaded is wrapper
-    assert AdaptiveBatcher.get_batcher(wrapper) is None
-
-
-async def test_pool_load_never_wraps_unbatched_model_direct_server(
-    prometheus_registry,
-):
-    """An unbatched model gets no batcher at frontend_workers=0."""
-    from mlserver.batching import AdaptiveBatcher
-
-    server, pool = _placement_server(frontend_workers=0)
+    server, pool = _placement_server(frontend_workers=frontend_workers)
     settings = _unbatched_settings()
     wrapper = _parallel_stub(settings)
     pool.load_model.return_value = wrapper
@@ -334,54 +321,18 @@ async def test_pool_load_never_wraps_unbatched_model_direct_server(
     assert AdaptiveBatcher.get_batcher(wrapper) is None
 
 
-async def test_pool_load_never_wraps_unbatched_model_multiple_frontends(
-    prometheus_registry,
-):
-    """An unbatched model gets no batcher in the supervised topology."""
-    from mlserver.batching import AdaptiveBatcher
-
-    server, pool = _placement_server(frontend_workers=2)
-    settings = _unbatched_settings()
-    wrapper = _parallel_stub(settings)
-    pool.load_model.return_value = wrapper
-
-    loaded = await server._model_registry._on_model_load[0](
-        type("M", (), {"settings": settings})()
-    )
-
-    assert loaded is wrapper
-    assert AdaptiveBatcher.get_batcher(wrapper) is None
-
-
-async def test_pool_load_inprocess_optout_batches_in_main_direct_server(
-    prometheus_registry,
+@pytest.mark.parametrize("frontend_workers", [0, 2], ids=["direct", "multiple"])
+async def test_pool_load_inprocess_optout_batches_in_main(
+    prometheus_registry, frontend_workers
 ):
     """A model the pool returns unchanged (model-level parallel
     inference opt-out) runs in-process and gets the main-process
-    batcher at frontend_workers=0."""
+    batcher in either topology: the model runs in the main process,
+    so the main-process batcher applies."""
     from mlserver.batching import AdaptiveBatcher
     from tests.fixtures import SumModel
 
-    server, pool = _placement_server(frontend_workers=0)
-    settings = _batched_settings()
-    model = SumModel(settings)
-    pool.load_model.return_value = model
-
-    loaded = await server._model_registry._on_model_load[0](model)
-
-    assert loaded is model
-    assert AdaptiveBatcher.get_batcher(model) is not None
-
-
-async def test_pool_load_inprocess_optout_batches_in_main_multiple_frontends(
-    prometheus_registry,
-):
-    """Same in-process opt-out in the supervised topology: the model runs
-    in the main process, so the main-process batcher applies there too."""
-    from mlserver.batching import AdaptiveBatcher
-    from tests.fixtures import SumModel
-
-    server, pool = _placement_server(frontend_workers=2)
+    server, pool = _placement_server(frontend_workers=frontend_workers)
     settings = _batched_settings()
     model = SumModel(settings)
     pool.load_model.return_value = model
@@ -412,61 +363,15 @@ async def test_multiple_frontend_unload_chain_has_no_batcher_teardown(
     assert unload_batching not in server._model_registry._on_model_unload
 
 
-async def test_dataplane_stream_cache_wired_through_real_registry(
-    prometheus_registry,
-):
-    """Pin the by-reference hook wiring: the DataPlane's
-    stream-single-shot cache must invalidate through a REAL
-    registry.load, not just direct hook invocation. If a registry
-    refactor starts copying the hook lists, the append in
-    MLServer.__init__ silently disconnects invalidation and this test
-    is the only thing that notices (the direct-hook tests keep
-    passing)."""
-    from unittest.mock import AsyncMock
+def test_freeze_startup_heap_moves_objects_to_permanent_generation():
+    """collect-then-freeze: the permanent generation is non-empty after
+    the call, and the operation is idempotent."""
+    import gc
 
-    from mlserver.settings import ModelSettings
-    from tests.fixtures import SumModel
+    from mlserver.server import _freeze_startup_heap
 
-    server, pool = _placement_server(frontend_workers=0)
-    data_plane = server._data_plane
-    registry = server._model_registry
-
-    # Real models through the stubbed pool: the initialiser builds a
-    # SumModel and the pool returns it unchanged (in-process path).
-    # The registry captured the pool's initialiser Mock at
-    # construction, so patch the registry's own initialiser (before
-    # the first load creates the per-model registry); load_model is a
-    # live attribute lookup on the pool, so replacing it works.
-    pool.load_model = AsyncMock(side_effect=lambda model: model)
-    pool.unload_model = AsyncMock(return_value=None)
-    registry._model_initialiser = lambda settings: SumModel(settings)
-
-    # The stubbed pool registry returns the model unchanged.
-    real_get_model = data_plane._model_registry.get_model
-
-    async def counting_get_model(name, version=None):
-        return await real_get_model(name, version)
-
-    data_plane._model_registry.get_model = AsyncMock(side_effect=counting_get_model)
-
-    settings = ModelSettings(
-        name="wired-cache-model",
-        implementation=SumModel,
-    )
-    await registry.load(settings)
-
-    # First query computes and caches.
-    assert await data_plane.model_stream_is_single_shot("wired-cache-model") is True
-    assert data_plane._model_registry.get_model.await_count == 1
-    # Second query is served from the cache.
-    assert await data_plane.model_stream_is_single_shot("wired-cache-model") is True
-    assert data_plane._model_registry.get_model.await_count == 1
-
-    # A REAL reload must invalidate: the load hooks fire through the
-    # registry's own machinery, hitting the DataPlane hook that was
-    # appended by reference in MLServer.__init__.
-    await registry.load(settings)
-    assert await data_plane.model_stream_is_single_shot("wired-cache-model") is True
-    assert data_plane._model_registry.get_model.await_count == 2
-
-    await registry.unload("wired-cache-model")
+    before = gc.get_freeze_count()
+    _freeze_startup_heap()
+    after = gc.get_freeze_count()
+    assert after >= before
+    assert after > 0

@@ -587,27 +587,57 @@ class TestBatchingCompatibility:
         assert isinstance(restored, np.ndarray)
 
 
-def test_binary_output_itemsize_mismatch_falls_back_to_json():
-    """A response array whose byte width differs from the declared
-    datatype cannot pack losslessly: the output falls back to inline
-    JSON (protocol-legal) instead of silently truncating or padding —
-    the same check the gRPC raw path raises on."""
+def test_binary_output_dtype_mismatch_converts_to_declaration():
+    """A response array whose dtype differs from the declared datatype
+    converts to the declaration when the conversion is lossless
+    (widening or same-width) — the same value coercion the plain-JSON
+    path applies, so both transports represent the same values.
+    Narrowing conversions are refused instead (see
+    test_binary_output_narrowing_falls_back_to_inline_json). The gRPC
+    raw path keeps struct's checked semantics (its historical
+    behavior); this path keeps numpy's historical one."""
     import numpy as np
 
     from mlserver.rest.binary import _encode_output_bytes
 
-    # int32 array declared INT64: widths differ (4 vs 8 bytes).
+    # int32 array declared INT64: converts, values preserved.
     output = Mock()
     output.datatype = "INT64"
     output.data = np.array([1, 2], dtype=np.int32)
-    assert _encode_output_bytes(output) is None
+    packed = _encode_output_bytes(output)
+    assert packed == np.array([1, 2], dtype=np.int64).tobytes()
 
-    # Same-width kind conversion still packs (values convert exactly).
+    # Same-width kind conversion packs (values convert exactly).
     output2 = Mock()
     output2.datatype = "FP64"
     output2.data = np.array([1, 2], dtype=np.int64)
-    packed = _encode_output_bytes(output2)
-    assert packed == np.array([1, 2], dtype=np.float64).tobytes()
+    packed2 = _encode_output_bytes(output2)
+    assert packed2 == np.array([1, 2], dtype=np.float64).tobytes()
+
+
+def test_binary_output_narrowing_falls_back_to_inline_json():
+    """A narrowing conversion (array dtype wider than the declared
+    datatype) cannot be lossless — astype would silently truncate or
+    wrap values the plain-JSON path preserves exactly. The packer must
+    refuse binary packing so the output falls back to inline JSON."""
+    import numpy as np
+
+    from mlserver.rest.binary import _encode_output_bytes
+
+    # INT64 data under an INT32 declaration: refuse (None -> fallback).
+    output = Mock()
+    output.datatype = "INT32"
+    output.data = np.array([5, 6], dtype=np.int64)
+    assert _encode_output_bytes(output) is None
+
+    # Same refusal for values that would happen to fit: the byte-width
+    # mismatch alone must trigger the fallback (binary_data_size would
+    # frame the wrong width for the declared datatype regardless of
+    # the values' magnitude).
+    output2 = Mock()
+    output2.datatype = "INT32"
+    output2.data = np.array([2**40], dtype=np.int64)  # would wrap
+    assert _encode_output_bytes(output2) is None
 
 
 def test_binary_output_big_endian_normalises_to_little_endian():
@@ -630,3 +660,105 @@ def test_binary_output_big_endian_normalises_to_little_endian():
 
     assert _encode_output_bytes(output_be) == _encode_output_bytes(output_le)
     assert _encode_output_bytes(output_be) == little_endian.tobytes()
+
+
+def test_binary_fallback_renders_compact_floats_like_json_path(monkeypatch):
+    """Fallback inline JSON honours the compact-floats opt-in."""
+    # The fallback's contract: render byte-identically to the plain-JSON
+    # path (one canonical rendering per value per configuration).
+    import numpy as np
+    import orjson
+
+    from mlserver.codecs import json as json_codec
+    from mlserver.rest.binary import encode_binary_response
+
+    monkeypatch.setattr(json_codec, "_json_compact_floats", True)
+
+    arr = np.array([0.1, 1.5, -2.25], dtype=np.float32)
+    output = Mock()
+    output.name = "out"
+    output.datatype = "FP16"  # narrower than the FP32 data -> fallback
+    output.shape = [3]
+    output.parameters = None
+    output.data = arr
+
+    response = Mock()
+    response.model_name = "m"
+    response.model_version = None
+    response.id = "x"
+    response.parameters = None
+    response.outputs = [output]
+
+    body, header_len = encode_binary_response(response, default_binary=True)
+
+    header = orjson.loads(body[:header_len])
+    out = header["outputs"][0]
+    # fell back to inline JSON (no binary framing)
+    assert "binary_data_size" not in (out.get("parameters") or {})
+    # the compact form: shortest round-trip FP32 text, exactly what the
+    # plain-JSON path emits for the same array
+    assert out["data"] == [0.1, 1.5, -2.25]
+    # NOT the widened default form
+    assert b"0.10000000149011612" not in body
+
+
+def test_binary_fallback_default_stays_widened(monkeypatch):
+    """Fallback inline JSON stays widened with compact floats off."""
+    # Default (flag off): tolist's widened Python floats, byte-identical
+    # to the plain-JSON path's default float64 bridge.
+    import numpy as np
+    import orjson
+
+    from mlserver.codecs import json as json_codec
+    from mlserver.rest.binary import encode_binary_response
+
+    monkeypatch.setattr(json_codec, "_json_compact_floats", False)
+
+    arr = np.array([0.1, 1.5, -2.25], dtype=np.float32)
+    output = Mock()
+    output.name = "out"
+    output.datatype = "FP16"
+    output.shape = [3]
+    output.parameters = None
+    output.data = arr
+
+    response = Mock()
+    response.model_name = "m"
+    response.model_version = None
+    response.id = "x"
+    response.parameters = None
+    response.outputs = [output]
+
+    body, header_len = encode_binary_response(response, default_binary=True)
+
+    header = orjson.loads(body[:header_len])
+    out = header["outputs"][0]
+    assert "binary_data_size" not in (out.get("parameters") or {})
+    assert out["data"] == [0.10000000149011612, 1.5, -2.25]
+
+
+def test_binary_output_same_width_cross_kind_keeps_astype_semantics():
+    """Same-width cross-kind conversions pack per numpy's astype."""
+    # Documented divergence from the plain-JSON path (which renders the
+    # actual values): the REST binary path historically keeps numpy's
+    # coercion — a float under an integer declaration truncates, an int
+    # under a float declaration rounds. Pinned so the divergence is
+    # explicit and intentional, not accidental drift.
+    import numpy as np
+
+    from mlserver.rest.binary import _encode_output_bytes
+
+    # float 1.5 under an INT32 declaration (same width): packs as 1
+    output = Mock()
+    output.datatype = "INT32"
+    output.data = np.array([1.5, -2.5], dtype=np.float32)
+    assert _encode_output_bytes(output) == np.array([1, -2], dtype=np.int32).tobytes()
+
+    # int under FP32 (same width): converts exactly for small values
+    output2 = Mock()
+    output2.datatype = "FP32"
+    output2.data = np.array([1, 2], dtype=np.int32)
+    assert (
+        _encode_output_bytes(output2)
+        == np.array([1.0, 2.0], dtype=np.float32).tobytes()
+    )

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 from typing import cast
 
 from mlserver.types import InferenceResponse
+from mlserver.errors import InferenceTimeoutError
 from mlserver.parallel.errors import WorkerStop, NoWorkersAvailable
 from mlserver.parallel.dispatcher import Dispatcher
 from mlserver.parallel.messages import (
@@ -24,9 +25,9 @@ async def test_on_worker_stop(dispatcher: Dispatcher):
     assert worker.pid not in dispatcher._workers
     # Ensure worker is no longer in round robin rotation
     workers_count = len(dispatcher._workers)
-    for _ in range(workers_count + 1):
-        worker_pid = next(dispatcher._workers_round_robin)
+    for worker_pid in dispatcher._ready_workers:
         assert worker_pid != worker.pid
+    assert workers_count >= 1
 
 
 async def test_on_worker_stop_preserves_pool_ownership(
@@ -89,7 +90,7 @@ async def test_inference_timeout_bounds_dropped_reply(
 
     dispatcher.set_cancel_handler(cancel_handler)
     try:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(InferenceTimeoutError):
             await dispatcher.dispatch_request(inference_request_message)
         # The pending entry is cleared: a late reply resolves to no
         # waiter instead of accumulating leaked futures.

@@ -145,16 +145,20 @@ def create_app(
             response_model=InferenceResponse,
             openapi_extra=inference_openapi,
         ),
-        # Model generate
+        # Model generate (same handler as /infer; response_model kept
+        # explicit — the handler's -> Response return annotation no
+        # longer carries the schema)
         APIRoute(
             "/v2/models/{model_name}/generate",
             endpoints.infer,
             methods=["POST"],
+            response_model=InferenceResponse,
         ),
         APIRoute(
             "/v2/models/{model_name}/versions/{model_version}/generate",
             endpoints.infer,
             methods=["POST"],
+            response_model=InferenceResponse,
         ),
         # Model infer_stream
         APIRoute(

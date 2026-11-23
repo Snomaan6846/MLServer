@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import random
 
 from contextlib import nullcontext
@@ -17,7 +18,7 @@ from ..settings import Settings, ModelSettings
 from ..env import Environment
 
 from .model import ParallelModel
-from .errors import InferencePoolUnavailable, WorkerStop
+from .errors import InferencePoolUnavailable, WorkerError, WorkerStop
 from .worker import Worker, WorkerModelHook
 from .logging import logger
 from .utils import configure_inference_pool, terminate_queue
@@ -249,6 +250,12 @@ class InferencePool:
                 # compatibility.
                 setattr(self._responses, "_zmq_reply_endpoints", [reply])
                 setattr(self._responses, "_zmq_reply_endpoint", reply)
+        # The supervisor's own dispatcher defaults to frontend_id=0.
+        # It serves model OPERATIONS (load/unload broadcasts) only —
+        # never route live inference through it in multi-frontend
+        # mode: dispatch_request stamps frontend_id on the message,
+        # and every reply would land on frontend 0's endpoint alone,
+        # leaving frontends 1..N-1 with permanently pending waiters.
         self._owned_dispatcher = Dispatcher(
             self._workers,
             self._responses,
@@ -878,16 +885,42 @@ class InferencePool:
         dispatch = asyncio.create_task(self._dispatcher.dispatch_update(message))
         try:
             await asyncio.shield(dispatch)
-        except (Exception, asyncio.CancelledError):
-            self._begin_recovery(dispatch, message)
+        except (Exception, asyncio.CancelledError) as error:
+            self._begin_recovery(dispatch, message, error)
             raise
 
     def _begin_recovery(
-        self, dispatch: asyncio.Future, message: ModelUpdateMessage
+        self,
+        dispatch: asyncio.Future,
+        message: ModelUpdateMessage,
+        error: BaseException | None = None,
     ) -> None:
-        self._quarantined_workers.update(self._dispatcher._ready_workers)
-        self._dispatcher._ready_workers.clear()
-        self._dispatcher._reset_round_robin()
+        # A clean model-level error (WorkerError: the model's own
+        # load()/unload() raised, reported by a live worker) is a
+        # definitive per-model failure. For a failed LOAD the model was
+        # never registered on any frontend (failed loads broadcast
+        # ok=False, which frontends acknowledge without applying), so
+        # no request can route to it — pausing the pool's routing
+        # protects nothing and denies service to every UNRELATED model
+        # for the rollback window (the single-process server serves
+        # through failed loads). For a failed UNLOAD the model stays
+        # registered while some workers may have removed it, so its
+        # own requests can fail intermittently — a deliberate
+        # trade-off: the blast radius stays on the failing model, and
+        # the pre-fix alternative was strictly worse (an
+        # unacknowledged unload's recovery preserves the failure, so
+        # the quarantine would never release — the whole pool stayed
+        # dark until close). The rollback unload below still runs for
+        # loads: on a multi-worker pool another worker may hold a
+        # staged instance. Unknown-state failures — a worker stop, a
+        # transport error, a frontend deadline with the dispatch still
+        # running, or the pre-dispatch staged path (error None) — keep
+        # the full quarantine.
+        pause_routing = error is None or not isinstance(error, WorkerError)
+        if pause_routing:
+            self._quarantined_workers.update(self._dispatcher._ready_workers)
+            self._dispatcher._ready_workers.clear()
+            self._dispatcher._reset_round_robin()
         previous = self._recovery_task
 
         async def recover():
@@ -895,13 +928,16 @@ class InferencePool:
             # must stop routing to its workers for the whole recovery.
             # Chained quarantines re-fire it; receivers treat the event
             # as idempotent.
-            await self._notify_pool_quarantined()
+            if pause_routing:
+                await self._notify_pool_quarantined()
             if previous is not None:
                 await previous
             await self._recover_update(dispatch, message)
 
         self._recovery_task = create_task_independent(recover())
-        self._recovery_task.add_done_callback(self._recovery_done)
+        self._recovery_task.add_done_callback(
+            functools.partial(self._recovery_done, paused=pause_routing)
+        )
 
     async def _notify_pool_quarantined(self) -> None:
         """Fire the quarantine hooks with this pool's routing id."""
@@ -913,13 +949,23 @@ class InferencePool:
             except Exception:
                 logger.exception("Pool-quarantined hook failed for %s", self.name)
 
-    def _recovery_done(self, task: asyncio.Task) -> None:
+    def _recovery_done(self, task: asyncio.Task, *, paused: bool) -> None:
         if task.cancelled() or task.exception() is not None:
-            logger.error(
-                f"Recovery of {self.name} failed; pool remains quarantined "
-                "and owned until close.",
-                exc_info=None if task.cancelled() else task.exception(),
-            )
+            if paused:
+                logger.error(
+                    f"Recovery of {self.name} failed; pool remains "
+                    "quarantined and owned until close.",
+                    exc_info=None if task.cancelled() else task.exception(),
+                )
+            else:
+                # Routing was never paused (a clean model-level failure):
+                # traffic kept flowing; only the failing model's own
+                # state is affected.
+                logger.error(
+                    f"Recovery of {self.name} failed after a clean "
+                    "model-level error; routing was not paused.",
+                    exc_info=None if task.cancelled() else task.exception(),
+                )
 
     async def _recover_update(
         self,

@@ -1,9 +1,9 @@
+import json
 import logging
 import os
 import signal
 import sys
 import pytest
-import json
 from unittest.mock import patch
 from pydantic import ValidationError
 
@@ -208,6 +208,8 @@ def test_rest_server_config_uses_access_log_setting(
     server = RESTServer.__new__(RESTServer)
     server._settings = settings
     server._app = MagicMock()
+    server._shared_port_sockets = None
+    server._peer_loads = None
 
     config = server._get_config()
     assert config.access_log is expect_access_log_in_config
@@ -234,6 +236,7 @@ async def test_rest_health_log_filter_condition(
     server._settings = settings
     server._app = MagicMock()
     server._shared_port_sockets = None
+    server._peer_loads = None
 
     with patch(
         "mlserver.rest.server.disable_health_access_logs"
@@ -520,6 +523,7 @@ async def test_rest_server_stop_removes_health_filter(_clean_uvicorn_filters):
     server._settings = settings
     server._server = MagicMock()
     server._shared_port_sockets = None
+    server._peer_loads = None
 
     disable_health_access_logs()
     assert any(isinstance(f, HealthEndpointFilter) for f in uvicorn_logger.filters)
@@ -653,7 +657,7 @@ def _assert_implementation_resolves_to_mocked_runtime(
     mocked_runtime = type(mocked_runtime_name, (), {})
     with patch(
         "mlserver.settings.import_string", return_value=mocked_runtime
-    ) as mock_import, patch("mlserver.settings._reload_module"):
+    ) as mock_import, patch("mlserver.settings._reload_module", return_value=None):
         implementation = model_settings.implementation
 
     assert implementation is mocked_runtime
@@ -1249,19 +1253,27 @@ def test_dynamic_loading_actually_imports_from_model_folder(development_mode, tm
     assert runtime_class.__module__ == "custom_runtime"
 
 
-def test_development_mode_does_not_reload_shared_modules(development_mode, tmp_path):
-    """A shared implementation module must keep a stable identity.
+@pytest.mark.parametrize(
+    "implementation",
+    ["tests.fixtures.SumModel", "mlserver.model.MLModel"],
+    ids=["module", "dotted-package"],
+)
+def test_development_mode_does_not_reload_shared_modules(
+    development_mode, tmp_path, implementation
+):
+    """A shared implementation module (plain or dotted) must keep a
+    stable identity.
 
     importlib.reload re-executes a module in place, rebinding every class
     it defines to a fresh object: isinstance checks and patched methods
     break across the model lifecycle. Only the model's own folder-local
-    code is reloaded (see test_development_mode_reloads_folder_local_modules).
+    code is reloaded (see test_development_mode_reloads_folder_local).
     """
     model_folder = tmp_path / "my_model"
     model_folder.mkdir()
     settings_file = model_folder / "model-settings.json"
     settings_file.write_text(
-        '{"name": "test-model", "implementation": "tests.fixtures.SumModel"}',
+        json.dumps({"name": "test-model", "implementation": implementation}),
         encoding="utf-8",
     )
 
@@ -1275,34 +1287,49 @@ def test_development_mode_does_not_reload_shared_modules(development_mode, tmp_p
     assert first is second
 
 
-def test_development_mode_reloads_folder_local_modules(development_mode, tmp_path):
+@pytest.mark.parametrize("layout", ["plain-module", "package"])
+def test_development_mode_reloads_folder_local(development_mode, tmp_path, layout):
     """Folder-local model code is reloaded so edits are picked up: the
-    documented purpose of the development-mode dynamic reload."""
+    documented purpose of the development-mode dynamic reload (plain
+    module and dotted-package layouts)."""
     model_folder = tmp_path / "hot_model"
-    model_folder.mkdir()
-    runtime = model_folder / "hot_runtime.py"
+    if layout == "plain-module":
+        runtime = model_folder / "hot_runtime.py"
+        runtime.parent.mkdir(parents=True)
+        implementation = "hot_runtime.HotRuntime"
+    else:
+        pkg = model_folder / "hot_dotted_pkg"
+        pkg.mkdir(parents=True)
+        (pkg / "__init__.py").write_text("", encoding="utf-8")
+        runtime = pkg / "runtime.py"
+        implementation = "hot_dotted_pkg.runtime.HotRuntime"
     runtime.write_text(
-        "from mlserver import MLModel\nclass MyRuntime(MLModel):\n    pass\n",
+        "from mlserver import MLModel\nclass HotRuntime(MLModel):\n    pass\n",
         encoding="utf-8",
     )
     (model_folder / "model-settings.json").write_text(
-        '{"name": "hot-model", "implementation": "hot_runtime.MyRuntime"}',
+        json.dumps({"name": "hot-model", "implementation": implementation}),
         encoding="utf-8",
     )
     model_settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
 
-    first = model_settings.implementation
-    assert first.__name__ == "MyRuntime"
+    try:
+        first = model_settings.implementation
+        assert first.__name__ == "HotRuntime"
 
-    # Edit the module: the next access must pick up the new code.
-    runtime.write_text(
-        "from mlserver import MLModel\nclass MyRuntime(MLModel):\n    marker = 2\n",
-        encoding="utf-8",
-    )
-    second = model_settings.implementation
+        # Edit the module: the next access must pick up the new code.
+        runtime.write_text(
+            "from mlserver import MLModel\n"
+            "class HotRuntime(MLModel):\n    marker = 2\n",
+            encoding="utf-8",
+        )
+        second = model_settings.implementation
 
-    assert second is not first
-    assert second.marker == 2
+        assert second is not first
+        assert second.marker == 2
+    finally:
+        if layout == "package":
+            _evict_cached_pkg("hot_dotted_pkg")
 
 
 def test_development_mode_skips_reload_for_modules_without_source(
@@ -1493,3 +1520,437 @@ def test_inference_timeout_rejects_non_positive():
         Settings(inference_timeout=-1)
     # Absent keeps the historical unbounded wait.
     assert Settings().inference_timeout is None
+
+
+def test_rest_json_compact_floats_defaults_off():
+    """Default False: the widened (byte-identical) FP32 form."""
+    assert Settings().rest_json_compact_floats is False
+
+
+def test_rest_json_compact_floats_env_var():
+    import os
+
+    os.environ["MLSERVER_REST_JSON_COMPACT_FLOATS"] = "true"
+    try:
+        assert Settings().rest_json_compact_floats is True
+    finally:
+        del os.environ["MLSERVER_REST_JSON_COMPACT_FLOATS"]
+
+
+def _write_same_name_model(folder, layout: str, marker: str) -> None:
+    """Write a model folder whose implementation carries ``marker``,
+    in one of three layouts: a plain module, a package with
+    __init__.py, or a namespace package (no __init__.py)."""
+    if layout == "plain-module":
+        (folder / "fresh_runtime.py").write_text(
+            "from mlserver import MLModel\n"
+            f"class Runtime(MLModel):\n    marker = {marker!r}\n",
+            encoding="utf-8",
+        )
+        implementation = "fresh_runtime.Runtime"
+    else:
+        pkg = folder / "same_name_pkg"
+        pkg.mkdir(parents=True)
+        if layout == "package":
+            (pkg / "__init__.py").write_text("", encoding="utf-8")
+        (pkg / "runtime.py").write_text(
+            "from mlserver import MLModel\n"
+            f"class SharedRuntime(MLModel):\n    marker = {marker!r}\n",
+            encoding="utf-8",
+        )
+        implementation = "same_name_pkg.runtime.SharedRuntime"
+    (folder / "model-settings.json").write_text(
+        json.dumps({"name": "same-name-model", "implementation": implementation}),
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize("layout", ["plain-module", "package", "namespace-package"])
+def test_development_mode_two_folders_same_name(development_mode, tmp_path, layout):
+    """Two model folders each supplying a module or package of the
+    same name must each load their own code — the cached module's
+    ``__file__``/``__path__`` says where Python loaded it PREVIOUSLY,
+    which for the second folder is the first folder's file. Folder-
+    local code resolves against the current folder (the plain-module
+    cache ping-pongs to whichever folder is loading; a dotted path
+    resolves through its top-level package, so the other folder's
+    cached subtree must be evicted — the leaf alone cannot be
+    resolved against an arbitrary folder, and evicting only the leaf
+    would re-import it through the cached parent's __path__). The
+    namespace-package flavour decides folder locality by the search
+    locations (its finder spec has no origin)."""
+    alpha = tmp_path / "alpha"
+    bravo = tmp_path / "bravo"
+    alpha.mkdir()
+    bravo.mkdir()
+    _write_same_name_model(alpha, layout, "A")
+    _write_same_name_model(bravo, layout, "B")
+
+    try:
+        alpha_class = ModelSettings.parse_file(
+            str(alpha / "model-settings.json")
+        ).implementation
+        assert alpha_class.marker == "A"
+
+        bravo_class = ModelSettings.parse_file(
+            str(bravo / "model-settings.json")
+        ).implementation
+        assert bravo_class.marker == "B", (
+            "the second folder must load its own code, not the first "
+            "folder's cached module"
+        )
+        assert bravo_class is not alpha_class
+
+        # Reloading the first folder afterwards works symmetrically
+        # (the cache ping-pongs to whichever folder is loading).
+        alpha_again = ModelSettings.parse_file(
+            str(alpha / "model-settings.json")
+        ).implementation
+        assert alpha_again.marker == "A"
+    finally:
+        if layout != "plain-module":
+            _evict_cached_pkg("same_name_pkg")
+
+
+def _evict_cached_pkg(pkg_name: str) -> None:
+    """Test hygiene: remove a package subtree cached by a test."""
+    import sys
+
+    prefix = pkg_name + "."
+    for name in [n for n in sys.modules if n == pkg_name or n.startswith(prefix)]:
+        del sys.modules[name]
+
+
+def test_local_package_name_collision_preserves_shared_cache(
+    development_mode, tmp_path
+):
+    """A model folder shipping a package with the same NAME as a
+    shared (installed) package, but WITHOUT the requested leaf, must
+    not evict the shared subtree: the local package cannot serve the
+    import, and the shared one can. Evicting would replace a working
+    import with a ModuleNotFoundError."""
+    import sys
+
+    # The "shared" package: a real module cached from OUTSIDE the
+    # model folder (simulating an installed runtime package).
+    shared_root = tmp_path / "shared_src"
+    shared_pkg = shared_root / "shadow_pkg"
+    shared_pkg.mkdir(parents=True)
+    (shared_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (shared_pkg / "served.py").write_text(
+        "class Runtime:\n    origin = 'shared'\n",
+        encoding="utf-8",
+    )
+
+    # The model folder: same package name, different content (no
+    # served.py — only a utility module).
+    model_folder = tmp_path / "shadow_model"
+    local_pkg = model_folder / "shadow_pkg"
+    local_pkg.mkdir(parents=True)
+    (local_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (local_pkg / "utility.py").write_text(
+        "def helper():\n    return 'local'\n",
+        encoding="utf-8",
+    )
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "shadow-model", ' '"implementation": "shadow_pkg.served.Runtime"}',
+        encoding="utf-8",
+    )
+
+    import importlib
+
+    try:
+        # The shared package is imported and cached FIRST (another
+        # consumer, or an earlier load through the shared source).
+        sys.path.insert(0, str(shared_root))
+        shared_cls = importlib.import_module("shadow_pkg.served").Runtime
+        assert shared_cls.origin == "shared"
+
+        settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+        runtime = settings.implementation
+        # The shared import SURVIVES: the local package does not
+        # carry the requested leaf, so the shared cache stays.
+        assert runtime is shared_cls, (
+            "the shared runtime must keep its identity through a "
+            "local same-name package that cannot serve it"
+        )
+        assert sys.modules["shadow_pkg.served"].Runtime is shared_cls
+    finally:
+        sys.path.remove(str(shared_root))
+        _evict_cached_pkg("shadow_pkg")
+
+
+def test_failed_replacement_import_restores_shared_subtree(development_mode, tmp_path):
+    """When the folder DOES carry the requested leaf but its import
+    fails, the previously cached (shared) subtree must be restored:
+    other consumers of that package keep working, and the error
+    surfaces to this load."""
+    import sys
+
+    shared_root = tmp_path / "shared_src2"
+    shared_pkg = shared_root / "restore_pkg"
+    shared_pkg.mkdir(parents=True)
+    (shared_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (shared_pkg / "leaf.py").write_text(
+        "class Runtime:\n    origin = 'shared'\n",
+        encoding="utf-8",
+    )
+
+    model_folder = tmp_path / "restore_model"
+    local_pkg = model_folder / "restore_pkg"
+    local_pkg.mkdir(parents=True)
+    (local_pkg / "__init__.py").write_text("", encoding="utf-8")
+    # The failing replacement first imports a helper that exists
+    # ONLY in the replacement folder: the rollback must remove the
+    # attempt's partial cache, or the helper stays cached beside the
+    # restored shared package.
+    (local_pkg / "helper_only_in_folder.py").write_text(
+        "VALUE = 'failed-replacement'\n",
+        encoding="utf-8",
+    )
+    (local_pkg / "leaf.py").write_text(
+        "import restore_pkg.helper_only_in_folder\n"
+        "raise ImportError('broken local leaf')\n",
+        encoding="utf-8",
+    )
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "restore-model", ' '"implementation": "restore_pkg.leaf.Runtime"}',
+        encoding="utf-8",
+    )
+
+    import importlib
+
+    try:
+        sys.path.insert(0, str(shared_root))
+        shared_cls = importlib.import_module("restore_pkg.leaf").Runtime
+        assert shared_cls.origin == "shared"
+
+        settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+        with pytest.raises(ImportError, match="broken local leaf"):
+            settings.implementation
+
+        # The shared subtree is back: other consumers keep working.
+        assert sys.modules["restore_pkg.leaf"].Runtime is shared_cls
+        restored_cls = importlib.import_module("restore_pkg.leaf").Runtime
+        assert restored_cls is shared_cls
+        # The failed replacement's helper is NOT cached: the restored
+        # package shares no sys.modules entries with the failed
+        # folder's code.
+        assert "restore_pkg.helper_only_in_folder" not in sys.modules
+    finally:
+        sys.path.remove(str(shared_root))
+        _evict_cached_pkg("restore_pkg")
+
+
+def test_cached_parent_does_not_block_local_leaf(development_mode, tmp_path):
+    """A cached parent package from ANOTHER folder must not mask this
+    folder's leaf: importing package.second through a parent whose
+    __path__ belongs to folder A raises ModuleNotFoundError before
+    the conflict branch ever runs. The full local path resolves
+    before the first import, and this folder's code loads."""
+    folder_a = tmp_path / "model_a"
+    pkg_a = folder_a / "cross_pkg"
+    pkg_a.mkdir(parents=True)
+    (pkg_a / "__init__.py").write_text("", encoding="utf-8")
+    (pkg_a / "first.py").write_text(
+        "class Runtime:\n    origin = 'folder-a-first'\n",
+        encoding="utf-8",
+    )
+    (folder_a / "model-settings.json").write_text(
+        '{"name": "cross-model-a", "implementation": "cross_pkg.first.Runtime"}',
+        encoding="utf-8",
+    )
+
+    folder_b = tmp_path / "model_b"
+    pkg_b = folder_b / "cross_pkg"
+    pkg_b.mkdir(parents=True)
+    (pkg_b / "__init__.py").write_text("", encoding="utf-8")
+    (pkg_b / "second.py").write_text(
+        "class Runtime:\n    origin = 'folder-b-second'\n",
+        encoding="utf-8",
+    )
+    (folder_b / "model-settings.json").write_text(
+        '{"name": "cross-model-b", "implementation": "cross_pkg.second.Runtime"}',
+        encoding="utf-8",
+    )
+
+    try:
+        first = ModelSettings.parse_file(
+            str(folder_a / "model-settings.json")
+        ).implementation
+        assert first.origin == "folder-a-first"
+
+        # The cached cross_pkg parent belongs to folder A; folder B's
+        # leaf does not exist on its __path__ — the local resolution
+        # must run before the import fails.
+        second = ModelSettings.parse_file(
+            str(folder_b / "model-settings.json")
+        ).implementation
+        assert second.origin == "folder-b-second"
+    finally:
+        _evict_cached_pkg("cross_pkg")
+
+
+def test_replacement_without_requested_class_rolls_back(development_mode, tmp_path):
+    """A replacement module that imports CLEANLY but does not export
+    the requested class is a failed replacement, not a committed
+    one: the cache replacement commits only after the full
+    implementation path resolves. The displaced shared runtime keeps
+    working."""
+    import sys
+
+    shared_root = tmp_path / "shared_src3"
+    shared_pkg = shared_root / "commit_pkg"
+    shared_pkg.mkdir(parents=True)
+    (shared_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (shared_pkg / "leaf.py").write_text(
+        "class Runtime:\n    origin = 'shared'\n",
+        encoding="utf-8",
+    )
+
+    model_folder = tmp_path / "commit_model"
+    local_pkg = model_folder / "commit_pkg"
+    local_pkg.mkdir(parents=True)
+    (local_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (local_pkg / "leaf.py").write_text(
+        # Imports cleanly, but never defines Runtime.
+        "class SomethingElse:\n    pass\n",
+        encoding="utf-8",
+    )
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "commit-model", ' '"implementation": "commit_pkg.leaf.Runtime"}',
+        encoding="utf-8",
+    )
+
+    import importlib
+
+    try:
+        sys.path.insert(0, str(shared_root))
+        shared_cls = importlib.import_module("commit_pkg.leaf").Runtime
+        assert shared_cls.origin == "shared"
+
+        settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+        # The class lookup fails: the replacement does not carry it.
+        with pytest.raises(Exception):
+            settings.implementation
+
+        # The shared subtree is restored and still importable: the
+        # replacement never committed.
+        assert sys.modules["commit_pkg.leaf"].Runtime is shared_cls
+        assert importlib.import_module("commit_pkg.leaf").Runtime is shared_cls
+    finally:
+        sys.path.remove(str(shared_root))
+        _evict_cached_pkg("commit_pkg")
+
+
+def test_lazy_export_resolved_once_per_load(development_mode, tmp_path):
+    """A lazy module export (PEP 562 __getattr__) supplying the
+    runtime on its FIRST lookup, exercised through the REPLACEMENT
+    path (a shared subtree cached first, then replaced by the folder):
+    the load must resolve the runtime exactly once — the object
+    resolved inside the rollback block is the one returned. A second
+    lookup outside the rollback would fail (the export is once-only)
+    and leave a committed replacement the caller cannot use."""
+    import sys
+
+    shared_root = tmp_path / "shared_src4"
+    shared_pkg = shared_root / "lazy_pkg"
+    shared_pkg.mkdir(parents=True)
+    (shared_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (shared_pkg / "leaf.py").write_text(
+        "class Runtime:\n    origin = 'shared'\n",
+        encoding="utf-8",
+    )
+
+    model_folder = tmp_path / "lazy_model"
+    local_pkg = model_folder / "lazy_pkg"
+    local_pkg.mkdir(parents=True)
+    (local_pkg / "__init__.py").write_text("", encoding="utf-8")
+    # The lazy export: the first attribute lookup constructs and
+    # returns the runtime; every later lookup fails (the export is
+    # once-only).
+    (local_pkg / "leaf.py").write_text(
+        "lookups = 0\n\n\ndef __getattr__(name):\n"
+        "    global lookups\n"
+        "    if name == 'Runtime' and lookups == 0:\n"
+        "        lookups += 1\n"
+        "        return type('Runtime', (), {'origin': 'lazy'})\n"
+        "    raise AttributeError(f'lazy export exhausted: {name}')\n",
+        encoding="utf-8",
+    )
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "lazy-model", "implementation": "lazy_pkg.leaf.Runtime"}',
+        encoding="utf-8",
+    )
+
+    import importlib
+
+    try:
+        # The shared subtree is cached first: the folder's load takes
+        # the replacement (eviction) path, which resolves the runtime
+        # inside its rollback block.
+        sys.path.insert(0, str(shared_root))
+        shared_cls = importlib.import_module("lazy_pkg.leaf").Runtime
+        assert shared_cls.origin == "shared"
+
+        settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+        runtime = settings.implementation
+        assert runtime.origin == "lazy"
+
+        # Exactly one lookup: the once-only lazy export was consumed
+        # by the single resolution inside the rollback block.
+        leaf = sys.modules["lazy_pkg.leaf"]
+        assert leaf.lookups == 1, "the load must resolve the runtime once"
+    finally:
+        sys.path.remove(str(shared_root))
+        _evict_cached_pkg("lazy_pkg")
+
+
+def test_non_callable_runtime_export_rolls_back(development_mode, tmp_path):
+    """A replacement module exporting a NON-CALLABLE runtime
+    (Runtime = 123) is a failed replacement: the rollback block
+    checks callability before committing, so the displaced shared
+    runtime keeps working (the model initialiser could never use the
+    object anyway)."""
+    import sys
+
+    shared_root = tmp_path / "shared_src5"
+    shared_pkg = shared_root / "callable_pkg"
+    shared_pkg.mkdir(parents=True)
+    (shared_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (shared_pkg / "leaf.py").write_text(
+        "class Runtime:\n    origin = 'shared'\n",
+        encoding="utf-8",
+    )
+
+    model_folder = tmp_path / "callable_model"
+    local_pkg = model_folder / "callable_pkg"
+    local_pkg.mkdir(parents=True)
+    (local_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (local_pkg / "leaf.py").write_text(
+        "Runtime = 123\n",
+        encoding="utf-8",
+    )
+    (model_folder / "model-settings.json").write_text(
+        '{"name": "callable-model", ' '"implementation": "callable_pkg.leaf.Runtime"}',
+        encoding="utf-8",
+    )
+
+    import importlib
+
+    try:
+        sys.path.insert(0, str(shared_root))
+        shared_cls = importlib.import_module("callable_pkg.leaf").Runtime
+        assert shared_cls.origin == "shared"
+
+        settings = ModelSettings.parse_file(str(model_folder / "model-settings.json"))
+        with pytest.raises(TypeError, match="non-callable"):
+            settings.implementation
+
+        # The shared subtree is restored and still importable: the
+        # invalid replacement never committed.
+        assert sys.modules["callable_pkg.leaf"].Runtime is shared_cls
+        assert importlib.import_module("callable_pkg.leaf").Runtime is shared_cls
+    finally:
+        sys.path.remove(str(shared_root))
+        _evict_cached_pkg("callable_pkg")

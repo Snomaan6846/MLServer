@@ -14,6 +14,8 @@ root of the model repository. They can also be set with environment variables.
 | --- | --- | --- |
 | `grpc_raw_input_buffers` | `false` | `MLSERVER_GRPC_RAW_INPUT_BUFFERS` |
 | `rest_worker_json` | `false` | `MLSERVER_REST_WORKER_JSON` |
+| `rest_fast_parse` | `false` | `MLSERVER_REST_FAST_PARSE` |
+| `rest_json_compact_floats` | `false` | `MLSERVER_REST_JSON_COMPACT_FLOATS` |
 | `rest_binary_tensor` | `false` | `MLSERVER_REST_BINARY_TENSOR` |
 | `rest_worker_binary` | `false` | `MLSERVER_REST_WORKER_BINARY` |
 | `parallel_inference_transport` | `"queue"` | `MLSERVER_PARALLEL_INFERENCE_TRANSPORT` |
@@ -89,6 +91,68 @@ and decompression also remain outside this metric.
 Success means inference completed, rather than HTTP response delivery succeeded.
 An error formatting that completed prediction retains the inference success,
 as on the standard path.
+
+### Native Fast JSON Parsing
+
+`rest_fast_parse=true` parses numeric tensor `data` arrays directly from the
+raw request bytes into the target buffer with a compiled C parser, skipping
+the intermediate Python list of floats. It requires `rest_worker_json` (raw
+bytes only reach a parse site on the worker JSON path) and applies to the
+same unary `/infer` routes and non-batched parallel models.
+
+The datatypes FP32, FP64, INT8-64, UINT8-64 and BOOL are handled natively;
+every other datatype keeps the standard parse. The fast path is a strict
+subset of the standard path: any payload it cannot reproduce exactly —
+unsupported datatypes, JSON grammar it does not accept, values whose
+semantics differ — falls back to the standard parse, so responses and error
+bodies are unchanged.
+
+#### Where the native parser comes from
+
+The wheel is pure Python (`py3-none-any`) and ships the parser's C source
+(`mlserver/codecs/fastspan/parser.c`) rather than a compiled library, so
+the same wheel installs on every platform. The compiled library
+(`libfastspan.so`) is built per platform at image-build time:
+
+- **Official images** (and images derived from them): the library is
+  already compiled into the installed package tree during the image build.
+  Nothing to do.
+- **Serving from a checkout**: run `make fastspan`.
+- **A plain `pip install` outside the official images**: the library is
+  not compiled by installation. If you enable `rest_fast_parse`, compile
+  it once where MLServer is installed (requires a C compiler):
+
+  ```sh
+  PKG_DIR=$(python3 -c "import mlserver.codecs.fastspan as m, pathlib; print(pathlib.Path(m.__file__).parent)")
+  gcc -O3 -shared -fPIC -o "$PKG_DIR/libfastspan.so" "$PKG_DIR/parser.c" -lm
+  ```
+
+Enabling the flag without the library is a startup error naming the
+missing file and the fix, not a silent fallback to the standard parse.
+
+Decoded inputs are NumPy views of the parsed buffer: repeated `decode()`
+calls on the same input return views of one buffer, so a model that decodes
+an input, mutates it in place and decodes it again observes its own
+mutation. List-based parsing hands out a fresh copy per decode; models
+that decode each input once — the common pattern — are unaffected.
+Models using adaptive batching are also unaffected, because array-backed
+inputs are restored to the list representation before the batcher merges
+them.
+
+### Compact Float Rendering
+
+`rest_json_compact_floats=true` renders FP32 tensor data on REST JSON
+responses with the shortest float32 round-trip representation instead of
+the default widened float64 text. Responses become roughly 50% smaller
+and slightly faster to serialize.
+
+This is the only setting that changes response TEXT: the float32 values
+are identical when parsed, but the JSON bytes differ from the default
+widened form. Enable it only if consumers compare parsed values rather
+than response bodies — a client that byte-compares responses (a cache
+key over the raw body, a wire-parity check) will see different text.
+`rest_json_compact_floats=false` (the default) keeps the wire
+byte-identical to the standard rendering.
 
 ### REST Binary Tensor Data
 

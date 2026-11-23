@@ -36,23 +36,21 @@ def _freeze_startup_heap() -> None:
 
 
 class MLServer:
-    def __init__(self, settings: Settings, inference_pool_registry=None):
+    def __init__(
+        self,
+        settings: Settings,
+        inference_pool_registry=None,
+        rest_shared_sockets: "list | None" = None,
+        rest_peer_loads: "tuple | None" = None,
+    ):
         self._settings = settings
         self._live: bool = False
         self._stop_task: asyncio.Task | None = None
-
-        # Response payload topology: the ndarray pipeline only fits at
-        # 2+ frontend processes (ndarray_response_pipeline_for) — the
-        # direct server and the single supervised frontend both keep
-        # master's list-based data flow.
-        from .codecs.numpy import (
-            ndarray_response_pipeline_for,
-            set_ndarray_response_pipeline,
-        )
-
-        set_ndarray_response_pipeline(
-            ndarray_response_pipeline_for(settings.frontend_workers)
-        )
+        # The supervisor's shared REST listener, when constructed as a
+        # frontend child (see mlserver/frontend.py); None owns its own
+        # socket.
+        self._rest_shared_sockets = rest_shared_sockets
+        self._rest_peer_loads = rest_peer_loads
 
         if settings.frontend_workers >= 1 and inference_pool_registry is None:
             # Only the CLI entry point spawns the supervisor; a
@@ -95,6 +93,13 @@ class MLServer:
         self._model_repository = ModelRepositoryFactory.resolve_model_repository(
             self._settings
         )
+        # The opt-in compact FP32 JSON rendering: set wherever
+        # serialization can run (main process + frontend children;
+        # workers set it in their own bootstrap).
+        from .codecs.json import set_json_compact_floats
+
+        set_json_compact_floats(settings.rest_json_compact_floats)
+
         self._data_plane = DataPlane(
             settings=self._settings, model_registry=self._model_registry
         )
@@ -102,8 +107,6 @@ class MLServer:
         # lifecycle; the registry stores the hook lists by reference, so
         # appending here (after the DataPlane exists) is equivalent to
         # constructor wiring.
-        self._on_model_load.append(self._data_plane.on_model_load)
-        self._on_model_unload.append(self._data_plane.on_model_unload)
         self._model_repository_handlers = ModelRepositoryHandlers(
             repository=self._model_repository,
             model_registry=self._model_registry,
@@ -114,11 +117,9 @@ class MLServer:
         self._create_servers()
 
     def _create_model_registry(self) -> MultiModelRegistry:
-        # Kept on self: the DataPlane appends its cache-invalidation
-        # hooks after it is constructed (it needs the registry, so it
-        # cannot exist yet here) — the registry stores these lists by
-        # reference, so appending later is equivalent to constructor
-        # wiring.
+        # Kept on self: hook consumers may append after construction
+        # (the registry stores these lists by reference, so appending
+        # later is equivalent to constructor wiring).
         self._on_model_load = [
             self.add_custom_handlers,
             load_batching,
@@ -197,7 +198,11 @@ class MLServer:
 
     def _create_servers(self):
         self._rest_server = RESTServer(
-            self._settings, self._data_plane, self._model_repository_handlers
+            self._settings,
+            self._data_plane,
+            self._model_repository_handlers,
+            shared_sockets=self._rest_shared_sockets,
+            peer_loads=self._rest_peer_loads,
         )
         self._grpc_server = GRPCServer(
             self._settings, self._data_plane, self._model_repository_handlers
@@ -252,11 +257,10 @@ class MLServer:
             # into the GC's permanent generation: these objects are
             # long-lived and never garbage, and rescanning them during
             # request-driven collections was measured at 3-5% of wall
-            # time under concurrent streaming load (ssebench campaign
-            # findings, 2026-11-22; the same pattern documented
-            # industry-wide — Instagram's gc.freeze, Rippling's and
-            # Close's tail-latency write-ups). collect() first so no
-            # startup garbage gets frozen.
+            # time under concurrent streaming load (the same pattern
+            # documented industry-wide — Instagram's gc.freeze,
+            # Rippling's and Close's tail-latency write-ups).
+            # collect() first so no startup garbage gets frozen.
             _freeze_startup_heap()
 
             # Mark startup complete only if all models loaded successfully.

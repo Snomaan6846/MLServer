@@ -21,7 +21,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from ..codecs.json import decode_from_bytelike_json_to_dict, encode_to_json_bytes
-from ..errors import ModelNotReady
+from .utils import encode_inference_response_bytes
+from ..errors import InferenceTimeoutError, ModelNotReady
 from ..handlers import DataPlane
 from ..parallel.logging import logger
 from ..types import InferenceRequest, InferenceResponse
@@ -79,10 +80,44 @@ def _json_content(headers: dict[str, str]) -> bool:
     )
 
 
-def parse_body(body: bytes, json_content: bool = True) -> InferenceRequest | RawReply:
+class _FastPathUnavailable(Exception):
+    """Internal signal: the orchestrator chose the standard path."""
+
+
+def _reject_fast_path(_body: bytes) -> InferenceRequest:
+    raise _FastPathUnavailable()
+
+
+def _try_fast_parse(body: bytes) -> InferenceRequest | None:
+    """Attempt the native span fast path; ``None`` means use the standard path.
+
+    The orchestrator's strict-subset contract: any payload the native
+    parser cannot reproduce exactly (unsupported datatype, grammar it
+    rejects, envelope mismatch, native library absent) falls back to
+    the standard parse — whose validation errors become the usual HTTP
+    422 reply. The fast path never accepts what the standard path
+    rejects, and never changes a value it does accept.
+    """
+    from ..codecs.fast_json import fastspan_parser, parse_inference_request
+
+    try:
+        return parse_inference_request(body, _reject_fast_path, fastspan_parser)
+    except _FastPathUnavailable:
+        return None
+
+
+def parse_body(
+    body: bytes,
+    json_content: bool = True,
+    fast_parse: bool = False,
+) -> InferenceRequest | RawReply:
     """Use the existing JSON-object/schema path and FastAPI error locations."""
     if not body:
         return _missing_body()
+    if fast_parse and json_content:
+        fast = _try_fast_parse(body)
+        if fast is not None:
+            return fast
     decoded: Any = body
     if json_content:
         try:
@@ -116,10 +151,12 @@ def parse_body(body: bytes, json_content: bool = True) -> InferenceRequest | Raw
 def encode_response(response: InferenceResponse) -> bytes:
     """Apply the same validated schema and serialization flags as REST."""
     checked = _RESPONSE_ADAPTER.validate_python(response, from_attributes=True)
-    content = _RESPONSE_ADAPTER.dump_python(
-        checked, mode="json", by_alias=True, exclude_unset=True, exclude_none=True
-    )
-    return encode_to_json_bytes(content)
+    # The SAME serializer as the frontend endpoint: python-mode dump
+    # (ndarray roots to orjson's OPT_SERIALIZE_NUMPY — the
+    # compact-floats opt-in applies) with the metadata's JSON-mode
+    # scalar conversion. A JSON-mode dump here widened FP32 tensors
+    # to Python floats before encoding, making the flag inert.
+    return encode_inference_response_bytes(checked)
 
 
 def _parse_worker_binary(
@@ -167,7 +204,11 @@ async def process_raw_request(
             if binary_request:
                 payload = _parse_worker_binary(body, headers)
             else:
-                payload = parse_body(body, _json_content(headers))
+                payload = parse_body(
+                    body,
+                    _json_content(headers),
+                    fast_parse=worker._settings.rest_fast_parse,
+                )
             if isinstance(payload, RawReply):
                 return ModelResponseMessage(id=request.id, return_value=payload)
             insert_headers(payload, headers)
@@ -237,6 +278,11 @@ class RawEndpoints:
                 status_code=400, detail="There was an error parsing the body"
             ) from error
         headers = dict(request.headers)
+        # The content-type partition is request-static: computed once,
+        # reused by every parse_body site below (three of the four are
+        # error paths that deliberately re-parse; the partition is not
+        # among the things they need to recompute).
+        json_content = _json_content(headers)
         with self._data_plane._infer_metrics(model_name, model_version) as metrics:
             try:
                 model = await self._data_plane._model_registry.get_model(
@@ -249,7 +295,11 @@ class RawEndpoints:
                 # requests belong to accounting; exclude this exceptional-path
                 # validation just as the standard route excludes JSON parsing.
                 started = perf_counter()
-                invalid = parse_body(body, _json_content(headers))
+                invalid = parse_body(
+                    body,
+                    json_content,
+                    fast_parse=self._data_plane._settings.rest_fast_parse,
+                )
                 metrics.excluded_duration = perf_counter() - started
                 metrics.enabled = not isinstance(invalid, RawReply)
                 if isinstance(invalid, RawReply):
@@ -259,7 +309,7 @@ class RawEndpoints:
                 isinstance(model, ParallelModel)
                 and not model.settings.max_batch_size
                 and not model.settings.max_batch_time
-                and _json_content(headers)
+                and json_content
             ):
                 message = ModelRequestMessage(
                     model_name=model.name,
@@ -278,9 +328,28 @@ class RawEndpoints:
                         raise TypeError(
                             "Raw REST inference did not return a worker reply"
                         )
+                except InferenceTimeoutError as error:
+                    # The dispatch wait expired. A parse failure in the
+                    # worker produces a 422 reply (not a timeout), so a
+                    # timeout means the request was valid and slow:
+                    # count it without re-parsing the body — a 15 MB
+                    # re-parse on the error path costs ~50 ms for a
+                    # metrics flag we can already determine.
+                    metrics.enabled = True
+                    metrics.excluded_duration = getattr(
+                        error, _CONVERSION_DURATION_ATTR, 0.0
+                    )
+                    metrics.inference_succeeded = getattr(
+                        error, _INFERENCE_SUCCEEDED_ATTR, False
+                    )
+                    raise
                 except (Exception, asyncio.CancelledError) as error:
                     started = perf_counter()
-                    invalid = parse_body(body, _json_content(headers))
+                    invalid = parse_body(
+                        body,
+                        json_content,
+                        fast_parse=self._data_plane._settings.rest_fast_parse,
+                    )
                     metrics.enabled = not isinstance(invalid, RawReply)
                     metrics.excluded_duration = (
                         perf_counter()
@@ -298,7 +367,11 @@ class RawEndpoints:
             else:
                 # The ordinary DataPlane owns accounting on every fallback.
                 metrics.enabled = False
-                payload = parse_body(body, _json_content(headers))
+                payload = parse_body(
+                    body,
+                    json_content,
+                    fast_parse=self._data_plane._settings.rest_fast_parse,
+                )
                 if isinstance(payload, RawReply):
                     reply = payload
                 else:

@@ -16,17 +16,41 @@ _buildWheel() {
   local _srcPath=$1
   local _outputPath=$2
 
-  # Poetry doesn't let us send the output to a separate folder so we'll `cd`
-  # into the folder and them move the wheels out
-  # https://github.com/python-poetry/poetry/issues/3586
-  pushd $_srcPath
-  poetry build
-  # Only copy files if destination is different from source
-  local _currentDistPath=$PWD/dist
-  if ! [[ "$_currentDistPath" = "$_outputPath" ]]; then
-    cp $_currentDistPath/* $_outputPath
+  # Build into a fresh per-invocation directory: it contains only
+  # this invocation's artifacts (no stale wheel from an earlier
+  # build can be mistaken for a fresh one), and the shared output
+  # folder is never wiped (wheels from earlier invocations survive).
+  local _tmpDist
+  _tmpDist="$(mktemp -d)"
+
+  pushd $_srcPath > /dev/null
+  poetry build --output "${_tmpDist}"
+  popd > /dev/null
+
+  # The wheels must be pure and self-sufficient for image-time
+  # compilation: the C source rides the core wheel, a compiled
+  # library never rides any wheel (each image build compiles it into
+  # the installed tree — per-platform by construction). These
+  # assertions fail loudly if the pyproject include config regresses.
+  local _whl _listing _coreWheel
+  for _whl in "${_tmpDist}"/*.whl; do
+    _listing="$(python -m zipfile -l "${_whl}")"
+    if grep -q '\.so' <<<"$_listing"; then
+      echo "ERROR: ${_whl} contains a compiled library — wheels must stay pure" >&2
+      exit 1
+    fi
+  done
+  _coreWheel="$(ls "${_tmpDist}"/mlserver-*.whl 2> /dev/null || true)"
+  if [ -n "${_coreWheel}" ]; then
+    _listing="$(python -m zipfile -l "${_coreWheel}")"
+    if ! grep -q 'fastspan/parser\.c' <<<"$_listing"; then
+      echo "ERROR: ${_coreWheel} is missing fastspan/parser.c (the image-time compile source)" >&2
+      exit 1
+    fi
   fi
-  popd
+
+  mv "${_tmpDist}"/* "${_outputPath}"/
+  rmdir "${_tmpDist}"
 }
 
 _main() {

@@ -553,3 +553,20 @@ variable, e.g.
 DOCKER_BUILDKIT=1 docker build . -t my-custom-runtime:0.1.0
 ```
 ````
+
+
+## Response `model_dump()` returns NumPy arrays (breaking change)
+
+Custom runtimes that serialise inference responses themselves must be
+aware of a contract change in `TensorData` serialisation:
+
+- `response.model_dump()` (Python mode) now keeps the tensor data as a
+  **NumPy array** where it previously produced a Python list.
+  `json.dumps(model_dump())` therefore raises `TypeError` on tensor
+  outputs.
+- The fix is the pydantic-canonical idiom for JSON-safe output:
+  `model_dump(mode="json")` (or `model_dump_json()`), which still
+  produces lists — unchanged behaviour.
+- HTTP and gRPC wire output is unaffected: responses are byte-identical
+  to previous releases (the change is how the bytes are produced, not
+  what they contain).

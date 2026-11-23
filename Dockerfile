@@ -34,7 +34,10 @@ RUN microdnf update -y && \
     ln -sf /usr/bin/pip${PYTHON_VERSION} /usr/bin/pip && \
     pip install --upgrade pip wheel setuptools
 
-# Install Poetry, build wheels and export constraints.txt file
+# Install Poetry, build wheels and export constraints.txt file. The
+# wheels are pure (py3-none-any): the native span parser rides the
+# wheel as C source and is compiled into the installed tree by the
+# runtime stage below.
 RUN pip install poetry==$POETRY_VERSION && \
     pip install poetry-plugin-export && \
     ./hack/build-wheels.sh /opt/mlserver/dist "$RUNTIMES" && \
@@ -94,6 +97,20 @@ RUN --mount=type=bind,from=wheel-builder,src=/opt/mlserver/dist,target=./dist \
         fi; \
     done && \
     rm -rf /root/.cache/pip
+
+# Compile the native JSON span parser into the installed package
+# tree: the wheel is pure (py3-none-any) and carries the C source;
+# each image build compiles for its own platform. Runtime use is
+# opt-in via rest_fast_parse; without the library the flag errors
+# at startup. gcc is installed only for this step and removed
+# within the same layer to keep the runtime image lean.
+RUN microdnf install -y gcc && \
+    microdnf clean all && \
+    _pkg_dir="$(python3 -c "import mlserver.codecs.fastspan as m, pathlib; print(pathlib.Path(m.__file__).parent)")" && \
+    gcc -O3 -shared -fPIC -o "${_pkg_dir}/libfastspan.so" "${_pkg_dir}/parser.c" -lm && \
+    python3 -c "from mlserver.codecs import fastspan; assert fastspan._load() is not None" && \
+    microdnf remove -y gcc && \
+    microdnf clean all
 
 COPY ./licenses/cpu/license.txt .
 COPY ./licenses/cpu/license.txt /licenses/

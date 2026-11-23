@@ -90,11 +90,11 @@ class TestPerOperationApplying:
         # not start before the apply holds _applying_load.
         load_entered = asyncio_module.Event()
 
-        async def blocking_load(settings):
+        async def blocking_load(settings, stale_check=None):
             load_entered.set()
             await release.wait()
 
-        shared._model_registry.load = AsyncMock(side_effect=blocking_load)
+        shared._model_registry._load_for_apply = AsyncMock(side_effect=blocking_load)
 
         serialised = ModelSettings(
             name="a-model", implementation="tests.fixtures.SumModel"
@@ -141,7 +141,7 @@ class TestPerOperationApplying:
                 tasks.append(load_b)
             await asyncio_module.gather(*tasks, return_exceptions=True)
         # The apply's own registration completed locally.
-        shared._model_registry.load.assert_awaited_once()
+        shared._model_registry._load_for_apply.assert_awaited_once()
 
     async def test_replayed_generation_reaches_unload_request(self, shared):
         """End-to-end replay generation flow: a replayed ApplyLoad
@@ -164,7 +164,7 @@ class TestPerOperationApplying:
         registered = self._model("m")
         registered.name = "m"
         registered.version = None
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         # A replayed load (unicast, no op waiter on this frontend):
         # the non-origin apply path registers and attaches.
@@ -266,11 +266,11 @@ class TestVersionScopedUnload:
         unload never falls through to a versioned default."""
         from mlserver.parallel.shared import ApplyUnload
 
-        shared._model_registry.unload_exact_version = AsyncMock()
+        shared._model_registry._unload_for_apply = AsyncMock()
         await handle_and_settle(
             shared, ApplyUnload(op_id="op-u", name="model-x", version="v2", ok=True)
         )
-        shared._model_registry.unload_exact_version.assert_awaited_once_with(
+        shared._model_registry._unload_for_apply.assert_awaited_once_with(
             "model-x", "v2", False
         )
 
@@ -284,7 +284,7 @@ class TestVersionScopedUnload:
 
         from mlserver.parallel.shared import ApplyAck, ApplyUnload
 
-        shared._model_registry.unload_exact_version = AsyncMock(
+        shared._model_registry._unload_for_apply = AsyncMock(
             side_effect=RuntimeError("retained cleanup keeps failing")
         )
         caplog.set_level(logging_module.ERROR)
@@ -315,7 +315,7 @@ class TestVersionScopedUnload:
 
         from mlserver.parallel.shared import ApplyAck, ApplyUnload
 
-        shared._model_registry.unload_exact_version = AsyncMock(return_value=None)
+        shared._model_registry._unload_for_apply = AsyncMock(return_value=None)
         caplog.set_level(logging_module.ERROR)
         await handle_and_settle(
             shared,
@@ -342,14 +342,14 @@ class TestVersionScopedUnload:
 
         # Mock both paths: the exact path must be used; the non-exact
         # path (which would remove the versioned default) must not.
-        shared._model_registry.unload_exact_version = AsyncMock()
+        shared._model_registry._unload_for_apply = AsyncMock()
         shared._model_registry.unload_version = AsyncMock()
 
         await handle_and_settle(
             shared, ApplyUnload(op_id="op-u", name="model-x", version=None, ok=True)
         )
 
-        shared._model_registry.unload_exact_version.assert_awaited_once_with(
+        shared._model_registry._unload_for_apply.assert_awaited_once_with(
             "model-x", None, False
         )
         shared._model_registry.unload_version.assert_not_awaited()
@@ -1059,11 +1059,14 @@ class TestGenerationAwareReloadRetirement:
 
         pool_registry.unload_model.assert_awaited_once_with(instance)
         assert ("m", "") not in supervisor._loaded_models
-        # The generation counter is retained past the unload so the next
-        # load of the key commits a higher value than any earlier one.
-        assert supervisor._generations[("m", "")] == 3
+        # The generation counter ADVANCES past the unload (the removal
+        # commits a value above every earlier one): retirements and
+        # duplicate unloads of the removed wrappers resolve as
+        # superseded instead of looking current.
+        assert supervisor._generations[("m", "")] == 4
         broadcast = supervisor._broadcast.call_args[0][0]
         assert isinstance(broadcast, ApplyUnload) and broadcast.ok
+        assert broadcast.generation == 4
 
     async def test_load_advances_generation_per_key(self, mocker):
         """Each committed (re)load advances its model key's generation,
@@ -1320,14 +1323,15 @@ class TestUnloadOutcomeAndGenerationInvariants:
 
         await supervisor._load_settings(self._settings())  # generation 1
         await supervisor._unload_settings("m", None, origin=0, op_id="op-u")
-        await supervisor._load_settings(self._settings())  # generation 2
+        # the unload commits generation 2 (the counter advances)
+        await supervisor._load_settings(self._settings())  # generation 3
 
         applies = [
             c.args[0]
             for c in supervisor._broadcast.call_args_list
             if isinstance(c.args[0], ApplyLoad)
         ]
-        assert [a.generation for a in applies] == [1, 2], (
+        assert [a.generation for a in applies] == [1, 3], (
             "generation restarted after unload — a stale wrapper could "
             "collide with the fresh commit"
         )
@@ -1348,7 +1352,8 @@ class TestUnloadOutcomeAndGenerationInvariants:
 
         await supervisor._load_settings(self._settings())  # generation 1
         await supervisor._unload_settings("m", None, origin=0, op_id="op-u")
-        await supervisor._load_settings(self._settings())  # generation 2
+        # the unload commits generation 2 (the counter advances)
+        await supervisor._load_settings(self._settings())  # generation 3
         pool_registry.unload_model.reset_mock()
 
         # The peer's stale generation-1 wrapper retires now.
@@ -1484,7 +1489,9 @@ class TestOriginTimeoutReconciliation:
         )
 
         registered = self._model()
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        # The reconcile late-applies through the gated lock-free
+        # entry point (the publication-time stale gate lives there).
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         load_task = asyncio_module.create_task(shared.load_model(self._model()))
         request = await self._recv(shared)
@@ -1518,10 +1525,10 @@ class TestOriginTimeoutReconciliation:
         # The reconcile late-applies the load with the committed
         # generation attached.
         for _ in range(50):
-            if shared._model_registry.load.await_count:
+            if shared._model_registry._load_for_apply.await_count:
                 break
             await asyncio_module.sleep(0.02)
-        shared._model_registry.load.assert_awaited_once()
+        shared._model_registry._load_for_apply.assert_awaited_once()
         assert get_generation(registered) == 1
 
     async def test_failed_late_result_does_not_apply(self, shared):
@@ -1536,7 +1543,7 @@ class TestOriginTimeoutReconciliation:
         )
 
         registered = self._model()
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         load_task = asyncio_module.create_task(shared.load_model(self._model()))
         request = await self._recv(shared)
@@ -1583,7 +1590,7 @@ class TestOriginTimeoutReconciliation:
         )
 
         registered = self._model()
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         load_task = asyncio_module.create_task(shared.load_model(self._model()))
         request = await self._recv(shared)
@@ -1621,7 +1628,9 @@ class TestOriginTimeoutReconciliation:
         )
 
         registered = self._model()
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        # The reconcile late-applies through the gated lock-free
+        # entry point (the publication-time stale gate lives there).
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         load_task = asyncio_module.create_task(shared.load_model(self._model()))
         request = await self._recv(shared)
@@ -1658,7 +1667,7 @@ class TestOriginTimeoutReconciliation:
             ),
         )
         await self._recv(shared)  # the peer's ApplyAck
-        assert shared._model_registry.load.await_count == 1
+        assert shared._model_registry._load_for_apply.await_count == 1
 
         # The stale generation-1 result arrives late: the reconcile
         # must NOT re-register over the newer generation. Sync on the
@@ -1680,7 +1689,7 @@ class TestOriginTimeoutReconciliation:
                 timeout=5,
             )
         assert (
-            shared._model_registry.load.await_count == 1
+            shared._model_registry._load_for_apply.await_count == 1
         ), "a superseded late result must not re-apply an older generation"
 
     async def test_late_result_superseded_by_unload(self, shared):
@@ -1698,7 +1707,7 @@ class TestOriginTimeoutReconciliation:
         registered = self._model()
         registered.name = "m"
         registered.version = None
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         load_task = asyncio_module.create_task(shared.load_model(self._model()))
         request = await self._recv(shared)
@@ -1874,7 +1883,7 @@ class TestInProcessModelOptOutInSharedTopology:
         assert ("opted-out", "") not in supervisor._loaded_models
 
     async def test_opted_out_model_rejected_at_single_supervised_frontend(self):
-        """fw=1 is the supervised topology, so model-level
+        """frontend_workers=1 is the supervised topology, so model-level
         parallel_workers=0 is rejected there exactly as at any higher
         count — supervised frontends never host models in-process."""
         from mlserver.parallel.shared import ApplyLoad
@@ -1902,7 +1911,7 @@ class TestInProcessModelOptOutInSharedTopology:
     async def test_opted_out_model_loads_in_process_at_direct_server(self):
         """frontend_workers=0 keeps the in-process execution path: the
         REAL pool registry returns the opted-out model untouched and
-        never acquires a pool for it. (At fw=0 the CLI runs the direct
+        never acquires a pool for it. (At frontend_workers=0 the CLI runs the direct
         server in production; the test drives the supervisor's load
         path directly to pin the opt-out branch.)"""
         from mlserver.parallel.registry import InferencePoolRegistry
@@ -2011,7 +2020,7 @@ class TestGenerationAwareUnloadTracking:
         registered.settings = ModelSettings(
             name="m", implementation="tests.fixtures.SumModel"
         )
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         # The peer starts BELOW the unload's generation: the tracked
         # value must be ADVANCED by the unload's own recording — a
@@ -2044,11 +2053,11 @@ class TestGenerationAwareUnloadTracking:
         shared._origin_applies["op-late"] = load_msg
         shared._test_parent.send(OpResult(op_id="op-late", ok=True, generation=2))
         for _ in range(100):
-            if shared._model_registry.load.await_count > 0:
+            if shared._model_registry._load_for_apply.await_count > 0:
                 break
             await asyncio_module.sleep(0.02)
         assert (
-            shared._model_registry.load.await_count == 1
+            shared._model_registry._load_for_apply.await_count == 1
         ), "gen-2 result should reconcile after gen-1 unload (2 > 1)"
 
     async def test_stale_unload_skipped_on_peer(self, shared):
@@ -2094,7 +2103,7 @@ class TestGenerationAwareUnloadTracking:
         registered.settings = ModelSettings(
             name="m", implementation="tests.fixtures.SumModel"
         )
-        shared._model_registry.load = AsyncMock(return_value=registered)
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
 
         # The peer starts BELOW the unload's generation so the
         # recording is observable: the unload itself must advance the
@@ -2191,3 +2200,73 @@ async def test_cancelled_op_task_does_not_leak_pending_entry(mocker):
 
     # The registered entry did not outlive the cancelled operation.
     assert "op-leak" not in supervisor._pending_ops
+
+
+class TestReconcileClearsStaleRemovalMark:
+    """A successful late reconcile clears a strictly-older removal
+    mark, matching _apply_load — harmless by construction (every
+    guard compares >= against strictly-later generations), but a
+    successful publication should not leave removal state behind."""
+
+    @pytest.fixture
+    async def shared(self):
+        from mlserver.parallel.shared import SharedPoolRegistry
+
+        settings = Settings(
+            parallel_workers=1,
+            parallel_inference_transport="zmq",
+            model_operation_timeout=0.2,
+        )
+        parent, child = Pipe(duplex=True)
+        registry = SharedPoolRegistry(
+            settings,
+            frontend_id=0,
+            reply_endpoint="ipc:///tmp/test-reconcile-pop",
+            control=child,
+        )
+        registry._test_parent = parent
+        registry.attach_registry(Mock())
+        await registry.start()
+        try:
+            yield registry
+        finally:
+            await registry.close()
+            parent.close()
+            child.close()
+
+    async def test_successful_reconcile_pops_older_removal_mark(self, shared) -> None:
+        import asyncio as asyncio_module
+
+        from mlserver.parallel.shared import ApplyLoad, OpResult
+
+        registered = Mock()
+        registered.settings = ModelSettings(
+            name="m", implementation="tests.fixtures.SumModel"
+        )
+        shared._model_registry._load_for_apply = AsyncMock(return_value=registered)
+
+        # A removal mark strictly OLDER than the incoming generation:
+        # the reconcile's gate passes (1 < 2) and its publication
+        # must clear the mark.
+        shared._key_removals[("m", "")] = 1
+
+        load_msg = ApplyLoad(
+            op_id="op-late",
+            serialised_model_settings=(
+                '{"name": "m", "implementation": "tests.fixtures.SumModel"}'
+            ),
+            ok=True,
+            env_hash=None,
+            generation=2,
+        )
+        shared._origin_applies["op-late"] = load_msg
+        shared._test_parent.send(OpResult(op_id="op-late", ok=True, generation=2))
+
+        for _ in range(100):
+            if shared._model_registry._load_for_apply.await_count:
+                break
+            await asyncio_module.sleep(0.02)
+        # Let the reconcile finish past its publication.
+        await asyncio_module.sleep(0.1)
+        shared._model_registry._load_for_apply.assert_awaited_once()
+        assert ("m", "") not in shared._key_removals

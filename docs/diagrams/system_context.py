@@ -62,7 +62,7 @@ with Diagram(
             pool = SQL("Shared Inference Pool\none copy of every model")
 
         with Cluster(
-            "Frontend Processes × N\n(SO_REUSEPORT, same ports)",
+            "Frontend Processes × N\n(REST: shared listener)",
             graph_attr={"bgcolor": "#E8F4FD", "pencolor": "#4A90D9"},
         ):
             rest = FastAPI("REST API\n:8080 · HTTP/JSON")

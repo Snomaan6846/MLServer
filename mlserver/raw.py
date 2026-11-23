@@ -90,7 +90,13 @@ def _unpack_tensor(elem: InputOrOutput, raw: bytes) -> list:
 def _pack_tensor(elem: InputOrOutput) -> bytes:
     data = getattr(elem.data, "root", elem.data)
     if isinstance(data, np.ndarray):
-        return _pack_ndarray(elem, data)
+        packed = _pack_ndarray(elem, data)
+        if packed is not None:
+            return packed
+        # Dtype does not match the declaration: fall through to the
+        # legacy checked conversion (struct semantics — numeric
+        # coercion for representable values, rejection otherwise),
+        # exactly as the list path always behaved.
 
     tensor_format = _tensor_format(elem)
     if Datatype(elem.datatype) in (Datatype.FP16, Datatype.FP32, Datatype.FP64):
@@ -100,48 +106,61 @@ def _pack_tensor(elem: InputOrOutput) -> bytes:
     return struct.pack(tensor_format, *elem.data)
 
 
-def _pack_ndarray(elem: InputOrOutput, data: np.ndarray) -> bytes:
-    # Contiguous-buffer fast path (native byte order, matching struct exactly).
-    expected = _tensor_length(elem.shape)
-    if data.size != expected:
-        # Fail with the same error the list path raises on mismatches.
-        raise struct.error(
-            f"pack expected {expected} items for packing (got {data.size})"
-        )
-    # The array's itemsize must match the declared datatype's width;
-    # a mismatch (e.g. int64 array with INT32 datatype) would write
-    # the wrong number of bytes per element.
-    expected_itemsize = _datatype_to_itemsize(elem.datatype)
-    if expected_itemsize is not None and data.dtype.itemsize != expected_itemsize:
-        raise struct.error(
-            f"pack expected {elem.datatype} ({expected_itemsize} bytes) "
-            f"but array dtype is {data.dtype} ({data.dtype.itemsize} bytes)"
-        )
-    # Native byte order (no copy when already native); NaN normalised upstream.
-    data = data.reshape(-1).astype(data.dtype.newbyteorder("="), copy=False)
-    return data.tobytes(order="C")
-
-
-_DATATYPE_ITEMSIZES = {
-    "BOOL": 1,
-    "UINT8": 1,
-    "INT8": 1,
-    "UINT16": 2,
-    "INT16": 2,
-    "FP16": 2,
-    "UINT32": 4,
-    "INT32": 4,
-    "FP32": 4,
-    "UINT64": 8,
-    "INT64": 8,
-    "FP64": 8,
+_DATATYPE_DTYPES = {
+    "BOOL": np.bool_,
+    "UINT8": np.uint8,
+    "INT8": np.int8,
+    "UINT16": np.uint16,
+    "INT16": np.int16,
+    "UINT32": np.uint32,
+    "INT32": np.int32,
+    "UINT64": np.uint64,
+    "INT64": np.int64,
+    "FP16": np.float16,
+    "FP32": np.float32,
+    "FP64": np.float64,
 }
 
 
-def _datatype_to_itemsize(datatype: str) -> int | None:
-    # Returns the expected byte width for a datatype, or None for
-    # variable-width types (BYTES).
-    return _DATATYPE_ITEMSIZES.get(datatype)
+def _pack_ndarray(elem: InputOrOutput, data: np.ndarray) -> "bytes | None":
+    """Pack an ndarray root; None when the dtype does not EXACTLY match
+    the declared datatype (the caller then uses the legacy checked
+    conversion — struct semantics: numeric coercion, rejection of
+    non-numerics).
+
+    A width check alone is insufficient: an int32 array under a
+    declared FP32 output has the same itemsize but different storage
+    semantics (struct coerces 1 -> 1.0f), an object or
+    structured dtype can match a numeric width while its bytes are
+    pointers/records, and a float array under an integer declaration
+    must reject exactly as the struct path does.
+    """
+    expected_size = _tensor_length(elem.shape)
+    if data.size != expected_size:
+        # Fail with the same error the list path raises on mismatches.
+        raise struct.error(
+            f"pack expected {expected_size} items for packing (got {data.size})"
+        )
+    expected_dtype = _DATATYPE_DTYPES.get(elem.datatype)
+    if expected_dtype is None or data.dtype != np.dtype(expected_dtype):
+        # Mismatched (or object/structured/foreign) dtype: the legacy
+        # conversion decides — never emit raw storage for a
+        # declaration it does not exactly match.
+        return None
+    if isinstance(data, np.ma.MaskedArray):
+        # Masked arrays carry a fill value in their underlying buffer:
+        # tobytes would emit it (not the NaN the FP conversion
+        # produces for masked entries). The legacy path decides.
+        return None
+    if elem.datatype == "BOOL":
+        # A bool array viewed from uint8 can carry noncanonical true
+        # bytes (e.g. 02 where the wire requires 01): normalize
+        # through astype, which maps any nonzero to 1.
+        return data.reshape(-1).astype(np.uint8).tobytes(order="C")
+    # Exact match: native byte order (no copy when already native);
+    # NaN normalised upstream.
+    data = data.reshape(-1).astype(data.dtype.newbyteorder("="), copy=False)
+    return data.tobytes(order="C")
 
 
 def unpack(elem: InputOrOutput, raw: bytes) -> list:

@@ -41,7 +41,12 @@ Options considered:
 
 1. Add a `frontend_workers` setting (default `0`). At `N >= 1` a
    `FrontendSupervisor` process spawns `N` frontend processes serving
-   REST and gRPC on the same ports via `SO_REUSEPORT`, owns the single
+   gRPC on the shared port via `SO_REUSEPORT` and REST through a
+   single listening socket the supervisor binds once and shares by
+   file descriptor with every frontend (one accept queue; each
+   frontend publishes its open-connection count into a shared array
+   and accepts cooperatively, least-loaded first — see the amendment
+   below), owns the single
    inference pool, and coordinates model loads/unloads: operations
    arriving at any frontend are applied on the pool and broadcast so
    every frontend serves the model; the origin's call returns only
@@ -81,3 +86,30 @@ Options considered:
   with per-frontend reply routing.
 - Metrics rely on the existing Prometheus multiprocess mode: every
   frontend's `/metrics` reports server-wide totals.
+
+## Amendment (2026-11-24): REST moved to a shared listener with
+least-loaded accepting
+
+The original decision placed REST on `SO_REUSEPORT` alongside gRPC.
+That is replaced for REST: the supervisor binds ONE listening socket
+and shares it by file descriptor with every frontend, and each
+frontend accepts cooperatively — publishing its open-connection count
+into a shared array and deferring (up to 5 ms) whenever a less loaded
+peer can take the connection.
+
+- **Motivation**: the kernel's `SO_REUSEPORT` hash distributes
+  connections blindly; under real client patterns (few source
+  tuples, keep-alive reuse) a small subset of frontends receives
+  nearly all connections while others stay idle. The shared queue
+  makes the initial assignment least-loaded by construction.
+- **Additional properties**: the port is bound once (conflicts fail
+  fast instead of crash-looping through the restart budget) and is
+  held by the supervisor across frontend restarts (pending
+  connections queue instead of being refused).
+- **Rejected**: keeping `SO_REUSEPORT` for REST (the measured skew);
+  a supervisor-side accept proxy (an extra hop on every request).
+- **Scope**: gRPC and the metrics endpoint keep `SO_REUSEPORT`
+  deliberately — gRPC connections are long-lived and multiplexed
+  (HTTP/2), so initial-assignment skew matters far less than for
+  REST's per-connection model, and the grpcio Python API exposes no
+  shared-socket mechanism (verified against the official wheels).

@@ -1,4 +1,5 @@
 import importlib
+import importlib.util
 import inspect
 import json
 import logging
@@ -182,8 +183,107 @@ def _extra_sys_path(extra_path: str):
             pass
 
 
-def _reload_module(import_path: str, model_folder: str | None = None):
+def _spec_resolves_inside_folder(spec: Any, folder: str) -> bool:
+    """Whether a finder spec resolves inside the model's folder: a
+    regular module or package by its origin, a namespace package by
+    its search locations."""
+    if spec is None:
+        return False
+    if spec.origin is not None:
+        return os.path.realpath(spec.origin).startswith(folder + os.sep)
+    for location in spec.submodule_search_locations or []:
+        if os.path.realpath(str(location)).startswith(folder + os.sep):
+            return True
+    return False
+
+
+def _find_spec_in_folder(
+    module_path: str, folder: str
+) -> "importlib.machinery.ModuleSpec | None":
+    """Resolve a (possibly dotted) module path against a folder.
+
+    Each component after the first resolves within its parent
+    package's search locations: PathFinder cannot resolve a dotted
+    name against an arbitrary path (it needs the parent's __path__
+    from sys.modules), so the walk supplies it from the spec found
+    so far.
+    """
+    parts = module_path.split(".")
+    spec = importlib.machinery.PathFinder.find_spec(parts[0], [folder])
+    for part in parts[1:]:
+        if spec is None:
+            return None
+        search = list(spec.submodule_search_locations or [])
+        if not search:
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(part, search)
+    return spec
+
+
+def _evict_module_subtree(top_level: str) -> dict:
+    """Remove a top-level name and every cached module below it,
+    returning the evicted entries (a failed replacement import
+    restores them).
+
+    A dotted leaf resolves through its cached parent package's
+    ``__path__``: evicting only the leaf would re-import it from the
+    other folder's package. The whole subtree must go.
+    """
+    prefix = top_level + "."
+    evicted = {}
+    for name in [n for n in sys.modules if n == top_level or n.startswith(prefix)]:
+        evicted[name] = sys.modules.pop(name)
+    return evicted
+
+
+def _import_folder_subtree(
+    module_path: str, top_level: str, import_path: "str | None" = None
+) -> "Any | None":
+    """Evict the cached subtree, import the folder-local module, and
+    commit the cache replacement only when the FULL implementation
+    path resolves — returning the resolved runtime so the caller can
+    use it directly (a second lookup outside the rollback could
+    observe a different, lazier module state than the one that
+    committed the swap). On failure — the import raising, OR the
+    module importing cleanly but not exporting the requested class —
+    remove the attempt's OWN partial cache before restoring the
+    saved entries: a failed replacement may have imported helpers of
+    its own before failing, and leaving them cached would mix the
+    failed replacement's code into the restored package (a later
+    import through it could resolve the failed folder's helper). The
+    runtime the replacement displaced keeps working either way."""
+    evicted = _evict_module_subtree(top_level)
+    try:
+        importlib.import_module(module_path)
+        if import_path is not None:
+            # A module that imports cleanly but does not carry a
+            # USABLE runtime is a failed replacement, not a committed
+            # one: without this check the displaced shared runtime
+            # would be gone from the cache and the model initialiser
+            # would fail on an object it can never use. The resolved
+            # object must be callable (a class or a factory); the
+            # check runs inside the rollback block, keeping the
+            # single lookup.
+            runtime = import_string(import_path)
+            if not callable(runtime):
+                raise TypeError(
+                    f"runtime import path '{import_path}' resolved to a "
+                    f"non-callable object ({type(runtime).__name__})"
+                )
+            return runtime
+        return None
+    except Exception:
+        _evict_module_subtree(top_level)
+        sys.modules.update(evicted)
+        raise
+
+
+def _reload_module(import_path: str, model_folder: str | None = None) -> "Any | None":
     """Reload a module to ensure fresh import in dynamic loading scenarios.
+
+    Returns the resolved runtime when the folder-local path already
+    resolved it (the caller then uses that object directly — one
+    lookup per load); None when the caller performs the lookup.
 
     This is used in development mode when loading runtimes from model
     folders to ensure we get the latest version of the module.
@@ -197,23 +297,81 @@ def _reload_module(import_path: str, model_folder: str | None = None):
     classes across the model lifecycle.
     """
     if not import_path:
-        return
+        return None
 
     module_path, _, _ = import_path.rpartition(".")
+
+    if model_folder and "." in module_path:
+        # A cached top-level package whose search path belongs to
+        # ANOTHER folder can mask this folder's leaf: the import
+        # below would raise ModuleNotFoundError before the conflict
+        # branch ever runs (the cached parent's __path__ does not
+        # carry the leaf). Resolve the full local path BEFORE the
+        # first import through that parent; when it resolves, take
+        # the eviction path. Genuine errors raised by dependencies
+        # inside the selected runtime propagate (the helper restores
+        # the previous subtree before re-raising).
+        folder = os.path.realpath(model_folder)
+        top_level = module_path.partition(".")[0]
+        try:
+            cached_spec = importlib.util.find_spec(top_level)
+        except (ImportError, AttributeError, ValueError):
+            cached_spec = None
+        if cached_spec is not None and not _spec_resolves_inside_folder(
+            cached_spec, folder
+        ):
+            if _spec_resolves_inside_folder(
+                _find_spec_in_folder(module_path, model_folder), folder
+            ):
+                return _import_folder_subtree(module_path, top_level, import_path)
+
     module = importlib.import_module(module_path)
     if model_folder:
         source = getattr(module, "__file__", None)
         if source is None:
             # No filesystem location (namespace or builtin module):
             # keep the stable identity.
-            return
+            return None
         folder = os.path.realpath(model_folder)
         if not os.path.realpath(source).startswith(folder + os.sep):
-            # The implementation resolves outside the model's folder —
-            # a shared module, not the folder-local code the dynamic
-            # reload exists to refresh.
-            return
+            # The cached module resolves outside the model's folder.
+            # That is either a shared/installed module (keep the
+            # stable identity) or ANOTHER model folder's file cached
+            # under the same module name — resolve against the
+            # current folder to tell them apart: folder-local code
+            # must come from THIS folder's file, not the cache.
+            # Dotted paths resolve through their TOP-LEVEL package:
+            # PathFinder cannot resolve a dotted name against an
+            # arbitrary path (it needs the parent package's __path__
+            # from sys.modules), and evicting only the leaf would
+            # re-import it through the cached parent's __path__ —
+            # the OTHER folder's file. Resolve the FULL requested
+            # module against the model folder and evict the whole
+            # cached subtree.
+            top_level = module_path.partition(".")[0]
+            spec = _find_spec_in_folder(module_path, model_folder)
+            if not _spec_resolves_inside_folder(spec, folder):
+                # The requested module does not resolve inside the
+                # model's folder: either a shared/installed module,
+                # or a local package that does not carry the
+                # requested leaf — a folder-local package shadowing
+                # the NAME of a shared one that does provide it.
+                # Evicting the shared subtree here would break a
+                # working import for a local package that cannot
+                # serve it. Keep the shared cache.
+                return None
+            # The full path resolves in this folder: evict the entire
+            # cached subtree so the import below resolves this
+            # folder's code (a plain reload would re-execute the
+            # other file). The fresh import already executes this
+            # folder's file — reload would run it a second time
+            # (module-level side effects double-fire), so return with
+            # the fresh entry. A replacement import that fails
+            # restores the previous subtree (and removes its own
+            # partial cache) through the shared helper.
+            return _import_folder_subtree(module_path, top_level, import_path)
     importlib.reload(module)
+    return None
 
 
 def _get_import_path(klass: type[Any]):
@@ -404,6 +562,15 @@ class Settings(BaseSettings):
     backoff (1s doubling to 16s).
     """
 
+    rest_json_compact_floats: bool = False
+    """Opt-in: render FP32 tensor data on REST JSON with the shortest
+    float32 round-trip representation instead of the widened float64
+    text. Responses become ~50% smaller (and slightly faster to
+    serialize) with identical float32 VALUES, but the JSON text
+    differs from the default widened form — enable only if consumers
+    compare parsed values, not response text. Default False keeps the
+    wire byte-identical to the list-based pipeline."""
+
     parallel_routing_rotation: float = Field(default=1.0, ge=0)
     """Seconds between rotations of model-affine worker routing.
 
@@ -554,6 +721,28 @@ class Settings(BaseSettings):
     parsing. Standard JSON requests follow ``rest_worker_json``.
     """
 
+    rest_fast_parse: bool = False
+    """Parse unary REST inference JSON with the native span fast path.
+
+    Requires ``rest_worker_json`` and the compiled native parser
+    (``mlserver/codecs/fastspan/libfastspan.so``); enabling the flag
+    without either is a startup error. Numeric tensor ``data`` arrays
+    whose declared datatype is FP32, FP64, INT8-64, UINT8-64 or BOOL
+    are parsed by a native C parser directly from the request bytes
+    into the target buffer, skipping the intermediate Python list of
+    floats. The fast path is a strict subset of the standard path:
+    any payload it cannot reproduce exactly (non-numeric datatypes,
+    grammar it does not accept, values whose semantics differ) falls
+    back to the standard parse, so wire behaviour is unchanged.
+
+    Decoded inputs are NumPy views of the parsed buffer: repeated
+    ``decode()`` calls on the same input return views of one buffer,
+    so a model that decodes an input, mutates it in place and decodes
+    it again observes its own mutation. List-based parsing hands out a
+    fresh copy per decode; models that decode each input once (the
+    common pattern) are unaffected.
+    """
+
     @model_validator(mode="after")
     def validate_frontend_workers_needs_zmq(self) -> Self:
         # queue transport uses inherited pipe FDs; not shareable across processes
@@ -589,6 +778,32 @@ class Settings(BaseSettings):
             raise ValueError(
                 "rest_worker_binary requires rest_binary_tensor to be enabled"
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_fast_parse_needs_worker_json(self) -> Self:
+        """
+        Fail fast on ``rest_fast_parse`` misconfiguration.
+
+        The flag requires ``rest_worker_json`` (raw bytes only reach a
+        parse site on the worker JSON path) and the compiled native
+        parser. A deployment that enables the flag without either is
+        silently not getting what it asked for — reject it at startup
+        instead, the same as every other flag-precondition check.
+        """
+        if self.rest_fast_parse and not self.rest_worker_json:
+            raise ValueError("rest_fast_parse requires rest_worker_json to be enabled")
+        if self.rest_fast_parse:
+            from .codecs.fastspan import _load
+
+            if _load() is None:
+                raise ValueError(
+                    "rest_fast_parse is enabled but the native parser "
+                    "(mlserver/codecs/fastspan/libfastspan.so) is not "
+                    "available in this installation. Build it (make "
+                    "fastspan, or the image-build compile step) or "
+                    "disable the flag."
+                )
         return self
 
     root_path: str = ""
@@ -911,7 +1126,13 @@ class ModelSettings(BaseSettings):
                 model_folder,
             )
             with _extra_sys_path(model_folder):
-                _reload_module(implementation, model_folder)
+                runtime = _reload_module(implementation, model_folder)
+                if runtime is not None:
+                    # The folder-local path already resolved the
+                    # runtime inside its rollback block: use that
+                    # object directly (one lookup per load — a second
+                    # lookup could observe a different module state).
+                    return runtime
                 return import_string(implementation)  # type: ignore
 
         # Production mode or no source file: use standard import path only

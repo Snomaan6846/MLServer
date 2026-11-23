@@ -849,11 +849,11 @@ async def test_single_frontend_supervisor_serves_inference(
 ):
     """The supervisor topology at frontend_workers=1 serves inference.
 
-    Regression test for the pool's fw=1 reply-endpoint double-bind: the
+    Regression test for the pool's frontend_workers=1 reply-endpoint double-bind: the
     pool's dispatcher must never bind a frontend-owned reply path (the
     worker's replies then land on the pool's socket and every inference
-    request hangs). No other test runs the supervisor at fw=1 — the
-    integration fixtures all use fw=2."""
+    request hangs). No other test runs the supervisor at frontend_workers=1 — the
+    integration fixtures all use frontend_workers=2."""
     from mlserver.frontend import FrontendSupervisor
     from mlserver.settings import Settings, ModelSettings
     from tests.utils import get_available_ports

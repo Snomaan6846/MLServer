@@ -567,3 +567,24 @@ async def test_no_pool_batches_in_process_unchanged(
         await server.stop()
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_load_batching_idempotent_per_instance(sum_model_settings):
+    """Wrapping the same model instance twice must not double-batch:
+    a superseded origin's hook chain re-runs on the wrapper an apply
+    already batched (the stale-publication swap). Without the guard,
+    the second wrap nests the predict decorators and orphans the
+    first batcher."""
+    from mlserver.context import model_context
+
+    with model_context(sum_model_settings):
+        model = SumModel(sum_model_settings)
+        sum_model_settings.max_batch_size = 2
+        sum_model_settings.max_batch_time = 0.1
+
+        await load_batching(model)
+        first = AdaptiveBatcher.get_batcher(model)
+        assert first is not None
+
+        await load_batching(model)
+        assert AdaptiveBatcher.get_batcher(model) is first

@@ -53,6 +53,11 @@ def _close_sockets(owned: set[Any]) -> None:
         raise failures[0]
 
 
+# The bound on waiting for the receiver task to settle during close
+# (module-level so tests can tighten it).
+_RECEIVER_SETTLE_TIMEOUT = 5.0
+
+
 def _socket(context: zmq.asyncio.Context, kind: int, owned: set[Any]) -> Any:
     sock = context.socket(kind)
     # A returned native handle needs an actionable owner before configuration
@@ -311,7 +316,23 @@ class ParentTransport:
         except BaseException as error:
             failures.append(error)
         if self._receiver is not None:
-            await asyncio.gather(self._receiver, return_exceptions=True)
+            # Bounded: pyzmq's asyncio recv future can intermittently
+            # fail to propagate cancellation at the C level, leaving
+            # the receiver unsettled forever. The caller's shield
+            # prevents an outer cancellation from reaching this
+            # close, so the bound is the only escape — without it,
+            # server shutdown hangs indefinitely. asyncio.wait (never
+            # wait_for): a refusal future defeats wait_for's own
+            # cancel-and-await; wait simply stops waiting.
+            _done, _pending = await asyncio.wait(
+                {self._receiver}, timeout=_RECEIVER_SETTLE_TIMEOUT
+            )
+            if _pending:
+                logger.error(
+                    "ZeroMQ receiver did not settle within %.1fs; "
+                    "proceeding with close (the receiver is abandoned)",
+                    _RECEIVER_SETTLE_TIMEOUT,
+                )
         if failures:
             # Include sockets whose setup never reached a usable field.
             # term() can block with an unclosed socket. Retain that context
@@ -331,10 +352,18 @@ async def _reply(
     # frontend_id defaults to 0 (the only frontend at frontend_workers=0).
     frontend_id = request.frontend_id
     if frontend_id < 0 or frontend_id >= len(reply_sockets):
-        raise ValueError(
-            f"Request carries frontend_id={frontend_id} but only "
-            f"{len(reply_sockets)} reply endpoints are configured"
+        # Log and drop — the same failure mode as zmq.Again below: a
+        # reply with no recipient must not fail the whole worker (the
+        # serve loop treats any _reply exception as fatal, killing
+        # the process and every in-flight request on it). Only recv
+        # and protocol errors are fatal.
+        logger.error(
+            "Dropped inference reply: frontend_id=%d out of range "
+            "(%d reply endpoints configured)",
+            frontend_id,
+            len(reply_sockets),
         )
+        return
     try:
         await reply_sockets[frontend_id].send(ForkingPickler.dumps(response), copy=True)
     except zmq.Again:

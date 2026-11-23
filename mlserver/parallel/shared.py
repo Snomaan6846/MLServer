@@ -13,10 +13,12 @@ from multiprocessing import Queue
 from multiprocessing.connection import Connection
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, cast
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 
 from ..model import MLModel
 from ..registry import MultiModelRegistry
+from ..registry import PUBLICATION_GUARD_ATTR
+from ..registry import StalePublication
 from ..registry import model_initialiser as _default_model_initialiser
 from ..settings import Settings, ModelSettings
 from ..utils import generate_uuid, logger, consume_send_failure
@@ -43,9 +45,20 @@ class OpRequest:
 
 @dataclass
 class ApplyAck:
-    """Frontend → supervisor: a broadcast apply was handled."""
+    """Frontend → supervisor: a broadcast apply was handled.
+
+    ``ok`` reports whether the frontend actually converged to the
+    broadcast's state: a failed local apply acknowledges with
+    ``ok=False`` so the supervisor can retire the diverged frontend
+    through the restart path (a restarted frontend starts empty and
+    converges via the readiness-gated inventory replay) instead of
+    waiting for the next operation on the model to reconcile it. A
+    stale-publication abort acknowledges ``ok=True`` — the frontend
+    holds NEWER state, not diverged state.
+    """
 
     op_id: str
+    ok: bool = True
 
 
 @dataclass
@@ -79,6 +92,12 @@ class WorkerStoppedEvent:
     pid: int
     exit_code: int
     env_hash: str | None = None
+    # Endpoint of the stopped incarnation. A delayed stop for an old
+    # incarnation must not revoke the registry's replacement proxy
+    # (same PID, new endpoint): frontends match it before revoking.
+    # None means the incarnation never announced an endpoint (or the
+    # event predates this field) — frontends then revoke by PID alone.
+    request_endpoint: str | None = None
 
 
 @dataclass
@@ -145,6 +164,11 @@ def _attach_generation(model: MLModel | None, source: object) -> None:
     generation = getattr(source, "generation", None)
     if generation is not None:
         setattr(model, GENERATION_ATTR, generation)
+
+
+def _attach_publication_guard(model: MLModel, guard: "Callable[[], bool]") -> None:
+    """Arm the registry's publication gate for an origin load."""
+    setattr(model, PUBLICATION_GUARD_ATTR, guard)
 
 
 def get_generation(model: MLModel) -> int | None:
@@ -215,6 +239,10 @@ class WorkerProxy:
         self.pid = pid
         self._zmq_request_endpoint = request_endpoint
 
+    @property
+    def request_endpoint(self) -> str:
+        return self._zmq_request_endpoint
+
 
 class SharedPoolRegistry:
     """Inference-pool registry for frontends sharing a supervisor-owned pool."""
@@ -238,7 +266,12 @@ class SharedPoolRegistry:
         # another task — e.g. a REST model load arriving while a peer
         # apply is mid-flight — still forwards to the supervisor
         # instead of silently registering a model no worker loaded.
-        self._applying_load: ContextVar[bool] = ContextVar(
+        # The value is the broadcast message being applied (or
+        # False): the load hook reads its generation to bind it to
+        # the wrapper BEFORE the registry publishes — a wrapper
+        # visible without its generation would pass another load's
+        # displacement guard (registered_generation is None).
+        self._applying_load: ContextVar[object] = ContextVar(
             "mlserver_applying_load", default=False
         )
         # Startup gating: readiness deferred until the supervisor sends
@@ -270,6 +303,13 @@ class SharedPoolRegistry:
         # not infinity — so a newer-generation load committed after it
         # still reconciles.
         self._key_generations: dict[tuple[str, str], float] = {}
+        # The generation at which each key was last REMOVED locally
+        # (a broadcast unload's bumped generation). An origin whose
+        # delayed load result arrives after a removal must not
+        # republish its wrapper — the model is gone pool-wide; the
+        # resurrection guard in load_model reads this. Cleared by a
+        # successful load apply (the key is served again).
+        self._key_removals: dict[tuple[str, str], float] = {}
         self._proxies: dict[int, WorkerProxy] = {}
         # Peer applies run as background tasks sequenced per model key:
         # the listener must stay receptive while a slow apply (a model
@@ -395,11 +435,19 @@ class SharedPoolRegistry:
         self._draining = True
 
     async def load_model(self, model: MLModel) -> MLModel:
-        if self._applying_load.get() or self._draining or self._closing:
-            # Locally-applied broadcast (or shutdown drain): wrap only.
-            # The generation arrives with the broadcast and is attached
-            # to the registered wrapper below.
-            return ParallelModel(model, self._dispatcher)
+        applying = self._applying_load.get()
+        if applying or self._draining or self._closing:
+            # Locally-applied broadcast (or shutdown drain): wrap and
+            # bind the generation NOW — the registry publishes this
+            # wrapper inside _load_for_apply, and a wrapper visible
+            # without its generation would pass another load's
+            # displacement guard (the retirement-cleanup await after
+            # publication is the window).
+            wrapper = ParallelModel(model, self._dispatcher)
+            generation = getattr(applying, "generation", None)
+            if generation:
+                _attach_generation(wrapper, applying)
+            return wrapper
         op_id = generate_uuid()
         # Register the waiter before sending: the supervisor's broadcast
         # can otherwise beat the registration, making the origin apply
@@ -425,9 +473,145 @@ class SharedPoolRegistry:
         result = getattr(waiter, "mlserver_result", None)
         if result is not None and result.generation:
             self._mark_key_generation(model.name, model.version, result.generation)
+        if result is not None and result.generation:
+            key = (model.name, model.version or "")
+            # A newer generation may have been applied LOCALLY while
+            # this load waited for its pool round (a same-key
+            # operation that committed after ours — the supervisor
+            # serialises pool transitions, not frontend publications).
+            # Publishing our own older wrapper would displace the
+            # newer registration, and the displaced wrapper's
+            # retirement would unload the CURRENT pool state — a
+            # stale publication. Applies RESERVE their generation
+            # before their local load (see _apply_load), so this
+            # check sees a newer generation the moment its apply
+            # starts — no waiting on the apply's model load. The span
+            # from this check through the registry's publication is
+            # synchronous (get_model never yields), so no apply can
+            # interleave between the check and the registration.
+            if self._key_generations.get(key, 0) > result.generation:
+                # EXACT-key lookup (never the default-version
+                # fallback): an unversioned load must not hand back a
+                # versioned sibling — the rollback would treat the
+                # live sibling as this load's unpublished instance and
+                # unload it. Only a READY wrapper of the exact key
+                # with a STRICTLY newer generation is a convergence
+                # winner.
+                assert self._model_registry is not None
+                newer = self._model_registry.find_registered(model.name, model.version)
+                newer_generation = get_generation(newer) if newer is not None else None
+                if (
+                    newer is not None
+                    and newer is not model
+                    and getattr(newer, "ready", False)
+                    and newer_generation is not None
+                    and newer_generation > result.generation
+                ):
+                    # Hand the registry the newer registered wrapper:
+                    # publishing it re-registers the same object and
+                    # displaces nothing. The gate is armed for the
+                    # newer generation (the same publication window
+                    # applies).
+                    _attach_publication_guard(
+                        newer, self._publication_guard(key, newer, result.generation)
+                    )
+                    return newer
+            removal = self._key_removals.get(key)
+            if removal is not None and removal >= result.generation:
+                # The model was REMOVED pool-wide while this load
+                # waited (a same-key unload committed after our
+                # round). Publishing our wrapper would resurrect a
+                # model the pool no longer serves — requests would
+                # route to workers that no longer hold it. The load
+                # committed, but its state is gone; fail the caller
+                # with the truth instead of a phantom registration.
+                raise RuntimeError(
+                    f"Model '{model.name}' was unloaded while its load "
+                    f"was in flight (generation {result.generation} "
+                    f"superseded by removal at {removal}); not "
+                    f"republishing locally"
+                )
+            # Our publication re-adds the key: a stale removal mark
+            # must not fail a LATER load whose generation superseded
+            # it (that mark is older than our commit — the raise
+            # above filtered anything at or above our generation).
+            if self._key_removals.get(key, 0) < result.generation:
+                self._key_removals.pop(key, None)
+
         wrapper = ParallelModel(model, self._dispatcher)
         _attach_generation(wrapper, getattr(waiter, "mlserver_result", None))
+        if result is not None and result.generation:
+            # Arm the registry's publication gate: the checks above
+            # run inside this hook, but remaining hooks and model
+            # preparation still await before publication — a lock-free
+            # unload apply can commit a removal in that window.
+            _attach_publication_guard(
+                wrapper, self._publication_guard(key, wrapper, result.generation)
+            )
         return wrapper
+
+    def _publication_guard(
+        self, key: "tuple[str, str]", model: MLModel, fallback_generation: int
+    ) -> "Callable[[], bool]":
+        """A stale check for the registry's publication gate."""
+
+        def _live_removal_watermark() -> float:
+            # The registry's convergence check reads the LIVE
+            # watermark after its rollback: a removal reserved while
+            # the rollback cleanup ran must invalidate a winner that
+            # the abort-time snapshot still endorsed.
+            return self._key_removals.get(key, 0)
+
+        def _superseded_at_publication() -> bool:
+            # Read the generation at GATE time: a swapped-in wrapper
+            # may not carry its generation yet at attach time (the
+            # apply attaches it after its registry call returns).
+            expected_generation = get_generation(model) or fallback_generation
+            # A removal at-or-after our commit: publishing would
+            # resurrect a model the pool no longer serves.
+            removal = self._key_removals.get(key, 0)
+            if removal >= expected_generation:
+                # The abort cause, read by the registry's gate when it
+                # raises StalePublication (the publication_abort
+                # attribute contract): "removed" carries the removal
+                # watermark so the load's convergence check can reject
+                # wrappers the removal is about to retire.
+                setattr(
+                    _superseded_at_publication,
+                    "publication_abort",
+                    ("removed", removal),
+                )
+                return True
+            if self._key_generations.get(key, 0) <= expected_generation:
+                return False
+            # A newer generation exists: harmful only when REGISTERED
+            # here — publishing ours would displace it and its
+            # retirement would unload the current pool state. A
+            # mid-flight newer apply publishes over ours afterwards
+            # (its retirement is superseded) — self-healing, not a
+            # stale publication.
+            if self._model_registry is None:
+                return False
+            registered = self._model_registry.find_registered(key[0], key[1] or None)
+            registered_generation = (
+                get_generation(registered) if registered is not None else None
+            )
+            superseded = (
+                registered_generation is not None
+                and registered_generation > expected_generation
+            )
+            if superseded:
+                setattr(
+                    _superseded_at_publication,
+                    "publication_abort",
+                    ("superseded", None),
+                )
+            return superseded
+
+        setattr(
+            _superseded_at_publication, "removal_watermark", _live_removal_watermark
+        )
+        return _superseded_at_publication
 
     async def unload_model(self, model: MLModel) -> MLModel:
         if self._applying_load.get() or self._draining or self._closing:
@@ -443,6 +627,27 @@ class SharedPoolRegistry:
                 "Local-only cleanup of unowned model %s (never committed "
                 "to the shared pool)",
                 model.name,
+            )
+            return model
+        generation = get_generation(model)
+        if generation is not None and generation < self._key_generations.get(
+            (model.name, model.version or ""), 0
+        ):
+            # A retirement (reload/unload cleanup of a displaced
+            # wrapper) whose generation is older than this frontend's
+            # watermark: the commit that displaced it already settled
+            # the pool state (a reload's commit unloads the displaced
+            # pool instance; an unload's commit removes it). Forwarding
+            # would ask the supervisor to unload a generation it may
+            # still be serving — the retirement of a CURRENT-looking
+            # generation is exactly how a displaced wrapper's cleanup
+            # can take a live model offline. Cleanup stays local.
+            logger.debug(
+                "Local-only retirement of superseded wrapper %s (gen %s "
+                "< local gen %s)",
+                model.name,
+                get_generation(model),
+                self._key_generations.get((model.name, model.version or ""), 0),
             )
             return model
         op_id = generate_uuid()
@@ -544,7 +749,9 @@ class SharedPoolRegistry:
                 )
 
     def _sequence_apply(
-        self, key: tuple[str, str], apply: "Coroutine[Any, Any, None]"
+        self,
+        key: tuple[str, str],
+        apply_factory: "Callable[[], Coroutine[Any, Any, None]]",
     ) -> asyncio.Task:
         """Run a peer apply off the listener, sequenced per model key.
 
@@ -552,7 +759,9 @@ class SharedPoolRegistry:
         affinity and registry state stay consistent across concurrent
         operations on one key); the acknowledgement still means
         APPLIED — it is sent when the apply completes, inside the
-        task.
+        task. The coroutine is CREATED only when its turn begins: a
+        cancelled queued apply never leaves an unawaited coroutine
+        behind (the runtime warning).
         """
         previous = self._apply_chains.get(key)
 
@@ -568,7 +777,7 @@ class SharedPoolRegistry:
                     # close()'s cancel-and-settle wait out a full
                     # model load during shutdown.
                     await asyncio.wait({previous})
-                await apply
+                await apply_factory()
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -619,18 +828,60 @@ class SharedPoolRegistry:
         return None
 
     async def _handle_worker_ready(self, message: WorkerReadyEvent) -> None:
-        proxy = WorkerProxy(message.pid, message.request_endpoint)
+        # Reuse the existing proxy for the same worker incarnation:
+        # quarantine recovery re-announces the same PID and endpoint,
+        # and replacing the proxy would orphan in-flight requests
+        # dispatched to the old proxy (their response futures would
+        # stay pending with no cancellation path — the old proxy's
+        # stop event no longer matches the registry's entry).
+        proxy = self._proxies.get(message.pid)
+        if proxy is None or proxy.request_endpoint != message.request_endpoint:
+            if proxy is not None:
+                # Endpoint changed (worker restart on a new endpoint):
+                # retire the OLD proxy first so its in-flight requests
+                # are cancelled, then publish the replacement. Without
+                # this, the old proxy's requests strand — the stop
+                # event targets the NEW proxy (PID-only match), and
+                # the old proxy is no longer in the registry to
+                # receive the cancellation.
+                old_proxy = self._proxies.pop(message.pid, None)
+                if old_proxy is not None:
+                    # exit_code=-1 marks "incarnation replaced" (not a
+                    # clean exit) so the cancellation error and logs
+                    # read correctly.
+                    self._dispatcher.on_worker_stop(
+                        cast(Worker, old_proxy), exit_code=-1
+                    )
+            proxy = WorkerProxy(message.pid, message.request_endpoint)
+            self._proxies[message.pid] = proxy
         # Proxies deliberately duck-type the Worker surface the dispatcher
         # reads (pid + request endpoint), mirroring supervisor incarnations.
         await self._dispatcher.on_worker_start(cast(Worker, proxy))
         self._dispatcher.on_worker_ready(cast(Worker, proxy), env_hash=message.env_hash)
-        self._proxies[message.pid] = proxy
         logger.debug("Frontend %s routing to worker %s", self._frontend_id, message.pid)
 
     def _handle_worker_stopped(self, message: WorkerStoppedEvent) -> None:
-        proxy = self._proxies.pop(message.pid, None)
+        proxy = self._proxies.get(message.pid)
         if proxy is None:
             return
+        if (
+            message.request_endpoint is not None
+            and proxy.request_endpoint != message.request_endpoint
+        ):
+            # A delayed stop for an OLD incarnation: the registry
+            # already holds the replacement (its ready event retired
+            # the old proxy). Revoking by PID alone would remove the
+            # replacement and fail its in-flight requests.
+            logger.debug(
+                "Frontend %s ignored stale stop for worker %s at %s "
+                "(current incarnation at %s)",
+                self._frontend_id,
+                message.pid,
+                message.request_endpoint,
+                proxy.request_endpoint,
+            )
+            return
+        self._proxies.pop(message.pid, None)
         self._dispatcher.on_worker_stop(cast(Worker, proxy), message.exit_code)
         logger.debug(
             "Frontend %s revoked worker %s (exit %s)",
@@ -734,16 +985,57 @@ class SharedPoolRegistry:
                 message.op_id,
             )
             return
-        token = self._applying_load.set(True)
+
+        # The generation must be re-checked AT PUBLICATION, not only
+        # here: the reconcile's model load spans lock waits and
+        # native preparation, during which a newer generation or a
+        # REMOVAL can apply locally (the applies are lock-free — they
+        # do not queue behind this reconcile's registry locks).
+        # Publishing then would displace the newer state or
+        # resurrect the removed model. The registry's stale gate
+        # aborts the publication when this fires.
+        def _superseded() -> bool:
+            return (
+                self._key_generations.get(key, 0) > result.generation
+                or self._key_removals.get(key, 0) >= result.generation
+            )
+
+        token = self._applying_load.set(result)
         try:
-            registered = await self._model_registry.load(settings)
+            # The lock-free apply entry point with the publication
+            # gate. The reconcile is not an acknowledgement path
+            # (nothing waits on it), and the gate — not the registry
+            # lock — is what protects its publication against the
+            # lock-free applies around it.
+            registered = await self._model_registry._load_for_apply(
+                settings, stale_check=_superseded
+            )
             _attach_generation(registered, result)
             self._mark_key_generation(
                 settings.name, settings.version, result.generation
             )
+            # The key is served again: clear a stale removal mark —
+            # but ONLY one strictly older than this publication. A
+            # mark from a NEWER generation (an unload reserved while
+            # this reconcile loaded) is live state: erasing it would
+            # let a delayed older origin publish through the
+            # resurrection guard and re-register a model the pool
+            # removed at that newer generation.
+            if self._key_removals.get(key, 0) < result.generation:
+                self._key_removals.pop(key, None)
             logger.debug(
                 "Frontend %s late-applied committed load %s after the "
                 "caller stopped waiting",
+                self._frontend_id,
+                message.op_id,
+            )
+        except StalePublication:
+            # A newer generation or a removal landed locally while the
+            # reconcile loaded: the committed state it was converging
+            # to has been superseded — skip (the local state stands).
+            logger.debug(
+                "Frontend %s skipped late apply of %s: superseded at "
+                "publication by a newer local state",
                 self._frontend_id,
                 message.op_id,
             )
@@ -766,13 +1058,39 @@ class SharedPoolRegistry:
             await self._send(ApplyAck(op_id=message.op_id))
             return None
         settings = deserialise_model_settings(message.serialised_model_settings)
+
+        def _load_factory():
+            return self._apply_load(message, settings)
+
         return self._sequence_apply(
             (settings.name, settings.version or ""),
-            self._apply_load(message, settings),
+            _load_factory,
         )
 
     async def _apply_load(self, message: ApplyLoad, settings: ModelSettings) -> None:
         assert self._model_registry is not None
+        if message.generation < self._key_generations.get(
+            (settings.name, settings.version or ""), 0
+        ):
+            # An obsolete message (a stale replay or a duplicate
+            # broadcast): a newer generation is already applied on
+            # this key here. Reject BEFORE any side effect — routing
+            # tags and the registry may only change under the
+            # generation check. Applying the routing below would
+            # redirect live inference to the old pool and restore the
+            # old batching flag while the newer wrapper stays
+            # registered (the registry's own gates keep the wrapper;
+            # the routing has none). Acknowledge success: this
+            # frontend holds NEWER state, not diverged state.
+            logger.debug(
+                "Frontend %s skipped obsolete apply of %s (gen %d < " "held gen %d)",
+                self._frontend_id,
+                settings.name,
+                message.generation,
+                self._key_generations.get((settings.name, settings.version or ""), 0),
+            )
+            await self._send(ApplyAck(op_id=message.op_id))
+            return
         self._track_batched(settings, settings.version)
         # Route the model version to the pool that committed the load
         # (runs on the origin too, before its early return below).
@@ -789,12 +1107,56 @@ class SharedPoolRegistry:
             self._origin_applies[message.op_id] = message
             await self._send(ApplyAck(op_id=message.op_id))
             return
-        token = self._applying_load.set(True)
+        diverged = False
+        token = self._applying_load.set(message)
         try:
-            registered = await self._model_registry.load(settings)
-            _attach_generation(registered, message)
+            # Reserve the generation BEFORE the local apply. The mark
+            # is what an origin resuming mid-apply reads to refuse
+            # displacing a newer registration (load_model's
+            # stale-publication guard): marking after the apply would
+            # leave a window spanning the whole publication and its
+            # retirement cleanups during which the origin would see a
+            # stale watermark. Reserving up front also means the
+            # origin's guard never waits for this apply — it sees the
+            # generation the moment the apply starts.
             self._mark_key_generation(
                 settings.name, settings.version, message.generation
+            )
+            # Publish-time staleness gate: an origin (or a newer
+            # chained apply) may publish a NEWER generation of this
+            # key while our model loads. Publishing our older wrapper
+            # would displace the newer registration and its
+            # retirement would unload the CURRENT pool state. The
+            # registry aborts the publication when this fires.
+            key = (settings.name, settings.version or "")
+
+            def _superseded() -> bool:
+                return self._key_generations.get(key, 0) > message.generation
+
+            # Peer apply: the lock-free registry entry point. The
+            # locked load() would wait on the operation lock an origin
+            # operation on this key holds across its supervisor round
+            # — stalling the acknowledgement collection the origin is
+            # waiting on (the ACK-collection deadlock).
+            registered = await self._model_registry._load_for_apply(
+                settings, stale_check=_superseded
+            )
+            _attach_generation(registered, message)
+            # The key is served again: a later origin load delayed
+            # behind this apply must not hit a STALE resurrection
+            # guard — but a mark from a newer generation is live
+            # state and must survive this publication.
+            if self._key_removals.get(key, 0) < message.generation:
+                self._key_removals.pop(key, None)
+        except StalePublication:
+            # The publication aborted because a NEWER generation is
+            # registered here: this frontend is converged (it holds
+            # newer state), not diverged — acknowledge success.
+            logger.debug(
+                "Frontend %s: apply of %s superseded by a newer local "
+                "generation; publication aborted",
+                self._frontend_id,
+                settings.name,
             )
         except Exception:
             if not self._startup_done:
@@ -811,25 +1173,27 @@ class SharedPoolRegistry:
                     self._frontend_id,
                     settings.name,
                 )
+                diverged = True
             else:
-                # A non-startup apply failed: log it but STILL ack —
-                # without the ack the supervisor's _collect_acks waits
-                # the full model_operation_timeout for this frontend.
-                # The pool's committed state wins; this frontend
-                # diverges until the next operation on the model.
+                # A non-startup apply failed: ack with ok=False so
+                # the supervisor retires this frontend through the
+                # restart path — otherwise it would keep receiving
+                # traffic without the model until some later
+                # operation on it happens to reconcile it.
                 logger.exception(
-                    "Frontend %s: apply of %s failed; the next "
-                    "operation on the model must reconcile it",
+                    "Frontend %s: apply of %s failed; reporting divergence "
+                    "for retirement",
                     self._frontend_id,
                     settings.name,
                 )
+                diverged = True
         finally:
             self._applying_load.reset(token)
-        # Always ack, matching _handle_apply_unload semantics: the
-        # supervisor resolves the operation only after every live
-        # frontend acknowledged, whether the local apply succeeded
-        # or not.
-        await self._send(ApplyAck(op_id=message.op_id))
+        # Always ack (the supervisor resolves the operation only after
+        # every live frontend acknowledged), carrying the outcome: a
+        # diverged frontend is retired by the supervisor; a converged
+        # one (stale-publication abort included) is left as is.
+        await self._send(ApplyAck(op_id=message.op_id, ok=not diverged))
 
     async def _handle_apply_unload(self, message: ApplyUnload) -> "asyncio.Task | None":
         assert self._model_registry is not None
@@ -838,7 +1202,8 @@ class SharedPoolRegistry:
             await self._send(ApplyAck(op_id=message.op_id))
             return None
         return self._sequence_apply(
-            (message.name, message.version or ""), self._apply_unload(message)
+            (message.name, message.version or ""),
+            lambda: self._apply_unload(message),
         )
 
     async def _apply_unload(self, message: ApplyUnload) -> None:
@@ -879,33 +1244,47 @@ class SharedPoolRegistry:
             await self._send(ApplyAck(op_id=message.op_id))
             return
         token = self._applying_load.set(True)
+        # Reserve BOTH marks before the registry call: the retirement
+        # cleanups drained inside the local unload must already see
+        # this generation (their superseded wrappers stay local-only —
+        # forwarding them is the unload-side ACK cycle), and an origin
+        # load delayed behind this apply must see the removal and not
+        # republish its wrapper (the resurrection guard).
+        self._mark_key_generation(message.name, message.version, message.generation)
+        self._key_removals[(message.name, message.version or "")] = message.generation
+        # Like _apply_load: initialised up front so a control-flow
+        # change in the branches below can never reference an
+        # unbound flag (a CancelledError skips the ack send
+        # entirely, matching apply-cancellation semantics).
+        diverged = False
         try:
-            # Unload the exact version the supervisor targeted (the
-            # versionless public API would remove all versions).
-            await self._model_registry.unload_exact_version(
+            # Peer apply: the lock-free registry entry point (same
+            # ACK-collection rationale as the load apply).
+            await self._model_registry._unload_for_apply(
                 message.name, message.version, False
             )
         except Exception:
             # A genuine local unload failure (e.g. a retained cleanup
             # that keeps failing before the unregister): the pool has
-            # already unloaded the model, so this frontend diverges
-            # until the next operation on the model retries its
-            # cleanup. Report it at error level — an absent local model
-            # is the desired post-unload state and never reaches here
-            # (unload_exact_version returns normally for a miss).
+            # already unloaded the model, so this frontend diverges.
+            # Report it at error level — an absent local model is the
+            # desired post-unload state and never reaches here
+            # (unload_exact_version returns normally for a miss) — and
+            # ack ok=False so the supervisor retires this frontend.
+            # (The routing tags were already cleared above, so the
+            # stuck local entry receives no traffic; the divergence is
+            # a resource retention, not a serving one.)
             logger.exception(
-                "Broadcast unload of %s failed to apply locally; the "
-                "divergence is repaired by the next operation on the "
-                "model",
+                "Broadcast unload of %s failed to apply locally; "
+                "reporting divergence for retirement",
                 message.name,
             )
+            diverged = True
+        else:
+            diverged = False
         finally:
             self._applying_load.reset(token)
-        # Record the removed generation: a later load with a HIGHER
-        # generation can still reconcile over this key (the model was
-        # removed at this generation, not forever).
-        self._mark_key_generation(message.name, message.version, message.generation)
-        await self._send(ApplyAck(op_id=message.op_id))
+        await self._send(ApplyAck(op_id=message.op_id, ok=not diverged))
 
     @property
     def startup_models_pending(self) -> bool:

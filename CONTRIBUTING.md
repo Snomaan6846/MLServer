@@ -36,6 +36,22 @@ poetry install
 poetry run mlserver start .
 ```
 
+#### Native JSON parser (optional)
+
+The `rest_fast_parse` setting uses a small C library
+(`mlserver/codecs/fastspan`). It is a build artifact — image builds
+compile it via the Dockerfile, and test runs compile it automatically
+via `tests/conftest.py` when gcc is available. To serve from a
+checkout with the fast parser enabled:
+
+```bash
+make fastspan   # compiles mlserver/codecs/fastspan/libfastspan.so
+poetry run mlserver start .
+```
+
+Without the library, enabling `rest_fast_parse` is a startup error —
+build it first (`make fastspan`) or leave the flag disabled.
+
 ## Code Style
 
 - **Python** — follow PEP 8. The codebase uses type annotations throughout.

@@ -9,7 +9,26 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS"
 ]
-include =  ["mlserver/rest/openapi/*.json"]
+include =  [
+    "mlserver/rest/openapi/*.json",
+    # Native JSON span parser SOURCE: the wheel stays pure
+    # (py3-none-any, no platform tag) and carries parser.c so image
+    # builds compile the library into the installed package tree —
+    # per-platform by construction, and no build entry point can
+    # produce a platform-specific artifact advertised as pure.
+    # Runtime use is opt-in (rest_fast_parse); without the compiled
+    # library the flag errors at startup.
+    { path = "mlserver/codecs/fastspan/*.c", format = ["sdist", "wheel"] },
+]
+# The compiled library NEVER rides the wheel. Without Git metadata
+# (a source archive extraction), Poetry's default package discovery
+# would include a compiled libfastspan.so sitting in the package tree
+# — a platform-specific artifact inside a py3-none-any wheel. The
+# exclusion holds in every build context; the image build compiles
+# the library into the INSTALLED tree instead.
+exclude = [
+    "mlserver/codecs/fastspan/*.so",
+]
 
 [tool.poetry.scripts]
 mlserver = 'mlserver.cli:main'

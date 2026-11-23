@@ -182,40 +182,25 @@ class TestStartupModelGating:
 class TestEmptyRegistryReadinessPreservation:
     """The user's empty_registry_readiness setting is not overwritten."""
 
-    def test_user_setting_not_overwritten_with_models(self):
-        """When startup models exist, the user's setting is preserved."""
+    @pytest.mark.parametrize("user_value", [True, False])
+    def test_user_setting_not_overwritten_with_models(self, user_value):
+        """When startup models exist, the user's
+        empty_registry_readiness setting is preserved (True catches
+        the historical overwrite to False; False catches any flip
+        back). Constructing the supervisor matters: reading the
+        setting back without it cannot catch an overwrite."""
         from mlserver.frontend import FrontendSupervisor
 
         settings = Settings(
             frontend_workers=2,
             parallel_workers=1,
             parallel_inference_transport="zmq",
-            empty_registry_readiness=True,  # user explicitly set this
+            empty_registry_readiness=user_value,
         )
         models = [ModelSettings(name="m", implementation="tests.fixtures.SumModel")]
         FrontendSupervisor(settings, models)
 
-        # The settings dict should NOT have empty_registry_readness changed
-        # (the supervisor no longer overwrites it)
-        # This is verified by checking the code doesn't modify the setting
-        assert settings.empty_registry_readiness is True
-
-    def test_user_setting_false_with_models(self):
-        """User setting False is also preserved."""
-        from mlserver.frontend import FrontendSupervisor
-
-        settings = Settings(
-            frontend_workers=2,
-            parallel_workers=1,
-            parallel_inference_transport="zmq",
-            empty_registry_readiness=False,
-        )
-        models = [ModelSettings(name="m", implementation="tests.fixtures.SumModel")]
-        # Construct the supervisor like the True case: reading the
-        # setting back without it cannot catch an overwrite.
-        FrontendSupervisor(settings, models)
-
-        assert settings.empty_registry_readiness is False
+        assert settings.empty_registry_readiness is user_value
 
     @pytest.mark.parametrize("user_value", [True, False])
     def test_frontend_spawn_settings_preserve_user_value(self, mocker, user_value):
@@ -257,7 +242,9 @@ class TestEmptyRegistryReadinessPreservation:
 
         supervisor._make_frontend_process(0)
 
-        _frontend_id, settings_dict, _reply, _conn, _custom = captured["args"]
+        _frontend_id, settings_dict, _reply, _conn, _custom, _socks, _loads = captured[
+            "args"
+        ]
         assert settings_dict["empty_registry_readiness"] is user_value
 
 
@@ -1846,8 +1833,10 @@ class TestStartupApplyFailureKeepsGateClosed:
         )
 
         # The local registry load fails (e.g. the model artefact is
-        # corrupt on this frontend).
-        shared._model_registry.load = AsyncMock(
+        # corrupt on this frontend). The peer apply entry point is
+        # _load_for_apply — mock THAT, and assert it was awaited so
+        # the failure path is genuinely exercised.
+        shared._model_registry._load_for_apply = AsyncMock(
             side_effect=RuntimeError("model artefact corrupt")
         )
         try:
@@ -1865,6 +1854,7 @@ class TestStartupApplyFailureKeepsGateClosed:
         # StartupComplete arrives; the gate must NOT release.
         await handle_and_settle(shared, StartupComplete(model_count=1))
         shared._data_plane.startup_complete.assert_not_called()
+        shared._model_registry._load_for_apply.assert_awaited_once()
         assert shared.startup_models_pending is False  # startup is done
         assert shared._startup_apply_failed is True
 
@@ -1879,7 +1869,7 @@ class TestStartupApplyFailureKeepsGateClosed:
         settings = ModelSettings(
             name="startup-model", implementation="tests.fixtures.SumModel"
         )
-        shared._model_registry.load = AsyncMock()
+        shared._model_registry._load_for_apply = AsyncMock()
         await handle_and_settle(
             shared,
             ApplyLoad(
@@ -1889,6 +1879,7 @@ class TestStartupApplyFailureKeepsGateClosed:
             ),
         )
         await handle_and_settle(shared, StartupComplete(model_count=1))
+        shared._model_registry._load_for_apply.assert_awaited_once()
         shared._data_plane.startup_complete.assert_called_once()
 
 
@@ -2459,3 +2450,135 @@ class TestStartupApplyFailedHandling:
         proc.terminate.assert_called_once()
         proc.kill.assert_called_once()
         sentinel.close()
+
+
+class TestReplayPendingWatermark:
+    @staticmethod
+    def _supervisor():
+        from mlserver.frontend import FrontendSupervisor
+
+        settings = Settings(http_port=0, grpc_port=0, metrics_port=0)
+        return FrontendSupervisor(settings, [])
+
+    async def test_watermark_warns_on_crossing(self, mocker, caplog) -> None:
+        """The replay queue only grows during an in-flight replay, but
+        unbounded growth means a stuck replay — crossing the watermark
+        (each multiple) must log a warning so the condition is visible
+        instead of silently absorbing memory."""
+        import logging
+
+        supervisor = self._supervisor()
+        # Small watermark so the test crosses it twice.
+        mocker.patch("mlserver.frontend._REPLAY_PENDING_WATERMARK", 4)
+        supervisor._replaying = {0}
+        supervisor._controls[0] = Mock()
+
+        with caplog.at_level(logging.WARNING, logger="mlserver.frontend"):
+            for i in range(8):
+                await supervisor._send_to(0, f"msg-{i}")
+
+        # All messages queued, in order.
+        assert supervisor._replay_pending[0] == [f"msg-{i}" for i in range(8)]
+        warnings = [
+            r for r in caplog.records if "Replay queue for frontend 0" in r.message
+        ]
+        # Crossings at 4 and 8 pending messages: two warnings.
+        assert len(warnings) == 2, [r.message for r in caplog.records]
+        assert "reached 8 pending messages" in warnings[-1].getMessage()
+
+    async def test_no_warning_below_watermark(self, mocker, caplog) -> None:
+        """Below the watermark the queue stays silent (normal replay
+        traffic must not log)."""
+        import logging
+
+        supervisor = self._supervisor()
+        mocker.patch("mlserver.frontend._REPLAY_PENDING_WATERMARK", 100)
+        supervisor._replaying = {0}
+        supervisor._controls[0] = Mock()
+
+        with caplog.at_level(logging.WARNING, logger="mlserver.frontend"):
+            for i in range(10):
+                await supervisor._send_to(0, f"msg-{i}")
+
+        assert len(supervisor._replay_pending[0]) == 10
+        assert not [r for r in caplog.records if "Replay queue" in r.message]
+
+
+class TestCollectAcksMidCollectionDeath:
+    """The ack-collection wait with a frontend dying mid-collection.
+
+    One ack already landed (in flight), the second frontend dies while
+    the collector waits: the death path must synthetic-ack every
+    pending op and notify, completing the collection immediately —
+    not via the model-operation deadline."""
+
+    @staticmethod
+    def _supervisor():
+        from mlserver.frontend import FrontendSupervisor
+
+        settings = Settings(
+            http_port=0,
+            grpc_port=0,
+            metrics_port=0,
+            frontend_workers=2,
+            parallel_workers=1,
+            parallel_inference_transport="zmq",
+            # Generous: completion must come from the synthetic ack,
+            # well before this deadline (the discriminator between
+            # the two outcomes).
+            model_operation_timeout=10,
+        )
+        return FrontendSupervisor(settings, [])
+
+    async def test_death_mid_collection_completes_via_synthetic_ack(
+        self,
+    ) -> None:
+        import asyncio as asyncio_module
+        from unittest.mock import Mock
+
+        from mlserver.frontend import _PendingOp
+
+        supervisor = self._supervisor()
+        supervisor._frontends[0] = Mock(pid=101, exitcode=-9)
+        supervisor._frontends[1] = Mock(pid=102, exitcode=-9)
+        supervisor._controls[0] = Mock()
+        supervisor._controls[1] = Mock()
+        supervisor._pool_registry = None
+        # The death path schedules a replacement: neutralize it — this
+        # test targets the ack-collection path, not the restart (which
+        # would spawn a real frontend process).
+        supervisor._schedule_restart = Mock()
+
+        # The pending op, registered before the broadcast (as both
+        # callers do) so early acks are captured.
+        pending = _PendingOp(origin=0, ok=True, error=None)
+        supervisor._pending_ops["op-mid"] = pending
+
+        collector = asyncio_module.create_task(
+            supervisor._collect_acks(
+                "op-mid", origin=0, ok=True, error=None, expected={0, 1}
+            )
+        )
+        # Let the collector enter the condition wait.
+        await asyncio_module.sleep(0)
+
+        # Frontend 0's ACK lands mid-collection (the listener path's
+        # effect on the shared pending op).
+        async with supervisor._ack_condition:
+            pending.acks.add(0)
+            supervisor._ack_condition.notify_all()
+
+        # Still waiting on frontend 1 — the collection must not have
+        # completed with only one of two expected acks.
+        await asyncio_module.sleep(0.05)
+        assert not collector.done()
+
+        # Frontend 1 dies mid-collection: the death path synthetic-acks
+        # every pending op and notifies the condition.
+        supervisor._handle_dead_frontend(1, supervisor._frontends[1])
+
+        # Completes via the synthetic ack — far before the 10 s
+        # deadline (a timeout completion would take the full window).
+        await asyncio_module.wait_for(collector, timeout=2)
+        assert pending.acks == {0, 1}
+        assert "op-mid" not in supervisor._pending_ops

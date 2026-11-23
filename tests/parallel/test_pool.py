@@ -680,7 +680,7 @@ async def test_failed_reload_preserves_committed_model_for_rollback(
 async def test_shared_pool_stays_transport_free_at_one_frontend():
     """The pool's dispatcher must stay transport-free in the shared
     topology at ANY frontend count. Advertising the singular reply
-    endpoint (the fw=1 shape) makes the pool's dispatcher bind a
+    endpoint (the frontend_workers=1 shape) makes the pool's dispatcher bind a
     frontend-owned reply path: the double bind lets the worker's reply
     connection land on the pool's socket, swallowing the frontend's
     inference responses (every request then hangs). Update responses
@@ -728,7 +728,7 @@ async def test_shared_pool_stays_transport_free_at_one_frontend():
 
 
 async def test_shared_pool_stays_transport_free_at_two_frontends():
-    """Same invariant at fw=2 (the previously-working shape): the list
+    """Same invariant at frontend_workers=2 (the previously-working shape): the list
     is advertised, the singular is not, no pool transport."""
     import tempfile
     from pathlib import Path

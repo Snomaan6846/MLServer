@@ -40,7 +40,14 @@ def test_tensor_data_serialises_ndarray_root_as_flat_list():
 
     tensor_data = types.TensorData(root=arr)
 
-    assert tensor_data.model_dump() == [1.0, 2.0, 3.0, 4.0]
+    # Python mode: the flat array (float32 widened to float64 — the
+    # byte-preserving bridge), never a Python element list.
+    dumped = tensor_data.model_dump()
+    assert isinstance(dumped, np.ndarray)
+    assert dumped.dtype == np.float64
+    np.testing.assert_array_equal(dumped, [1.0, 2.0, 3.0, 4.0])
+    # JSON mode: today's list form, unchanged.
+    assert tensor_data.model_dump(mode="json") == [1.0, 2.0, 3.0, 4.0]
     assert tensor_data.model_dump_json() == "[1.0,2.0,3.0,4.0]"
 
 
@@ -49,7 +56,15 @@ def test_tensor_data_serialises_ndarray_nan_as_null():
 
     tensor_data = types.TensorData(root=arr)
 
-    assert tensor_data.model_dump() == [1.5, None]
+    # Python mode: the array carries the NaN; the JSON encoder
+    # (orjson) renders it as null — byte-identical to the list form
+    # (pinned by the wire-identity suite).
+    dumped = tensor_data.model_dump()
+    assert isinstance(dumped, np.ndarray)
+    assert dumped[0] == 1.5
+    assert np.isnan(dumped[1])
+    # JSON mode: the explicit None conversion, unchanged.
+    assert tensor_data.model_dump(mode="json") == [1.5, None]
     assert tensor_data.model_dump_json() == "[1.5,null]"
 
 
@@ -67,27 +82,37 @@ def test_tensor_data_serialises_complex_nan_as_null():
 def test_tensor_data_preserves_masked_entries_with_unmasked_nan():
     # Masked entries are already None from tolist(); an unmasked NaN
     # enables the conversion loop, which must keep them instead of
-    # feeding None to math.isnan (TypeError).
+    # feeding None to math.isnan (TypeError). Masked arrays take the
+    # list path in BOTH modes: the native buffer path would render
+    # fill values instead of the None wire semantics.
     arr = np.ma.array([1.0, np.nan], dtype=np.float32, mask=[True, False])
 
     tensor_data = types.TensorData(root=arr)
 
     assert tensor_data.model_dump() == [None, None]
+    assert tensor_data.model_dump(mode="json") == [None, None]
     assert tensor_data.model_dump_json() == "[null,null]"
 
 
 def test_tensor_data_applies_serialisation_filters_to_ndarray_root():
-    # The ndarray path must honour include/exclude like the list-backed
-    # path: returning the converted list directly bypasses the filters.
+    # JSON mode honours include/exclude like the list-backed path
+    # (the converted list routes through the handler). Python mode
+    # returns the buffer — element-index filters do not apply to the
+    # ndarray form (field-level filters are applied by the parent
+    # model before the TensorData serializer runs; no wire path
+    # filters tensor elements).
     arr = np.array([10.0, 20.0], dtype=np.float32)
 
     tensor_data = types.TensorData(root=arr)
 
-    assert tensor_data.model_dump(exclude={0}) == [20.0]
+    assert tensor_data.model_dump(mode="json", exclude={0}) == [20.0]
     assert tensor_data.model_dump_json(exclude={0}) == "[20.0]"
     assert tensor_data.model_dump_json(include={1}) == "[20.0]"
-    # Unfiltered serialisation is unchanged by the delegation.
-    assert tensor_data.model_dump() == [10.0, 20.0]
+    # Unfiltered serialisation: python mode the (widened) buffer,
+    # json mode today's list.
+    dumped = tensor_data.model_dump()
+    assert isinstance(dumped, np.ndarray)
+    np.testing.assert_array_equal(dumped, [10.0, 20.0])
     assert tensor_data.model_dump_json() == "[10.0,20.0]"
 
 

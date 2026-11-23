@@ -1249,3 +1249,64 @@ class TestBinaryDetectionGating:
         assert isinstance(reply, RawReply)
         assert reply.status == 200
         assert reply.headers["content-type"] == "application/octet-stream"
+
+
+class TestWorkerCompactFloats:
+    """The worker's JSON rendering honours rest_json_compact_floats:
+    the same serializer as the frontend endpoint (python-mode dump,
+    ndarray roots to orjson), not a JSON-mode dump that widens FP32
+    tensors to Python floats before encoding."""
+
+    @staticmethod
+    def _fp32_response() -> "InferenceResponse":
+        import numpy as np
+
+        from mlserver.types import ResponseOutput, TensorData
+
+        return InferenceResponse(
+            model_name="compact-model",
+            outputs=[
+                ResponseOutput(
+                    name="out",
+                    datatype="FP32",
+                    shape=[1],
+                    data=TensorData(root=np.array([1.1], dtype=np.float32)),
+                )
+            ],
+        )
+
+    def test_worker_compact_floats_on(self) -> None:
+        from mlserver.codecs.json import set_json_compact_floats
+        from mlserver.rest.worker import encode_response
+
+        set_json_compact_floats(True)
+        try:
+            content = encode_response(self._fp32_response())
+            assert b'"data":[1.1]' in content, content
+        finally:
+            set_json_compact_floats(False)
+
+    def test_worker_compact_floats_off_widened(self) -> None:
+        from mlserver.rest.worker import encode_response
+
+        content = encode_response(self._fp32_response())
+        # The byte-preserving widened form (the float64 bridge) —
+        # what the frontend renders with the flag off.
+        assert b"1.100000023841858" in content, content
+
+    def test_worker_metadata_json_scalars(self) -> None:
+        """The worker's rendering keeps the metadata conversion (the
+        finding-3 contract) — Decimal renders as a JSON scalar."""
+        from datetime import timedelta
+        from decimal import Decimal
+
+        from mlserver.rest.worker import encode_response
+        from mlserver.types import Parameters
+
+        response = self._fp32_response()
+        response.parameters = Parameters(
+            decimal=Decimal("3.14"), delta=timedelta(seconds=2)
+        )
+        content = encode_response(response)
+        assert b'"decimal":"3.14"' in content, content
+        assert b'"delta":"PT2S"' in content, content

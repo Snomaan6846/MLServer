@@ -6,7 +6,6 @@ from typing import Any
 from mlserver.codecs.numpy import (
     NumpyCodec,
     convert_nan,
-    set_ndarray_response_pipeline,
     to_datatype,
     to_dtype,
 )
@@ -125,7 +124,6 @@ def test_convert_nan_preserves_non_scalar_values():
     ],
 )
 def test_encode_output(payload: np.ndarray, expected: ResponseOutput):
-    set_ndarray_response_pipeline(True)
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
 
     assert response_output.name == expected.name
@@ -160,7 +158,6 @@ def test_encode_output(payload: np.ndarray, expected: ResponseOutput):
 )
 def test_encode_output_keeps_flat_ndarray(dtype):
     """Non-BYTES payloads stay ndarrays: flat views, no element churn."""
-    set_ndarray_response_pipeline(True)
 
     payload = np.zeros((2, 3), dtype=dtype)
 
@@ -218,7 +215,6 @@ def test_encode_output_canonicalises_nan_payloads(dtype, canonical_nan_bits):
     """NaN payloads canonicalise to the standard quiet NaN (like the
     historic list pipeline's tolist -> None -> float("nan") round-trip),
     and the payload's own buffer is never mutated."""
-    set_ndarray_response_pipeline(True)
 
     payload = np.array([1.5, 2.5], dtype=dtype)
     uint_dtype = np.dtype(f"u{payload.itemsize}")
@@ -239,7 +235,6 @@ def test_encode_output_canonicalises_nan_payloads(dtype, canonical_nan_bits):
 def test_encode_output_nan_free_root_is_snapshot():
     """NaN-free payloads still get a detached root: encoding always
     returns a stable snapshot, whether or not normalisation is needed."""
-    set_ndarray_response_pipeline(True)
 
     payload = np.array([[1.5, 2.5], [3.5, 4.5]], dtype=np.float32)
 
@@ -428,7 +423,6 @@ def test_encode_output_does_not_mutate_source_buffer():
     """The model's own buffer is never modified by encoding — the
     encoded root is a detached copy, so normalisation cannot write
     through to the model's output."""
-    set_ndarray_response_pipeline(True)
     # Use a non-canonical NaN (payload bit set) so the test verifies
     # normalisation actually happens — a canonical NaN in the source
     # would pass even if normalisation were removed or wrote the same
@@ -450,7 +444,6 @@ def test_encode_output_does_not_mutate_source_buffer():
 def test_encode_output_root_detached_from_source():
     """The encoded root never shares memory with the model's output —
     the response is an immutable snapshot taken at encode time."""
-    set_ndarray_response_pipeline(True)
     payload = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
 
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
@@ -499,43 +492,22 @@ def test_encode_output_zero_dimension_array():
     assert response_output.data.root[0] == np.float32(3.14)
 
 
-def test_ndarray_pipeline_topology_gate():
-    """The bootstrap pin: which topologies get ndarray IPC payloads.
-
-    2+ frontend processes only — the pipeline relocates list
-    materialisation to the frontend loops and is a win only when N of
-    them share it. At frontend_workers == 1 (the supervised single
-    frontend) there is exactly one loop: the same saturation profile
-    as the direct server, where the relocation measured as a p99
-    regression (FINDINGS-json-zmq-tail.md). This pin exists so the
-    gate cannot drift from the batcher placement gate
-    (frontend_workers >= 1) in either direction.
-    """
-    from mlserver.codecs.numpy import ndarray_response_pipeline_for
-
-    assert ndarray_response_pipeline_for(0) is False  # direct server
-    assert ndarray_response_pipeline_for(1) is False  # one supervised frontend
-    assert ndarray_response_pipeline_for(2) is True
-    assert ndarray_response_pipeline_for(4) is True
-    assert ndarray_response_pipeline_for(64) is True
-
-
-def test_encode_output_default_is_list_payload():
-    """Default (direct server, frontend_workers=0) topology: master's data flow — the
-    codec materialises the Python element list, IPC carries lists, and
-    every wire boundary takes its legacy path."""
+def test_ndarray_pipeline_runs_at_every_topology():
+    """The pipeline invariant after the gate removal: ndarray payloads
+    flow at EVERY topology (the mode-aware TensorData serializer +
+    orjson OPT_SERIALIZE_NUMPY eliminate the Python element list, so
+    there is no materialisation work left to gate — the reason the old
+    fw>1 gate existed is gone). Pinned by asserting the codec output
+    root stays an ndarray (no list materialisation anywhere)."""
     payload = np.array([[1.5, 2.5], [3.5, 4.5]], dtype=np.float32)
-
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
-
-    root = response_output.data.root
-    assert isinstance(root, list)
-    assert root == [1.5, 2.5, 3.5, 4.5]
+    assert isinstance(response_output.data.root, np.ndarray)
 
 
-def test_encode_output_multi_frontend_keeps_ndarray():
-    """Multi-frontend opt-in: the ndarray-native pipeline stays on."""
-    set_ndarray_response_pipeline(True)
+def test_encode_output_keeps_ndarray_at_every_topology():
+    """Single-mode invariant: the codec output root is an ndarray at
+    every topology (the list-materialisation branch is gone; the
+    mode-aware serializer + orjson render it natively on the wire)."""
     payload = np.array([[1.5, 2.5], [3.5, 4.5]], dtype=np.float32)
 
     response_output = NumpyCodec.encode_output(name="foo", payload=payload)
@@ -557,48 +529,47 @@ def test_encode_output_multi_frontend_keeps_ndarray():
         np.bool_,
     ],
 )
-def test_encode_output_gate_values_identical(dtype):
-    """Both gate states produce identical element values — the gate
-    changes payload representation and placement, never values."""
-    payload = np.array([[1, 2], [3, 4]], dtype=dtype)
+def test_encode_output_wire_matches_list_representation(dtype):
+    """Wire contract per dtype: the ndarray path renders the same JSON
+    bytes as the equivalent Python-list representation (the
+    form) — the byte-compatibility guarantee of the buffer-native
+    pipeline."""
+    from mlserver.codecs.json import encode_to_json_bytes
 
-    set_ndarray_response_pipeline(True)
+    payload = np.array([[1, 2], [3, 4]], dtype=dtype)
     nd_root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
-    set_ndarray_response_pipeline(False)
-    list_root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
 
     assert isinstance(nd_root, np.ndarray)
-    assert isinstance(list_root, list)
-    assert nd_root.tolist() == list_root
+    nd_bytes = encode_to_json_bytes({"data": nd_root})
+    list_bytes = encode_to_json_bytes({"data": nd_root.tolist()})
+    assert nd_bytes == list_bytes
 
 
-def test_encode_output_default_path_nan_passes_through():
-    """Default (fw=1) path: NaN stays a float in the materialised list.
-
-    orjson renders it as null on REST JSON (byte-identical to master's
-    convert_nan -> None -> null wire form) and gRPC typed contents
-    serialise it natively — both pinned by wire tests elsewhere.
+def test_encode_output_nan_wire_renders_null():
+    """NaN payloads: the root stays an ndarray (NaN canonicalised to
+    the quiet form on the detached copy) and the wire renders null —
+    byte-identical to the convert_nan -> None -> null form.
     """
     payload = np.array([1.5, np.nan, 3.0], dtype=np.float32)
 
     root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
 
-    assert isinstance(root, list)
-    assert root[0] == 1.5
-    assert root[2] == 3.0
-    assert isinstance(root[1], float) and np.isnan(root[1])
+    assert isinstance(root, np.ndarray)
+    assert root[0] == np.float32(1.5)
+    assert root[2] == np.float32(3.0)
+    assert np.isnan(root[1])
 
 
-def test_encode_output_default_path_nan_free_values_untouched():
-    """Negative: NaN-free payloads carry plain floats, no mapping."""
+def test_encode_output_nan_free_values_untouched():
+    """Negative: NaN-free payloads carry plain values, no mapping."""
     payload = np.array([1.5, 2.5], dtype=np.float32)
 
     root = NumpyCodec.encode_output(name="foo", payload=payload).data.root
 
-    assert root == [1.5, 2.5]
+    np.testing.assert_array_equal(root, np.array([1.5, 2.5], dtype=np.float32))
 
 
-def test_encode_output_default_path_all_nan():
+def test_encode_output_all_nan():
     """Edge: every entry NaN."""
     payload = np.array([np.nan, np.nan], dtype=np.float64)
 
@@ -608,9 +579,9 @@ def test_encode_output_default_path_all_nan():
     assert all(np.isnan(value) for value in root)
 
 
-def test_encode_output_default_path_nan_rest_json_renders_null():
+def test_encode_output_nan_rest_json_renders_null():
     """Wire pin: the default path's NaN list renders as null —
-    byte-identical to master's wire form."""
+    byte-identical to the reference wire form."""
     from mlserver.codecs.json import encode_to_json_bytes
 
     payload = np.array([1.5, np.nan], dtype=np.float32)

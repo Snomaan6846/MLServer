@@ -22,6 +22,24 @@ _buildImage() {
     -t "$IMAGE_NAME:$_tag"
 }
 
+_assertNativeParser() {
+  local _tag=$1
+
+  # The image must carry the native JSON span parser: the Dockerfile
+  # compiles it into the installed package tree (the wheel ships only
+  # the C source), and enabling rest_fast_parse without the library
+  # is a startup error. Catches a broken compile step or a packaging
+  # regression before the image ships.
+  docker run --rm "$IMAGE_NAME:$_tag" python3 -c \
+    "from mlserver.codecs import fastspan; assert fastspan._load() is not None" \
+    || {
+      echo "ERROR: $IMAGE_NAME:$_tag does not contain libfastspan.so" >&2
+      echo "Check the Dockerfile runtime-stage compile step and the pyproject parser.c include" >&2
+      exit 1
+    }
+  echo "---> Asserted native parser in $_tag"
+}
+
 _buildRuntimeImage() {
   local _runtimePath=$1
   local _version=$2
@@ -36,10 +54,13 @@ _main() {
 
   echo "---> Building core MLServer images"
   _buildImage "all" $_version
+  _assertNativeParser $_version
   _buildImage "" $_version-slim
+  _assertNativeParser $_version-slim
 
   for _runtimePath in "$ROOT_FOLDER/runtimes/"*; do
     _buildRuntimeImage $_runtimePath $_version
+    _assertNativeParser $_version-$(basename $_runtimePath)
   done
 }
 

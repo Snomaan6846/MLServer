@@ -33,6 +33,51 @@ from .metrics.utils import unregister_metrics
 from .fixtures import TextModel, TextStreamModel, ErrorModel, SimpleModel
 from .utils import RESTClient, get_available_ports, _pack, _get_tarball_name
 
+
+def _ensure_fastspan_library() -> None:
+    """Compile the native JSON span parser for runs from the source tree.
+
+    The shared library is a build artifact (gitignored): image builds
+    compile it via the Dockerfile, and the loader degrades gracefully
+    without it. Development and CI test runs come from a fresh
+    checkout, so compile it here — into the imported package's
+    directory, where both PYTHONPATH and installed-package invocations
+    look. Environments without gcc keep the graceful absence and the
+    native-dependent tests skip.
+    """
+    import subprocess
+    from pathlib import Path
+
+    try:
+        from mlserver.codecs import fastspan
+    except ImportError:
+        return
+    if fastspan._load() is not None:
+        return
+    gcc = shutil.which("gcc")
+    if gcc is None:
+        return
+    source = (
+        Path(__file__).parent.parent / "mlserver" / "codecs" / "fastspan" / "parser.c"
+    )
+    if not source.exists():
+        return
+    target = Path(fastspan.__file__).parent / "libfastspan.so"
+    try:
+        subprocess.run(
+            [gcc, "-O3", "-shared", "-fPIC", "-o", str(target), str(source), "-lm"],
+            check=True,
+            timeout=60,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return
+    # Reset the loader cache so this run picks up the fresh library.
+    fastspan._lib = None
+    fastspan._loaded = False
+
+
+_ensure_fastspan_library()
+
 MIN_PYTHON_VERSION = (3, 11)
 MAX_PYTHON_VERSION = (3, 12)
 PYTHON_VERSIONS = [
@@ -492,20 +537,3 @@ def datatype_error_message():
         " 'FP16', 'FP32', 'FP64' or 'BYTES'"
     )
     return error_message
-
-
-@pytest.fixture(autouse=True)
-def _default_response_pipeline_gate():
-    """Reset the response-pipeline topology gate around every test.
-
-    set_ndarray_response_pipeline() flips a process-global: without
-    this reset, any test opting into the ndarray pipeline leaks it to
-    every later test in the same pytest worker, making failures
-    order- and xdist-distribution-dependent. Every test starts from
-    the default (direct server, list payloads = master's data flow).
-    """
-    from mlserver.codecs.numpy import set_ndarray_response_pipeline
-
-    set_ndarray_response_pipeline(False)
-    yield
-    set_ndarray_response_pipeline(False)

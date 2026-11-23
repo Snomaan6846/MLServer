@@ -12,10 +12,27 @@ def _raising_handler(exc: BaseException):
     return handler
 
 
-async def test_timeout_error_maps_to_deadline_exceeded():
-    """An expired inference deadline (or any await timeout) aborts with
-    DEADLINE_EXCEEDED, not INTERNAL — gRPC clients must be able to tell
-    a timing failure from a server fault apart."""
+async def test_inference_timeout_maps_to_deadline_exceeded():
+    """An expired inference deadline (the dispatch wait's dedicated
+    InferenceTimeoutError) aborts with DEADLINE_EXCEEDED, not INTERNAL
+    — gRPC clients must be able to tell a timing failure from a server
+    fault apart."""
+    from mlserver.errors import InferenceTimeoutError
+
+    context = Mock()
+    context.abort = AsyncMock()
+
+    decorated = handle_mlserver_error(_raising_handler(InferenceTimeoutError()))
+    await decorated(Mock(), object(), context)
+
+    context.abort.assert_awaited_once()
+    assert context.abort.await_args.kwargs["code"] == grpc.StatusCode.DEADLINE_EXCEEDED
+
+
+async def test_foreign_timeout_keeps_internal():
+    """A bare TimeoutError from any other await inside request handling
+    is NOT an inference deadline: it keeps INTERNAL, as it always
+    was."""
     context = Mock()
     context.abort = AsyncMock()
 
@@ -23,15 +40,16 @@ async def test_timeout_error_maps_to_deadline_exceeded():
     await decorated(Mock(), object(), context)
 
     context.abort.assert_awaited_once()
-    assert context.abort.await_args.kwargs["code"] == grpc.StatusCode.DEADLINE_EXCEEDED
+    assert context.abort.await_args.kwargs["code"] == grpc.StatusCode.INTERNAL
 
 
-async def test_stream_timeout_error_maps_to_deadline_exceeded():
-    """The streaming variant maps timeouts identically."""
+async def test_stream_inference_timeout_maps_to_deadline_exceeded():
+    """The streaming variant maps inference deadlines identically."""
+    from mlserver.errors import InferenceTimeoutError
 
     @handle_mlserver_stream_error
     async def stream_handler(self, request_stream, context):
-        raise TimeoutError()
+        raise InferenceTimeoutError()
         yield  # pragma: no cover - makes this an async generator
 
     context = Mock()

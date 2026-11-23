@@ -802,9 +802,6 @@ def test_merge_request_inputs_uint64_precision_preserved():
     numpy's uint64 + int64 promotion produces float64, which cannot
     represent 2**63 + 1 — the decoder would silently cast the rounded
     value back to uint64."""
-    from mlserver.codecs.numpy import set_ndarray_response_pipeline
-
-    set_ndarray_response_pipeline(True)
     from mlserver.codecs.numpy import NumpyCodec
 
     ndarray_req = InferenceRequest(
@@ -833,9 +830,6 @@ def test_merge_request_inputs_nested_json_and_ndarray_batches():
     while ndarray-native ones are flat. concatenate() rejects the
     dimension mismatch instead of merging, so every numeric entry
     flattens before concatenating."""
-    from mlserver.codecs.numpy import set_ndarray_response_pipeline
-
-    set_ndarray_response_pipeline(True)
     from mlserver.codecs.numpy import NumpyCodec
 
     ndarray_req = InferenceRequest(

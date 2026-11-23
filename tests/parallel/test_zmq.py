@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from collections.abc import Iterator
 from multiprocessing.reduction import ForkingPickler
 from pathlib import Path
@@ -731,8 +732,12 @@ async def test_reply_routes_to_frontend_socket(
         context.term()
 
 
-async def test_frontend_id_out_of_range_raises(directory: Path) -> None:
-    """A frontend_id beyond the configured endpoints is an error."""
+async def test_frontend_id_out_of_range_drops_reply(directory: Path) -> None:
+    """A frontend_id beyond the configured endpoints is dropped, not
+    fatal: the serve loop treats any _reply exception as fatal
+    (killing the worker and every in-flight request on it), so a
+    reply with no recipient must log-and-drop — the same failure
+    mode as zmq.Again. Only recv and protocol errors are fatal."""
     reply_endpoint = transport.create_endpoint(directory, "r")
     mock_worker = Mock(
         spec=Worker,
@@ -748,9 +753,10 @@ async def test_frontend_id_out_of_range_raises(directory: Path) -> None:
         return_value=ModelResponseMessage(id=request.id)
     )
     # A single mock socket (only 1 endpoint configured)
-    socket = Mock()
-    with pytest.raises(ValueError, match="frontend_id=5.*1 reply endpoint"):
-        await _reply(mock_worker, request, [socket])
+    socket = AsyncMock()
+    # Must not raise (the worker survives) and must not send anywhere.
+    await _reply(mock_worker, request, [socket])
+    socket.send.assert_not_awaited()
 
 
 def test_worker_accepts_single_endpoint_backward_compat(
@@ -797,3 +803,50 @@ def test_worker_accepts_multiple_endpoints(directory: Path) -> None:
         if isinstance(legacy, str) and legacy.startswith("ipc://"):
             result = [legacy]
     assert result == endpoints
+
+
+async def test_close_completes_when_receiver_never_settles(
+    directory: Path, mocker
+) -> None:
+    """The receiver settle inside close() is bounded: pyzmq's asyncio
+    recv future can intermittently fail to propagate cancellation at
+    the C level, leaving the receiver unsettled forever — and the
+    caller's shield prevents an outer cancellation from reaching the
+    close, so the bound is the only escape. A receiver whose
+    underlying future REFUSES cancellation must not hang server
+    shutdown."""
+    from mlserver.parallel import zmq as zmq_module
+    from mlserver.parallel.zmq import ParentTransport
+
+    zmq_module._RECEIVER_SETTLE_TIMEOUT = 0.1  # tightened for the test
+    try:
+
+        class UnstoppableFuture(asyncio.Future):
+            """The pathological pyzmq case: cancel() is delivered but
+            the underlying future never settles."""
+
+            def cancel(self, *args, **kwargs) -> bool:
+                return False
+
+        never = UnstoppableFuture()
+
+        async def pathological_receiver() -> None:
+            await never
+
+        transport_obj = ParentTransport(transport.create_endpoint(directory, "r"))
+        transport_obj._receiver = asyncio.ensure_future(pathological_receiver())
+        await asyncio.sleep(0)  # let the receiver reach its await
+        # _close() cancels the receiver; the future refuses — the
+        # gather would never settle without the bound.
+        try:
+            # close() must return within the (tightened) bound.
+            await asyncio.wait_for(transport_obj.close(), timeout=2.0)
+        finally:
+            # The abandoned receiver is cleaned up by test teardown:
+            # complete the future so the task settles.
+            if not never.done():
+                never.set_result(None)
+            with contextlib.suppress(asyncio.CancelledError, asyncio.InvalidStateError):
+                await transport_obj._receiver
+    finally:
+        zmq_module._RECEIVER_SETTLE_TIMEOUT = 5.0

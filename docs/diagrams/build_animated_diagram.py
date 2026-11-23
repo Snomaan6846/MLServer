@@ -204,7 +204,7 @@ html = f"""<!DOCTYPE html>
     fill="#4B9A1E" stroke="#4B9A1E"/>
   <text x="415" y="363" class="cluster-title" fill="#4B9A1E">MLServer Container</text>
 
-{node("pod", "Frontends × N", 270, 425, sublabel="SO_REUSEPORT")}
+{node("pod", "Frontends × N", 270, 425, sublabel="shared REST listener")}
 {node("pod", "Supervisor", 415, 425, sublabel="owns shared pool")}
 {node("pod", "Workers", 560, 425, sublabel="one copy per model")}
 

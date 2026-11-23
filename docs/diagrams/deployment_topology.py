@@ -2,7 +2,8 @@
 
 Shows the pod layout at frontend_workers >= 1: a supervisor process
 owning the shared inference pool, N frontend processes accepting
-REST/gRPC/metrics traffic on the same ports (SO_REUSEPORT), and the
+REST through a shared listening socket (least-loaded accepting), gRPC and
+metrics via SO_REUSEPORT on the same ports, and the
 shared worker processes. At frontend_workers = 0 all three collapse
 into a single main process.
 """
@@ -54,7 +55,7 @@ with Diagram(
                 with Cluster("Supervisor Process"):
                     supervisor = Pod("FrontendSupervisor\n(shared pool owner)")
 
-                with Cluster("Frontend Processes × N\n(SO_REUSEPORT)"):
+                with Cluster("Frontend Processes × N\n(REST: shared listener)"):
                     frontends = Pod("REST · gRPC ·\nmetrics · dispatch")
 
                 with Cluster("Shared Inference Pool"):
@@ -82,7 +83,7 @@ with Diagram(
     ingress >> Edge(color="#4A90D9") >> rest
     ingress >> Edge(color="#4A90D9") >> grpc
 
-    # Services → frontends (kernel-level SO_REUSEPORT balancing)
+    # Services → frontends (REST: shared listener; gRPC: kernel SO_REUSEPORT)
     rest >> Edge(color="#2C5F8A") >> frontends
     grpc >> Edge(color="#2C5F8A") >> frontends
 

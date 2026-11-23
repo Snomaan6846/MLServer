@@ -145,18 +145,11 @@ class Worker(Process):
         # delivered by PR_SET_PDEATHSIG and leave the worker orphaned.
         set_parent_death_signal(signal.SIGKILL)
 
-        # Response payload topology: the ndarray pipeline only fits at
-        # 2+ frontend processes (ndarray_response_pipeline_for) — the
-        # direct server and the single supervised frontend both keep
-        # master's list-based data flow.
-        from ..codecs.numpy import (
-            ndarray_response_pipeline_for,
-            set_ndarray_response_pipeline,
-        )
+        # Workers can render JSON themselves (rest_worker_json): the
+        # compact-FP32 opt-in must match the serving processes.
+        from ..codecs.json import set_json_compact_floats
 
-        set_ndarray_response_pipeline(
-            ndarray_response_pipeline_for(self._settings.frontend_workers)
-        )
+        set_json_compact_floats(self._settings.rest_json_compact_floats)
 
         ctx = nullcontext()
         if self._env:
@@ -320,9 +313,14 @@ class Worker(Process):
                 # Expose the dispatch id to worker-side batchers so a
                 # remote cancellation can evict this request while queued.
                 _CurrentDispatchId.set(request.id)
-                return_value = await method(
-                    *request.method_args, **request.method_kwargs
-                )
+                try:
+                    return_value = await method(
+                        *request.method_args, **request.method_kwargs
+                    )
+                finally:
+                    # Mirror the raw path: reset the task-local id so a
+                    # reused task never observes a stale dispatch id.
+                    _CurrentDispatchId.set(None)
             return ModelResponseMessage(id=request.id, return_value=return_value)
         except (Exception, CancelledError) as e:
             logger.exception(

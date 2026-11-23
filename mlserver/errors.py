@@ -62,6 +62,20 @@ class InferenceError(MLServerError):
         super().__init__(msg, status.HTTP_400_BAD_REQUEST)
 
 
+class InferenceTimeoutError(MLServerError):
+    """The inference deadline (``inference_timeout``) expired.
+
+    Raised only by the dispatch wait so the REST/gRPC error mapping can
+    distinguish an expired inference deadline (504 /
+    DEADLINE_EXCEEDED) from any other await timeout inside request
+    handling (a custom handler's or model's own deadline), which keeps
+    the generic 500 / INTERNAL it has always had.
+    """
+
+    def __init__(self, msg: str = "Inference request timed out"):
+        super().__init__(msg, status.HTTP_504_GATEWAY_TIMEOUT)
+
+
 class ModelParametersMissing(MLServerError):
     def __init__(self, model_name: str):
         super().__init__(
