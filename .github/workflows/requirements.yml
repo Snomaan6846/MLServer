@@ -184,10 +184,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y yq jq
 
-      # Pinned from actions/download-artifact v4.3.0
+      # Pinned from actions/download-artifact v8.0.2
       - name: Download requirements artifacts
         id: download
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: requirements-*
           path: requirements/
@@ -263,8 +263,8 @@ jobs:
       - name: Download skip markers
         if: needs.generate.result == 'success'
         id: download-markers
-        # Pinned from actions/download-artifact v4.3.0
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        # Pinned from actions/download-artifact v8.0.2
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: skip-marker-*
           path: /tmp/skip-markers/
