@@ -1,6 +1,7 @@
 approvers:
 - brettmthompson
 - edwardquarm
+- IKRedHat
 - Jooho
 - Raghul-M
 - RH-steve-grubb
@@ -9,6 +10,7 @@ approvers:
 reviewers:
 - brettmthompson
 - edwardquarm
+- IKRedHat
 - Jooho
 - Raghul-M
 - RH-steve-grubb
