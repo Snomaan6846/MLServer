@@ -64,6 +64,24 @@ class TensorData(RootModel[list[Any] | Any]):
             return bool(array_equal(cast(Any, self.root), cast(Any, other)))
         return bool(self.root == other)
 
+    from pydantic import field_validator  # type: ignore[misc]
+
+    @field_validator("root", mode="wrap")
+    @classmethod
+    def _keep_ndarray_root(cls, value, handler):
+        # An ndarray root skips the union validation: the list branch
+        # walks every element into a temporary scalar list before the
+        # Any branch keeps the original array — O(N) work for an
+        # identity result. The array's metadata (datatype, element
+        # count) is validated where it is produced (the span parser,
+        # the codecs), not here; every other root type takes the
+        # original validation unchanged through the handler.
+        from numpy import ndarray
+
+        if isinstance(value, ndarray):
+            return value
+        return handler(value)
+
     from pydantic import model_serializer  # type: ignore[misc]
 
     @model_serializer(mode="wrap")

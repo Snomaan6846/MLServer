@@ -221,6 +221,33 @@ class TestParseInferenceRequest:
         fast = parse_inference_request(body, _fallback, _span_parser)
         assert isinstance(fast.inputs[0].data.root, np.ndarray)
 
+    def test_fast_path_attach_does_not_walk_array_elements(self):
+        """The span-parsed ndarray the fast path attaches must reach
+        the validated request WITHOUT an element-by-element walk:
+        validation of an ndarray root used to build (and discard) a
+        temporary scalar list — O(N) per tensor per request."""
+
+        import numpy as np
+
+        class Observed(np.ndarray):
+            elements = 0
+
+            def __iter__(self):
+                for value in super().__iter__():
+                    type(self).elements += 1
+                    yield value
+
+        def counting_span_parser(span: bytes, datatype: str, count: int):
+            return _span_parser(span, datatype, count).view(Observed)
+
+        body = _body("[1.5, 2.5, -0.5]")
+        fast = parse_inference_request(body, _fallback, counting_span_parser)
+
+        assert Observed.elements == 0
+        root = fast.inputs[0].data.root
+        assert isinstance(root, np.ndarray)
+        assert np.asarray(root, dtype=np.float32).tolist() == [1.5, 2.5, -0.5]
+
     def test_string_data_falls_back_cleanly(self):
         body = _body('["NaN", "Infinity"]')
         fast = parse_inference_request(body, _fallback, _span_parser)

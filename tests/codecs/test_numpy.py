@@ -174,6 +174,30 @@ def test_encode_output_keeps_flat_ndarray(dtype):
     assert not np.shares_memory(root, payload)
 
 
+def test_encode_output_does_not_walk_array_elements():
+    """Response construction must not iterate the tensor element-by-
+    element: validation of the ndarray root used to build (and
+    discard) a temporary scalar list on every encoded output."""
+
+    class Observed(np.ndarray):
+        elements = 0
+
+        def __iter__(self):
+            for value in super().__iter__():
+                type(self).elements += 1
+                yield value
+
+    payload = np.array([1.0, 2.0, 3.0], dtype=np.float32).view(Observed)
+    response_output = NumpyCodec.encode_output(name="scores", payload=payload)
+
+    assert Observed.elements == 0
+    # The encoded root is a detached snapshot (see the test above)
+    # that preserves the array representation — not a scalar list.
+    root = response_output.data.root
+    assert isinstance(root, np.ndarray)
+    assert np.asarray(root).tolist() == [1.0, 2.0, 3.0]
+
+
 def test_encode_output_masked_array_keeps_legacy_list_representation():
     """Masked entries must serialise as None (the legacy wire format).
 
