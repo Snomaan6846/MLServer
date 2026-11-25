@@ -1,10 +1,11 @@
 import asyncio
+from contextlib import contextmanager
 from contextvars import ContextVar
 from time import monotonic
 
 from asyncio import Future, Queue, wait_for, Task
 from functools import partial, wraps
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import Any
 
 from fastapi import status
@@ -297,6 +298,48 @@ def adaptive_batching(f: Callable[[InferenceRequest], Awaitable[InferenceRespons
     return _inner
 
 
+@contextmanager
+def streaming_bypass() -> Iterator[None]:
+    """Hold the adaptive-batching bypass for the current task.
+
+    Marks the current asyncio task as serving a single-shot stream so
+    the batcher-wrapped ``predict`` runs the model directly instead of
+    joining a batch. Used by the single-shot ``/infer_stream``
+    shortcut; the streaming wrapper holds the same mark per event.
+    """
+    token = _AdaptiveBatcherStreamingTask.set(asyncio.current_task())
+    try:
+        yield
+    finally:
+        _AdaptiveBatcherStreamingTask.reset(token)
+
+
+def is_streaming_bypass_active() -> bool:
+    """Whether the current task holds the batcher bypass mark."""
+    return _AdaptiveBatcherStreamingTask.get() is asyncio.current_task()
+
+
+async def _bypass_aiter(
+    stream: AsyncIterator[InferenceResponse],
+) -> AsyncIterator[InferenceResponse]:
+    """Iterate a stream with the batcher bypass held across each
+    ``anext`` — the fallback's ``predict`` dispatch sees the mark.
+
+    Async generators resume in the consumer's context, so the mark
+    must be (re)applied around each advance, not held across yields.
+    """
+    while True:
+        token = _AdaptiveBatcherStreamingTask.set(asyncio.current_task())
+        try:
+            response = await anext(stream)
+        except StopAsyncIteration:
+            return
+        finally:
+            _AdaptiveBatcherStreamingTask.reset(token)
+
+        yield response
+
+
 def not_implemented_warning(
     f: Callable[[AsyncIterator[InferenceRequest]], AsyncIterator[InferenceResponse]],
 ):
@@ -317,15 +360,7 @@ def not_implemented_warning(
     ) -> AsyncIterator[InferenceResponse]:
         stream = aiter(f(payload))
         try:
-            while True:
-                token = _AdaptiveBatcherStreamingTask.set(asyncio.current_task())
-                try:
-                    response = await anext(stream)
-                except StopAsyncIteration:
-                    return
-                finally:
-                    _AdaptiveBatcherStreamingTask.reset(token)
-
+            async for response in _bypass_aiter(stream):
                 yield response
         finally:
             token = _AdaptiveBatcherStreamingTask.set(asyncio.current_task())

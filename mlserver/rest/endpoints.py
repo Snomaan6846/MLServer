@@ -16,6 +16,7 @@ from ..types import (
     RuntimeSecurityResponse,
 )
 from ..handlers import DataPlane, ModelRepositoryHandlers
+from ..batching.adaptive import streaming_bypass
 from ..utils import insert_headers, extract_headers
 
 from .responses import ServerSentEvent
@@ -249,9 +250,17 @@ class Endpoints:
             # while streaming; a pre-encoded Response has no such
             # watch, so a client leaving mid-inference would leave
             # the model running with nobody reading the result.
-            infer_task = asyncio.create_task(
-                self._data_plane.infer(payload, model_name, model_version, model=model)
-            )
+            async def _infer_single_shot() -> InferenceResponse:
+                # Hold the batcher-bypass mark for this task: a
+                # single-shot stream is semantically a plain infer and
+                # must not wait for a batch window (the streaming
+                # wrapper's bypass, which this shortcut replaces).
+                with streaming_bypass():
+                    return await self._data_plane.infer(
+                        payload, model_name, model_version, model=model
+                    )
+
+            infer_task = asyncio.create_task(_infer_single_shot())
             disconnect_task = asyncio.create_task(_wait_for_disconnect(raw_request))
             # The same once-only settlement pattern as the streaming
             # path, scoped to this inference: the first caller

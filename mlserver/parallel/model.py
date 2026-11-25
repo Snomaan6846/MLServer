@@ -3,6 +3,7 @@ from collections.abc import Callable
 from enum import Enum
 from functools import wraps
 
+from ..batching.adaptive import _bypass_aiter, is_streaming_bypass_active
 from ..errors import InferenceError, MLServerError
 from ..handlers.custom import get_custom_handlers, register_custom_handler
 from ..model import MLModel, PREDICT_NOT_IMPLEMENTED
@@ -76,6 +77,10 @@ class ParallelModel(MLModel):
             method_name=method_name,
             method_args=args,
             method_kwargs=kwargs,
+            # A single-shot stream fallback holds the batcher-bypass
+            # mark in this task; the worker-side batcher cannot see a
+            # frontend task-local, so carry the meaning explicitly.
+            skip_batching=is_streaming_bypass_active(),
         )
 
         response_message = await self._dispatcher.dispatch_request(req_message)
@@ -106,7 +111,10 @@ class ParallelModel(MLModel):
         if not is_env_model and type(self._model).predict is MLModel.predict:
             raise self._streaming_unsupported_error()
         try:
-            async for response in MLModel.predict_stream(self, payloads):
+            # The fallback's predict dispatch must bypass the
+            # worker-side batcher: hold the bypass mark across each
+            # advance so _send carries skip_batching on the dispatch.
+            async for response in _bypass_aiter(MLModel.predict_stream(self, payloads)):
                 yield response
         except WorkerError as error:
             if PREDICT_NOT_IMPLEMENTED in str(error):

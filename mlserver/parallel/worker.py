@@ -21,7 +21,7 @@ from ..metrics import configure_metrics
 from ..context import model_context
 from ..env import Environment
 from ..errors import ModelNotFound
-from ..batching.adaptive import _CurrentDispatchId
+from ..batching.adaptive import _AdaptiveBatcherStreamingTask, _CurrentDispatchId
 
 from .messages import (
     ModelRequestMessage,
@@ -313,6 +313,15 @@ class Worker(Process):
                 # Expose the dispatch id to worker-side batchers so a
                 # remote cancellation can evict this request while queued.
                 _CurrentDispatchId.set(request.id)
+                # A single-shot stream fallback: the frontend's
+                # task-local bypass mark cannot cross IPC, so the
+                # request carries its meaning; hold the mark here so
+                # the batcher-wrapped method runs the model directly.
+                bypass_token = None
+                if request.skip_batching:
+                    bypass_token = _AdaptiveBatcherStreamingTask.set(
+                        asyncio.current_task()
+                    )
                 try:
                     return_value = await method(
                         *request.method_args, **request.method_kwargs
@@ -321,6 +330,8 @@ class Worker(Process):
                     # Mirror the raw path: reset the task-local id so a
                     # reused task never observes a stale dispatch id.
                     _CurrentDispatchId.set(None)
+                    if bypass_token is not None:
+                        _AdaptiveBatcherStreamingTask.reset(bypass_token)
             return ModelResponseMessage(id=request.id, return_value=return_value)
         except (Exception, CancelledError) as e:
             logger.exception(

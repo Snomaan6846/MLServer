@@ -33,6 +33,11 @@ class ModelRequestMessage(Message):
     # use it to route the reply to the owning frontend's zmq endpoint.
     # Defaults to 0 (the only frontend when frontend_workers=0).
     frontend_id: int = 0
+    # The request originates from a single-shot stream fallback: the
+    # worker must run the model directly, bypassing the adaptive
+    # batcher (the task-local bypass mark cannot cross IPC, so its
+    # meaning is carried here explicitly).
+    skip_batching: bool = False
 
 
 class ModelResponseMessage(Message):

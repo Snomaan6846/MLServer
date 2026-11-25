@@ -79,6 +79,28 @@ def model_folder(tmp_path: Path) -> Path:
         }
         """
     )
+    # A batched model with a LARGE batch window: a batched request
+    # waits the window out, a bypassed one returns immediately — the
+    # timing distinction the streaming-bypass test asserts on.
+    (folder / "slow-batched-model").mkdir()
+    (folder / "slow-batched-model" / "model-settings.json").write_text(
+        """
+        {
+          "name": "slow-batched-model",
+          "implementation": "tests.fixtures.SumModel",
+          "max_batch_size": 8,
+          "max_batch_time": 1.5,
+          "inputs": [
+            {
+              "datatype": "INT32",
+              "name": "input-0",
+              "shape": [1, 3],
+              "parameters": {"content_type": "np"}
+            }
+          ]
+        }
+        """
+    )
     # A streaming-only model (predict_stream only, no predict): loaded
     # POOLED so the infer_stream endpoint's rejection path is
     # exercised (the SSE producer-queue surfaces it as a clean 400).
@@ -119,7 +141,10 @@ async def supervisor(
     models = [
         ModelSettings.parse_file(
             str(model_folder / "sum-model" / "model-settings.json")
-        )
+        ),
+        ModelSettings.parse_file(
+            str(model_folder / "slow-batched-model" / "model-settings.json")
+        ),
     ]
     supervisor = FrontendSupervisor(supervisor_settings, models)
     task = asyncio.create_task(supervisor.start())
@@ -307,6 +332,65 @@ async def test_repository_load_reaches_all_frontends(
             f"late-model still servable after unload (statuses {statuses}) — "
             "a frontend registry was not updated"
         )
+
+
+async def test_infer_stream_bypasses_worker_side_batcher(
+    supervisor: FrontendSupervisor, supervisor_settings: Settings
+):
+    """A single-shot stream must not wait for the batch window.
+
+    The worker-side batcher (supervised topology) cannot see the
+    frontend's task-local bypass mark, so the dispatch carries the
+    meaning explicitly (skip_batching). A bypassed stream returns
+    well inside the 1.5s batch window; an ordinary /infer waits it
+    out — the timing pair proves both directions.
+    """
+    import time as _time
+
+    base_url = f"http://{supervisor_settings.host}:{supervisor_settings.http_port}"
+    await _wait_ready(base_url, getattr(supervisor, "_test_startup_task", None))
+
+    payload = {
+        "inputs": [
+            {
+                "name": "input-0",
+                "shape": [1, 3],
+                "datatype": "INT32",
+                "data": [1, 2, 3],
+            }
+        ]
+    }
+
+    async with httpx.AsyncClient(timeout=INFER_TIMEOUT) as client:
+        # Warmup: worker replay + batcher spin-up
+        await client.post(
+            f"{base_url}/v2/models/slow-batched-model/infer", json=payload
+        )
+
+        # The stream: bypassed -> well inside the window
+        t0 = _time.monotonic()
+        stream = await client.post(
+            f"{base_url}/v2/models/slow-batched-model/infer_stream",
+            json=payload,
+        )
+        stream_elapsed = _time.monotonic() - t0
+        assert stream.status_code == 200
+        assert b"data: " in stream.content
+
+        # Ordinary infer: batched -> waits the window
+        t0 = _time.monotonic()
+        infer = await client.post(
+            f"{base_url}/v2/models/slow-batched-model/infer", json=payload
+        )
+        infer_elapsed = _time.monotonic() - t0
+        assert infer.status_code == 200
+
+    assert (
+        stream_elapsed < 1.0
+    ), f"stream waited {stream_elapsed:.2f}s — entered the batcher"
+    assert (
+        infer_elapsed >= 1.2
+    ), f"infer returned in {infer_elapsed:.2f}s — batching broken"
 
 
 async def test_worker_death_is_recovered(
