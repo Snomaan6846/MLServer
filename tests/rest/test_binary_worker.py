@@ -134,6 +134,55 @@ def binary_message(
     )
 
 
+def json_body(
+    parameters: dict | None = None,
+    outputs: list | None = None,
+    request_id: str | None = None,
+) -> bytes:
+    """A standard JSON (non-frame) inference request for the sum model."""
+    request: dict = {
+        "inputs": [
+            {
+                "name": "input-0",
+                "datatype": "FP32",
+                "shape": [1, 3],
+                "data": [1.0, 2.0, 3.0],
+            }
+        ]
+    }
+    if request_id is not None:
+        request["id"] = request_id
+    if parameters is not None:
+        request["parameters"] = parameters
+    if outputs is not None:
+        request["outputs"] = outputs
+    return orjson.dumps(request)
+
+
+def json_message(body: bytes, model: MLModel) -> ModelRequestMessage:
+    """A raw-dispatch message carrying a JSON body (not a binary frame)."""
+    return ModelRequestMessage(
+        id="dispatch-id",
+        model_name=model.name,
+        model_version=model.version,
+        method_name=raw.RAW_INFER_METHOD,
+        method_args=[body, {"content-type": "application/json"}],
+    )
+
+
+def json_request(body: bytes) -> Request:
+    async def receive() -> dict[str, Any]:
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/infer",
+        "headers": [(b"content-type", b"application/json")],
+    }
+    return Request(scope, receive)
+
+
 def worker_stub(
     settings: Settings, model_registry: MultiModelRegistry
 ) -> SimpleNamespace:
@@ -470,6 +519,117 @@ class TestWorkerBinaryProcessing:
         result = await raw.process_raw_request(cast(Any, SimpleNamespace()), envelope)
         assert result.id == envelope.id
         assert isinstance(result.exception, WorkerError)
+
+
+class TestWorkerJsonNegotiation:
+    """JSON (non-frame) requests through the raw worker dispatch keep
+    their binary-output negotiation: resolved from the PARSED request,
+    encoded with the shared reply encoder. This is the worker-side half
+    of delegating every JSON request (the pre-parse marker scan the
+    frontend used to run is gone)."""
+
+    async def test_json_negotiation_gets_binary_reply(
+        self,
+        settings: Settings,
+        model_registry: MultiModelRegistry,
+        sum_model: MLModel,
+    ):
+        body = json_body(parameters={"binary_data_output": True})
+        response = await raw.process_raw_request(
+            cast(Any, worker_stub(settings, model_registry)),
+            json_message(body, sum_model),
+        )
+
+        assert response.exception is None
+        reply = response.return_value
+        assert isinstance(reply, RawReply)
+        assert reply.status == 200
+        assert reply.headers["content-type"] == "application/octet-stream"
+        header_length = int(reply.headers["Inference-Header-Content-Length"])
+        header = orjson.loads(reply.body[:header_length])
+        payload = reply.body[header_length:]
+        assert header["outputs"][0]["parameters"]["binary_data_size"] == 4
+        assert np.frombuffer(payload, dtype="<f4") == 6.0
+
+    async def test_worker_json_reply_matches_local_path(
+        self,
+        settings: Settings,
+        model_registry: MultiModelRegistry,
+        data_plane: DataPlane,
+        sum_model: MLModel,
+    ):
+        """Parity: the dispatched JSON reply is byte-identical to the
+        local encoding for the same negotiating request."""
+        body = json_body(
+            parameters={"binary_data_output": True}, request_id="parity-id"
+        )
+
+        worker = worker_stub(settings, model_registry)
+        worker._rest_raw_data_plane = data_plane
+        worker_response = await raw.process_raw_request(
+            cast(Any, worker), json_message(body, sum_model)
+        )
+        worker_reply = worker_response.return_value
+        assert isinstance(worker_reply, RawReply)
+
+        payload = raw.parse_body(body, True)
+        assert isinstance(payload, InferenceRequest)
+        raw.insert_headers(payload, {"content-type": "application/json"})
+        inference = await data_plane.infer(payload, sum_model.name, None)
+        local_reply = encode_worker_binary_reply(inference, payload)
+
+        assert worker_reply.body == local_reply.body
+        assert worker_reply.headers == local_reply.headers
+
+    async def test_plain_json_worker_reply_unchanged(
+        self,
+        settings: Settings,
+        model_registry: MultiModelRegistry,
+        data_plane: DataPlane,
+        sum_model: MLModel,
+    ):
+        """Without a negotiation the dispatched reply is the plain JSON
+        encoding, byte-identical to the pre-delegation behaviour."""
+        body = json_body()
+
+        worker = worker_stub(settings, model_registry)
+        worker._rest_raw_data_plane = data_plane
+        worker_response = await raw.process_raw_request(
+            cast(Any, worker), json_message(body, sum_model)
+        )
+        worker_reply = worker_response.return_value
+        assert isinstance(worker_reply, RawReply)
+
+        assert "content-type" not in worker_reply.headers
+        assert orjson.loads(worker_reply.body)["outputs"][0]["data"] == [6.0]
+
+    async def test_batched_model_negotiation_on_local_fallback(
+        self,
+        settings: Settings,
+        data_plane: DataPlane,
+        sum_model: MLModel,
+    ):
+        """A BATCHED parallel model retains local request preparation
+        (the rest_worker_json fallback): its negotiation must still be
+        resolved there — delegation must never drop it."""
+        from mlserver.rest.worker import RawEndpoints
+
+        batched = parallel_local(sum_model)
+        batched.settings.max_batch_size = 2
+        batched.settings.max_batch_time = 0
+        lookup = AsyncMock(return_value=batched)
+        with patch.object(data_plane._model_registry, "get_model", lookup):
+            endpoints = RawEndpoints(data_plane)
+            body = json_body(parameters={"binary_data_output": True})
+            response = await endpoints.infer(json_request(body), sum_model.name)
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/octet-stream"
+        header_length = int(response.headers["Inference-Header-Content-Length"])
+        header = orjson.loads(response.body[:header_length])
+        payload = response.body[header_length:]
+        assert header["outputs"][0]["parameters"]["binary_data_size"] == 4
+        assert np.frombuffer(payload, dtype="<f4") == 6.0
 
 
 class TestWorkerBinaryParseErrors:

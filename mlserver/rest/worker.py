@@ -235,9 +235,22 @@ async def process_raw_request(
 
                 reply = encode_worker_binary_reply(response, payload)
             else:
-                response_headers = extract_headers(response) or {}
-                encoded = encode_response(response)
-                reply = RawReply(encoded, response_headers)
+                # A JSON request may negotiate binary outputs (KServe
+                # allows it): resolve from the PARSED request — exact,
+                # including escaped key spellings the standard parse
+                # decodes — and encode with the same shared functions
+                # the frontend's local path uses.
+                from .binary_endpoints import (
+                    encode_worker_binary_reply,
+                    wants_binary_reply,
+                )
+
+                if wants_binary_reply(payload):
+                    reply = encode_worker_binary_reply(response, payload)
+                else:
+                    response_headers = extract_headers(response) or {}
+                    encoded = encode_response(response)
+                    reply = RawReply(encoded, response_headers)
         finally:
             conversion_duration += perf_counter() - started
         reply.conversion_duration = conversion_duration
@@ -379,6 +392,19 @@ class RawEndpoints:
                     prediction = await self._data_plane.infer(
                         payload, model_name, model_version
                     )
-                    response_headers = extract_headers(prediction) or {}
-                    reply = RawReply(encode_response(prediction), response_headers)
+                    # A JSON request may negotiate binary outputs even on
+                    # the local fallback (nonparallel or batched models):
+                    # resolve from the parsed request, exactly as the
+                    # worker dispatch and the binary endpoint's local
+                    # path do, so delegation never drops a negotiation.
+                    from .binary_endpoints import (
+                        encode_worker_binary_reply,
+                        wants_binary_reply,
+                    )
+
+                    if wants_binary_reply(payload):
+                        reply = encode_worker_binary_reply(prediction, payload)
+                    else:
+                        response_headers = extract_headers(prediction) or {}
+                        reply = RawReply(encode_response(prediction), response_headers)
         return _http_response(reply)

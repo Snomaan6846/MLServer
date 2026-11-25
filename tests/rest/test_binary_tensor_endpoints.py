@@ -33,7 +33,11 @@ INPUT_SHAPE = [1, 3]
 INPUT_VALUES = [1.0, 2.0, 3.0]  # sum = 6.0
 
 
-def _json_payload(outputs: list | None = None, parameters: dict | None = None):
+def _json_payload(
+    outputs: list | None = None,
+    parameters: dict | None = None,
+    request_id: str | None = None,
+):
     request: dict = {
         "inputs": [
             {
@@ -44,6 +48,8 @@ def _json_payload(outputs: list | None = None, parameters: dict | None = None):
             }
         ]
     }
+    if request_id is not None:
+        request["id"] = request_id
     if outputs is not None:
         request["outputs"] = outputs
     if parameters is not None:
@@ -507,7 +513,6 @@ class TestRouteComposition:
 
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await _post_json(client, _json_payload())
-
         assert response.status_code == 200
         assert spy.call_count == 1
 
@@ -526,6 +531,157 @@ class TestRouteComposition:
         assert response.status_code == 200
         # The binary frame bypasses the worker JSON path entirely.
         assert spy.call_count == 0
+
+
+class TestWorkerJsonBinaryNegotiation:
+    """Delegated JSON requests keep their binary-output negotiation.
+
+    Every JSON request takes the rest_worker_json path when enabled;
+    the negotiation is resolved from the PARSED request — at the
+    worker dispatch for parallel models, on the local fallback for
+    nonparallel or batched ones (this app's model is nonparallel, so
+    these tests exercise the fallback). The pre-parse marker scan this
+    replaces routed any body containing the marker bytes to a full
+    local parse (~90 ms of frontend CPU on a 15 MB body) and cost
+    ~5.5 ms whenever any underscore appeared (IDs, content_type keys).
+    """
+
+    async def test_negotiating_json_delegates_and_returns_binary(
+        self, binary_app, mocker
+    ):
+        from mlserver.rest.worker import RawEndpoints
+
+        spy = mocker.spy(RawEndpoints, "infer")
+        app = binary_app(worker_json=True)
+
+        payload = _json_payload(parameters={"binary_data_output": True})
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await _post_json(client, payload)
+
+        assert response.status_code == 200
+        assert spy.call_count == 1, "a negotiating request must still delegate"
+        assert response.headers["content-type"] == "application/octet-stream"
+        header, payload_bytes = _parse_framed(response)
+        assert header["outputs"][0]["parameters"]["binary_data_size"] == 4
+        assert np.frombuffer(payload_bytes, dtype="<f4") == 6.0
+
+    async def test_per_output_negotiation_delegates_and_returns_binary(
+        self, binary_app, mocker
+    ):
+        from mlserver.rest.worker import RawEndpoints
+
+        spy = mocker.spy(RawEndpoints, "infer")
+        app = binary_app(worker_json=True)
+
+        payload = _json_payload(
+            outputs=[{"name": "total", "parameters": {"binary_data": True}}]
+        )
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await _post_json(client, payload)
+
+        assert response.status_code == 200
+        assert spy.call_count == 1
+        assert response.headers["content-type"] == "application/octet-stream"
+        header, payload_bytes = _parse_framed(response)
+        assert header["outputs"][0]["parameters"]["binary_data_size"] == 4
+
+    async def test_delegated_negotiation_matches_local_path(self, binary_app):
+        """Wire identity: the delegated reply is byte-identical to the
+        local path's reply for the same negotiating request (a fixed
+        id: an auto-generated one would differ between the two)."""
+        payload = _json_payload(
+            parameters={"binary_data_output": True}, request_id="parity-id"
+        )
+
+        async with AsyncClient(
+            app=binary_app(worker_json=True), base_url="http://test"
+        ) as client:
+            delegated = await _post_json(client, payload)
+        async with AsyncClient(
+            app=binary_app(worker_json=False), base_url="http://test"
+        ) as client:
+            local = await _post_json(client, payload)
+
+        assert delegated.status_code == local.status_code == 200
+        assert delegated.content == local.content
+        assert delegated.headers["content-type"] == local.headers["content-type"]
+        assert (
+            delegated.headers["inference-header-content-length"]
+            == local.headers["inference-header-content-length"]
+        )
+
+    async def test_underscore_id_delegates_without_marker_scan(
+        self, binary_app, mocker
+    ):
+        """The P2 reproducer: an underscore in the request ID must not
+        route the request away from the worker JSON path (the old
+        pre-parse guard byte was b"_" — any underscore forced a full
+        multi-byte marker search over the body)."""
+        from mlserver.rest.worker import RawEndpoints
+
+        spy = mocker.spy(RawEndpoints, "infer")
+        app = binary_app(worker_json=True)
+
+        payload = _json_payload(request_id="sample_0")
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await _post_json(client, payload)
+
+        assert response.status_code == 200
+        assert spy.call_count == 1, "an underscore ID must still delegate"
+        assert response.headers["content-type"].startswith("application/json")
+
+    async def test_marker_false_positive_delegates(self, binary_app, mocker):
+        """A body whose bytes contain the negotiation key spelling
+        WITHOUT an actual negotiation (an input-level parameter) must
+        delegate and get plain JSON — the old marker check paid a full
+        local parse for this class of bodies."""
+        from mlserver.rest.worker import RawEndpoints
+
+        spy = mocker.spy(RawEndpoints, "infer")
+        app = binary_app(worker_json=True)
+
+        payload = orjson.dumps(
+            {
+                "inputs": [
+                    {
+                        "name": "input-0",
+                        "datatype": "FP32",
+                        "shape": INPUT_SHAPE,
+                        "data": INPUT_VALUES,
+                        "parameters": {"binary_data_output": False},
+                    }
+                ]
+            }
+        )
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await _post_json(client, payload)
+
+        assert response.status_code == 200
+        assert spy.call_count == 1
+        assert response.headers["content-type"].startswith("application/json")
+
+    async def test_escaped_negotiation_key_delegates(self, binary_app, mocker):
+        """An escaped key spelling (\\u0062inary_data_output) is decoded
+        by the standard parse and the negotiation resolved exactly —
+        the case the old unicode-escape marker routed local."""
+        from mlserver.rest.worker import RawEndpoints
+
+        spy = mocker.spy(RawEndpoints, "infer")
+        app = binary_app(worker_json=True)
+
+        payload = (
+            b'{"parameters":{"\\u0062inary_data_output":true},'
+            b'"inputs":[{"name":"input-0","datatype":"FP32",'
+            b'"shape":[1,3],"data":[1.0,2.0,3.0]}]}'
+        )
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await _post_json(client, payload)
+
+        assert response.status_code == 200
+        assert spy.call_count == 1
+        assert response.headers["content-type"] == "application/octet-stream"
+        header, payload_bytes = _parse_framed(response)
+        assert header["outputs"][0]["parameters"]["binary_data_size"] == 4
 
 
 class TestBatchingCompatibility:

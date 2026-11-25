@@ -55,6 +55,23 @@ _TRANSPORT_OWNED_HEADERS = frozenset(
 )
 
 
+def wants_binary_reply(request: InferenceRequest) -> bool:
+    """Whether the request's negotiation asks for any binary output.
+
+    Per KServe semantics: ``parameters.binary_data_output`` is the
+    request-wide default and each requested output's
+    ``parameters.binary_data`` overrides it. When outputs were
+    requested explicitly, the per-output resolution alone decides
+    (an all-JSON negotiation returns plain JSON even under a True
+    default); the request-wide default only applies when no outputs
+    were requested.
+    """
+    default_binary, per_output = resolve_binary_outputs(request)
+    if per_output is not None:
+        return any(per_output.values())
+    return default_binary
+
+
 def encode_worker_binary_reply(
     response: InferenceResponse, request: InferenceRequest
 ) -> RawReply:
@@ -67,15 +84,9 @@ def encode_worker_binary_reply(
     wrapper defaults to JSON.
     """
     default_binary, per_output = resolve_binary_outputs(request)
-    # Per-output resolution already folds the request-wide default into
-    # each entry — when outputs were requested explicitly, per_output
-    # alone determines the format (an all-JSON negotiation returns plain
-    # JSON even under a True default). The request-wide default only
-    # applies when no outputs were requested.
-    if per_output is not None:
-        wants_binary = any(per_output.values())
-    else:
-        wants_binary = default_binary
+    # The single predicate definition (also used by the worker's JSON
+    # dispatch); the double resolve is a few dict lookups.
+    wants_binary = wants_binary_reply(request)
 
     # extract_headers also clears the internal parameters.headers
     # representation so it does not leak into the encoded response.
@@ -100,20 +111,6 @@ def encode_worker_binary_reply(
 # Signature of the JSON inference handler this endpoint can delegate to
 # (``RawEndpoints.infer`` when ``rest_worker_json`` is enabled).
 JsonInfer = Callable[..., Awaitable[FastAPIResponse]]
-
-# Markers scanned in JSON bodies before delegating to the worker JSON
-# path.  ``binary_`` is a literal prefix of both negotiation keys
-# (``binary_data`` / ``binary_data_output``) and stays literal even
-# when the key's later characters are escaped.  Any JSON unicode
-# escape (``\uXXXX``) also routes locally: an escaped key spelling
-# must contain one, and the local parser resolves the decoded
-# negotiation exactly.  The worker path always returns JSON, so any
-# request that might negotiate binary outputs must be handled locally.
-# Both scans are conservative: false positives (the markers appearing
-# inside data values) only route the request to the local parser —
-# slower, but semantically identical.
-_BINARY_OUTPUT_MARKER = b"binary_"
-_JSON_ESCAPE_MARKER = b"\\u"
 
 
 class BinaryTensorEndpoints:
@@ -149,23 +146,14 @@ class BinaryTensorEndpoints:
             return await self._infer_binary(request, headers, model_name, model_version)
 
         if self._json_infer is not None:
-            body = await self._read_body(request)
-            # Single-byte prefilters keep ordinary JSON delegation cheap:
-            # the multi-byte marker searches cost ~16 ms of frontend CPU
-            # on a 15 MB numeric body, while the memchr-based single-byte
-            # scans short-circuit them (measured ~0.26 ms). Both markers
-            # contain their prefilter byte, so the predicate is unchanged.
-            has_binary_marker = b"_" in body and _BINARY_OUTPUT_MARKER in body
-            has_unicode_marker = b"\\" in body and _JSON_ESCAPE_MARKER in body
-            if not has_binary_marker and not has_unicode_marker:
-                # No binary-output negotiation in this request: keep the
-                # worker-side JSON processing path.
-                return await self._json_infer(request, model_name, model_version)
-            # The client may request binary outputs, which the worker
-            # path cannot produce — handle locally instead of delegating.
-            return await self._infer_json(
-                request, headers, model_name, model_version, body=body
-            )
+            # Every JSON request delegates: the worker resolves
+            # binary-output negotiation from the PARSED request (exact,
+            # post-parse — the same KServe semantics the local path
+            # applies) and encodes the reply with the shared functions.
+            # The pre-parse marker scan this replaces cost ~5.5 ms of
+            # frontend CPU on a 15 MB body whenever any underscore
+            # appeared (request IDs, content_type parameter keys).
+            return await self._json_infer(request, model_name, model_version)
 
         return await self._infer_json(request, headers, model_name, model_version)
 
