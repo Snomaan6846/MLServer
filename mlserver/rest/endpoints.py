@@ -476,8 +476,17 @@ class Endpoints:
                 yield first
                 while True:
                     item = await queue.get()
-                    if item is None or isinstance(item, Exception):
+                    if item is None:
                         break
+                    if isinstance(item, Exception):
+                        # A late producer error must not look like a
+                        # normal completion: propagate it (the ASGI
+                        # sender surfaces it as an abnormal response
+                        # end, matching the direct-iteration behavior
+                        # the producer/queue path replaced). The
+                        # finally shields the settlement on both
+                        # paths.
+                        raise item
                     yield item
             finally:
                 # The once-only settlement, awaited WITHOUT absorbing

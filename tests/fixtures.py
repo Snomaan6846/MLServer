@@ -216,14 +216,27 @@ class EchoModel(MLModel):
 
 
 class FailingStreamModel(SumModel):
-    """Yields one successful response, then raises a mid-stream error.
-    Used to verify SSE error handling for multi-stream models.
-    Inherits predict() from SumModel so the first event succeeds."""
+    """A streaming model that fails on demand: before the first
+    event (``fail_before_first``, set on the loaded instance) or
+    after one successful event (the default). Inherits predict()
+    from SumModel so the first event succeeds.
+
+    The optional ``stream_closed`` hook (an asyncio.Event set on the
+    loaded instance) pins that the SSE settlement closes the model's
+    iterator on the error path too — the same cleanup a normal
+    completion runs."""
 
     async def predict_stream(self, payloads):
-        async for payload in payloads:
-            yield await self.predict(payload)
-            raise MLServerError("mid-stream failure")
+        try:
+            if getattr(self, "fail_before_first", False):
+                raise MLServerError("mid-stream failure")
+            async for payload in payloads:
+                yield await self.predict(payload)
+                raise MLServerError("mid-stream failure")
+        finally:
+            closed = getattr(self, "stream_closed", None)
+            if closed is not None:
+                closed.set()
 
 
 class TrackedSingleShotModel(SumModel):

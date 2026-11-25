@@ -730,29 +730,115 @@ async def test_infer_stream_multi_stream_mid_stream_error(
     development_mode,
 ):
     """A multi-stream model that errors MID-STREAM (after the first
-    event): the client gets the events that succeeded, then the
-    stream terminates. The error does not corrupt earlier events."""
+    event): the late error must end the response ABNORMALLY — the
+    exception propagates to the client, never masked as a normal
+    end-of-stream (a 200 that quietly truncates after the partial
+    output is indistinguishable from success)."""
+
+    from mlserver.errors import MLServerError
+    from tests.fixtures import FailingStreamModel
+
+    fail_settings = sum_model_settings.model_copy(deep=True)
+    fail_settings.name = "failing-stream-model"
+    fail_settings.implementation = FailingStreamModel
+    # pw=0 keeps the model unwrapped: the REAL predict_stream runs on
+    # the producer path. Through the pool, the single-shot fallback
+    # would predict once and complete normally — the mid-stream raise
+    # would never fire and the test would pass vacuously.
+    fail_settings.parallel_workers = 0
+    await model_registry.load(fail_settings)
+
+    endpoint = f"/v2/models/{fail_settings.name}/infer_stream"
+    # The headers (HTTP 200) were already sent when the error hit, so
+    # the status cannot change and Starlette cannot run the error
+    # handler — the only honest signal left is an abnormal
+    # completion: the request itself raises, with the model's error
+    # in the chain (a normal completion returns a response instead).
+    with pytest.raises(Exception) as excinfo:
+        await rest_client.post(endpoint, json=inference_request.model_dump())
+    cause = excinfo.value.__cause__
+    assert isinstance(cause, MLServerError), (
+        f"the late error must propagate (got {excinfo.value!r} " f"caused by {cause!r})"
+    )
+    assert "mid-stream failure" in str(cause)
+
+    await model_registry.unload(fail_settings.name)
+
+
+async def test_infer_stream_multi_stream_error_before_first_event(
+    rest_client: AsyncClient,
+    inference_request: InferenceRequest,
+    sum_model_settings: ModelSettings,
+    model_registry: MultiModelRegistry,
+    development_mode,
+):
+    """A multi-stream model that errors BEFORE the first event: the
+    error surfaces as a clean HTTP error — the SSE headers were never
+    sent, so the client gets a JSON error body, not an empty 200 SSE
+    stream it cannot distinguish from a legitimate one."""
 
     from tests.fixtures import FailingStreamModel
 
     fail_settings = sum_model_settings.model_copy(deep=True)
     fail_settings.name = "failing-stream-model"
     fail_settings.implementation = FailingStreamModel
+    fail_settings.parallel_workers = 0
     await model_registry.load(fail_settings)
+
+    model = await model_registry.get_model(fail_settings.name)
+    setattr(model, "fail_before_first", True)
 
     endpoint = f"/v2/models/{fail_settings.name}/infer_stream"
     response = await rest_client.post(endpoint, json=inference_request.model_dump())
 
-    # The stream starts (first event sent) but terminates on error
-    # (the SSE response is sent with 200; the error truncates the
-    # stream after the first event — this is the documented
-    # SSE behavior for mid-stream errors)
-    assert response.status_code == 200
-    # At most 1 event (the first succeeded, the second raised)
-    event_count = response.content.count(b"data: ")
+    # MLServerError defaults to 400 (mlserver/errors.py): a clean
+    # HTTP error with a JSON body — the stream never started.
+    assert response.status_code == 400
+    assert not response.headers.get("content-type", "").startswith("text/event-stream")
+    assert "mid-stream failure" in response.text
+
+    await model_registry.unload(fail_settings.name)
+
+
+async def test_infer_stream_mid_stream_error_settles_model_stream(
+    rest_client: AsyncClient,
+    inference_request: InferenceRequest,
+    sum_model_settings: ModelSettings,
+    model_registry: MultiModelRegistry,
+    development_mode,
+):
+    """A late stream error must not orphan the producer: the SSE
+    settlement (the consumer's shielded finally) closes the model's
+    iterator on the error path — the same once-only cleanup a normal
+    completion runs. The stream_closed hook also proves the REAL
+    predict_stream ran (the hook only fires inside it)."""
+
+    from mlserver.errors import MLServerError
+    from tests.fixtures import FailingStreamModel
+
+    fail_settings = sum_model_settings.model_copy(deep=True)
+    fail_settings.name = "failing-stream-model"
+    fail_settings.implementation = FailingStreamModel
+    fail_settings.parallel_workers = 0
+    await model_registry.load(fail_settings)
+
+    model = await model_registry.get_model(fail_settings.name)
+    stream_closed = asyncio.Event()
+    setattr(model, "stream_closed", stream_closed)
+
+    endpoint = f"/v2/models/{fail_settings.name}/infer_stream"
+    with pytest.raises(Exception) as excinfo:
+        await rest_client.post(endpoint, json=inference_request.model_dump())
+    # The error propagated (abnormal completion — see the mid-stream
+    # error test) with the model's error in the chain...
+    assert isinstance(excinfo.value.__cause__, MLServerError)
+
+    # ...AND the model's iterator closed: neither an orphaned
+    # producer nor a stranded generator.
+    await asyncio.wait_for(stream_closed.wait(), timeout=5)
     assert (
-        event_count <= 1
-    ), f"expected at most 1 event before the error, got {event_count}"
+        stream_closed.is_set()
+    ), "the model iterator must close when a late error ends the stream"
 
     await model_registry.unload(fail_settings.name)
 
