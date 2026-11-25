@@ -78,3 +78,64 @@ def test_repository_index_response_still_validates_items():
     assert isinstance(item, RepositoryIndexResponseItem)
     assert item.name == "m"
     assert item.version == "1"
+
+
+def _render_response(payload: np.ndarray) -> bytes:
+    """The production render chain for a model output tensor."""
+    from mlserver.codecs.json import encode_to_json_bytes
+    from mlserver.codecs.numpy import NumpyCodec
+    from mlserver.types import InferenceResponse
+
+    output = NumpyCodec.encode_output(name="scores", payload=payload)
+    response = InferenceResponse(model_name="m", outputs=[output])
+    return encode_to_json_bytes(response.model_dump())
+
+
+def _test_subclass_renders(dtype) -> None:
+    class SubArray(np.ndarray):
+        """A custom ndarray subclass, as model code may return."""
+
+    subclass_output = np.array([1.0, 2.0, 3.0], dtype=dtype).view(SubArray)
+    blob = _render_response(subclass_output)
+
+    # Byte-identical to the equivalent plain ndarray output: the
+    # subclass strips to a zero-copy base-class view and takes the
+    # same native rendering path.
+    plain_blob = _render_response(np.array([1.0, 2.0, 3.0], dtype=dtype))
+    assert blob == plain_blob
+
+
+def test_subclass_root_renders_through_native_path():
+    """A custom ndarray subclass as a model output must render (the
+    tolist boundary served these as plain lists; orjson's native
+    path accepts only the base ndarray class) — never a TypeError
+    from the JSON renderer. Covers both serializer branches: the
+    native dtype return and the float32 widened bridge."""
+    _test_subclass_renders(np.float64)
+    _test_subclass_renders(np.float32)
+
+
+def test_subclass_root_json_mode_still_renders():
+    """JSON-mode dumps take the tolist path (subclass-safe): a
+    subclass root renders the same values as a plain one."""
+
+    class SubArray(np.ndarray):
+        pass
+
+    data = np.array([1.0, 2.0], dtype=np.float64).view(SubArray)
+    wrapped = TensorData(root=data)
+    assert wrapped.model_dump_json() == TensorData(root=[1.0, 2.0]).model_dump_json()
+
+
+def test_masked_array_root_keeps_none_entries():
+    """A directly-constructed masked root keeps the legacy list path
+    in BOTH dump modes: masked entries are None on the wire, never
+    the underlying buffer value. The subclass strip must not apply
+    to this path (a base-class view would drop the mask)."""
+    masked = np.ma.MaskedArray([1.0, 2.0, 3.0], mask=[False, True, False])
+    wrapped = TensorData(root=masked)
+
+    assert wrapped.model_dump() == [1.0, None, 3.0]
+    assert (
+        wrapped.model_dump_json() == TensorData(root=[1.0, None, 3.0]).model_dump_json()
+    )

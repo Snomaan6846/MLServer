@@ -109,6 +109,15 @@ class TensorData(RootModel[list[Any] | Any]):
             # buffer path would render fill values. Falls through to
             # the shared list logic (NaN -> None included).
             if not info.mode_is_json() and not isinstance(data, ma.MaskedArray):
+                # orjson's native numpy rendering accepts only the
+                # BASE ndarray class: a subclass root (custom array
+                # types from model code, which the tolist boundary
+                # served as plain lists) would fall through to the
+                # bytes-only default handler and fail the response.
+                # Strip the subclass with a zero-copy base-class
+                # view; plain arrays pay one pointer comparison.
+                if type(flat) is not ndarray:
+                    flat = flat.view(ndarray)
                 if flat.dtype.name == "float32":
                     # Deferred import: reads the CURRENT flag value on
                     # every call (set at bootstrap from Settings).
