@@ -146,12 +146,22 @@ def _to_ndarray(input_or_output: InputOrOutput) -> np.ndarray:
     # copies anyway, so the view is only exposed in the direct
     # single-process topology where the request is short-lived.
     # Boundary: repeated decode() calls within one request return
-    # views of the same buffer, so an in-place mutation is visible to
-    # later decodes — list roots hand out a fresh copy per decode.
+    # views of the same buffer when the backing is WRITABLE (the
+    # span parser's fresh buffers), so an in-place mutation is
+    # visible to later decodes. Read-only backings (np.frombuffer
+    # over request bytes) copy per decode, like list roots —
+    # mutations never reach the immutable request bytes.
     # Models that decode, mutate and re-decode the same input are
     # outside the consumed-once contract.
     if isinstance(data, np.ndarray) and data.dtype == dtype:
-        return data.reshape(input_or_output.shape)
+        result = data.reshape(input_or_output.shape)
+        if not result.flags.writeable:
+            # A read-only backing (np.frombuffer over immutable
+            # request bytes — the binary REST and gRPC raw paths)
+            # cannot support in-place preprocessing; copy to match
+            # the writable array the list path always produced.
+            result = result.copy()
+        return result
 
     if isinstance(data, list):
         # Fast path: a flat list whose length matches the declared shape
