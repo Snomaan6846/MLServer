@@ -20,17 +20,10 @@ HANDLED_SIGNALS = [signal.SIGINT, signal.SIGTERM, signal.SIGQUIT]
 
 
 def _freeze_startup_heap() -> None:
-    """Move the startup heap to the GC's permanent generation.
-
-    collect() first (so no startup garbage is frozen), then freeze:
-    frozen objects are excluded from every future collection, so
-    request-driven gen-0/gen-1 scans no longer traverse the resident
-    imports/models/code objects. Trade-off (recorded, standard for
-    gc.freeze): cyclic garbage among frozen objects is never
-    collected — bounded to objects alive at startup, one-time, and
-    unload does not unfreeze (a startup model later unloaded leaves
-    its frozen graph resident).
-    """
+    """Move the pre-serving heap to the GC's permanent generation."""
+    # Must run before any model instance exists: frozen objects are
+    # excluded from cyclic collection, so a model frozen here could
+    # never be reclaimed after unload (batching creates model cycles).
     gc.collect()
     gc.freeze()
 
@@ -236,6 +229,8 @@ class MLServer:
                 "invalid trusted runtimes allowlist configuration"
             ) from exc
 
+        _freeze_startup_heap()
+
         # Start servers and load startup models concurrently
         try:
             if self._inference_pool_registry:
@@ -252,16 +247,6 @@ class MLServer:
                 )
             await asyncio.gather(*self._startup_model_tasks)
             self._startup_model_tasks.clear()
-
-            # Freeze the startup heap (imports, models, code objects)
-            # into the GC's permanent generation: these objects are
-            # long-lived and never garbage, and rescanning them during
-            # request-driven collections was measured at 3-5% of wall
-            # time under concurrent streaming load (the same pattern
-            # documented industry-wide — Instagram's gc.freeze,
-            # Rippling's and Close's tail-latency write-ups).
-            # collect() first so no startup garbage gets frozen.
-            _freeze_startup_heap()
 
             # Mark startup complete only if all models loaded successfully.
             # With a shared pool, defer until the supervisor confirms all

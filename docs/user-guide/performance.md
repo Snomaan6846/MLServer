@@ -5,6 +5,18 @@ processing and inference IPC overhead. Each option can be enabled independently.
 Choose settings using your model, request sizes and concurrency; compare
 throughput, tail latency, CPU use and memory before adopting a configuration.
 
+## Startup Heap Freeze
+
+At startup — after settings load and before any model is created — MLServer
+calls `gc.freeze()`, moving the interpreter's import heap into the garbage
+collector's permanent generation. Request-driven collections then skip
+rescanning those objects, reducing GC pauses under load (the same pattern
+documented by Instagram's `gc.freeze` deployment and subsequent
+tail-latency write-ups). The freeze deliberately runs *before* model creation:
+frozen objects are excluded from cyclic collection, so a model frozen at
+startup could never be reclaimed after unload. The regression test
+`tests/test_model_reclamation.py` pins both the freeze and that boundary.
+
 ## Server Settings
 
 These settings apply to the whole server and belong in `settings.json` at the
